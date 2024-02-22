@@ -1,0 +1,12 @@
+node_modules
+
+# Keep only yarn.lock
+package-lock.json
+
+.DS_Store
+
+.env
+.env.*
+!.env.template
+.config*.json
+!.config.json.templates

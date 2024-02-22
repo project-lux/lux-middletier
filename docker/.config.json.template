@@ -1,0 +1,62 @@
+[
+  {
+    "key": "APP_PORT",
+    "value": ""
+  },
+  {
+    "key": "NUM_INSTANCES",
+    "value": ""
+  },
+  {
+    "key": "SEARCH_URI_HOST",
+    "value": ""
+  },
+  {
+    "key": "RESULT_URI_HOST",
+    "value": ""
+  },
+  {
+    "key": "ML_AUTH_TYPE",
+    "value": ""
+  },
+  {
+    "key": "ML_SSL",
+    "value": ""
+  },
+  {
+    "key": "ML_HOST",
+    "value": ""
+  },
+  {
+    "key": "ML_PORT",
+    "value": ""
+  },
+  {
+    "key": "ML_USER",
+    "value": ""
+  },
+  {
+    "key": "ML_PASS",
+    "value": ""
+  },
+  {
+    "key": "ML_HOST2",
+    "value": ""
+  },
+  {
+    "key": "ML_PORT2",
+    "value": ""
+  },
+  {
+    "key": "ML_USER2",
+    "value": ""
+  },
+  {
+    "key": "ML_PASS2",
+    "value": ""
+  },
+  {
+    "key": "LOG_LEVEL",
+    "value": ""
+  }
+]
