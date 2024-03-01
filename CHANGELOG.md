@@ -5,6 +5,11 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.1.4
+- Update itemEvents HAL link to sort events (#8)
+- Create eventWorksAbout HAL Link (#9)
+- Creat HAL link for Event's related materials (#10)
+- Create HAL link for Agent's related events (#11)
 
 ## 1.1.3
 - Updated the following endpoints to take scope as a path parameter: facets, search, search-estimate, related-list, translate (#121)
