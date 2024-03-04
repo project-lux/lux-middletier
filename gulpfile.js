@@ -5,7 +5,7 @@ const proxy = require('marklogic/lib/proxy-generator')
 
 function proxygen() {
   return gulp
-    .src('../marklogic/src/main/ml-modules/base/root/ds/*')
+    .src('../lux-marklogic/src/main/ml-modules/base/root/ds/*')
     .pipe(proxy.generate())
     .pipe(gulp.dest('lib/ml-generated'))
 }
