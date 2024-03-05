@@ -8,6 +8,10 @@
 
 ---
 
+## Unreleased
+
+- Creat HAL link for Places page People and Groups Active Here (#10)
+
 ## 1.1.4
 
 - Update itemEvents HAL link to sort events (#8)
