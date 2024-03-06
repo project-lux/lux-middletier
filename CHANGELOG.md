@@ -12,6 +12,7 @@
 
 - Create HAL link for Places page People and Groups Active Here (#19)
 - Create HAL link for Places with type (#21)
+- Create HAL link for Entities with type (#34)
 
 ## 1.1.4
 
