@@ -10,13 +10,14 @@
 
 ## Unreleased
 
-- Creat HAL link for Places page People and Groups Active Here (#10)
+- Create HAL link for Places page People and Groups Active Here (#19)
+- Create HAL link for Places with type (#21)
 
 ## 1.1.4
 
 - Update itemEvents HAL link to sort events (#8)
 - Create eventWorksAbout HAL Link (#9)
-- Creat HAL link for Event's related materials (#10)
+- Create HAL link for Event's related materials (#10)
 - Create HAL link for Agent's related events (#11)
 - Create HAL links for Event's object types (#13)
 - Create HAL links for Event's subjects (#24)
