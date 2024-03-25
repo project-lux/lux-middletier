@@ -9,7 +9,7 @@ function getInt(s) {
 module.exports = {
   appPort: process.env.APP_PORT === undefined ? 8080 : parseInt(process.env.APP_PORT, 10),
   numInstances: getInt(process.env.NUM_INSTANCES) || -1,
-  searchUriHost: process.env.SEARCH_URI_HOST || 'https://lux.collections.yale.edu',
+  searchUriHost: process.env.SEARCH_URI_HOST || 'https://.yale.edu',
   resultUriHost: process.env.RESULT_URI_HOST || null,
   mlSsl: process.env.ML_SSL === 'true',
   mlAuthType: process.env.ML_AUTH_TYPE,
