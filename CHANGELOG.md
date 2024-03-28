@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.1.5, Marklogic clinet code was regenerated against ML v1.12.0 dated 03/18/23
 - With v1.1.4, Marklogic clinet code was regenerated against ML v1.11.0 dated 03/04/23
 - With v1.1.0, Marklogic client code was regenerated against ML v1.6.0 dated 11/21/23
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
@@ -9,6 +10,10 @@
 ---
 
 ## Unreleased
+
+- Removed HAL link for Works Depicting or About People or Groups on concepts (#46)
+
+## 1.1.5
 
 - Create HAL link for Places page People and Groups Active Here (#19)
 - Create HAL link for Places with Type (#21)

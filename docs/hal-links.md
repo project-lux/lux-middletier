@@ -70,7 +70,6 @@ following form:
 ## HAL links for concepts
 
 - `lux:conceptChildren` - sub-concepts (children of concept)
-- `lux:conceptDepictedAgentFromRelatedWorks` - agents depicted by works related to the concept
 - `lux:conceptInfluencedConcepts` - concepts influenced by the concept
 - `lux:conceptItemEncounteredTime` - dates of encounter of items of the type (concept) or material (concept)
 - `lux:conceptItemMadeTime` - dates of production of items of the type (concept) or material (concept)
