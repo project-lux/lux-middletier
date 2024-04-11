@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+- Create HAL link for Related People and Groups on events (#29)
+
+## 1.1.6
+
 - Removed HAL link for Works Depicting or About People or Groups on concepts (#46)
 
 ## 1.1.5
