@@ -11,6 +11,7 @@
 ## Unreleased
 
 - Create HAL link for Related People and Groups on events (#29)
+- Create HAL link for Related Locations on events (#45)
 
 ## 1.1.6
 
