@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+- Renamed itemDepartment HAL link to be itemCollection, and changed logic to return the responsibleCollections facet (#38)
+
+## v1.1.6
+
 - Removed HAL link for Works Depicting or About People or Groups on concepts (#46)
 
 ## 1.1.5
