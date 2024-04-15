@@ -22,6 +22,7 @@
 - Create HAL link for Places page People and Groups Active Here (#19)
 - Create HAL link for Places with Type (#21)
 - Create HAL link for Events with Type (#34)
+- Create HAL link for Agents Founded By Agent (#16)
 
 ## 1.1.4
 
