@@ -10,6 +10,11 @@
 
 ## Unreleased
 
+- Create HAL link for Concepts Related to Events (#51)
+- Remove HAL link for Events' Related Subjects - replaced by related list (#51)
+
+## 1.1.7
+
 - Create HAL link for Related People and Groups on events (#29)
 - Create HAL link for Related Locations on events (#45)
 
