@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+## 1.1.8
+
 - Create HAL link for Concepts Related to Events (#51)
 - Remove HAL link for Events' Related Subjects - replaced by related list (#51)
 - Update HAL link for Archives' Included Items/Works to Sort By Sort ID (#47)
