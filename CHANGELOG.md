@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+## 1.1.9
+
+- Create HAL link for objects with images in an archive (#14)
+
 ## 1.1.8
 
 - Create HAL link for Concepts Related to Events (#51)
