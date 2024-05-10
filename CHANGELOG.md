@@ -13,6 +13,7 @@
 ## 1.1.9
 
 - Create HAL link for objects with images in an archive (#14)
+- Update HAL links for updated memberOf / containing fields (#60)
 
 ## 1.1.8
 
