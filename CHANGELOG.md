@@ -16,6 +16,7 @@
 - Add parameters for 'page', 'pageLength', and 'sort' to the facets endpoint. (#65)
 - Update gulpfile to handle new MarkLogic repo structure.
 - Regenerate Marklogic client code, which allows for new facets parameters, and removes personRoles endpoint
+- Create HAL link for sets with events (#40)
 
 ## 1.1.11
 
