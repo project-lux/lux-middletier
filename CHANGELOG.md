@@ -13,6 +13,7 @@
 ## 1.1.10
 
 - Remove workShownBy HAL link (#15)
+- Removed hierarchy endpoints (#6)
 
 ## 1.1.9
 

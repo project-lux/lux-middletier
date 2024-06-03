@@ -60,9 +60,6 @@ class App {
     exp.get('/api/auto-complete', this.handleAutoComplete.bind(this))
     exp.get('/api/data-constants', this.handleDataConstants.bind(this))
     exp.get('/api/facets/:scope', this.handleFacets.bind(this))
-    exp.get('/api/hierarchy/concept', this.handleConceptHierarchy.bind(this))
-    exp.get('/api/hierarchy/place', this.handlePlaceHierarchy.bind(this))
-    exp.get('/api/hierarchy/set', this.handleSetHierarchy.bind(this))
     exp.get('/api/related-list/:scope', this.handleRelatedList.bind(this))
     exp.get('/api/search/:scope', this.handleSearch.bind(this))
     exp.get('/api/search-estimate/:scope', this.handleSearchEstimate.bind(this))
@@ -248,67 +245,6 @@ class App {
         const timeStr = util.nanoSecToString(hrtime.bigint() - start)
         log.debug(`took ${timeStr} for related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation} ${util.remoteIps(req)}`)
       })
-  }
-
-  async handleConceptHierarchy(req, res) {
-    const start = hrtime.bigint()
-    let id = ''
-
-    try {
-      id = translateQuery(req.query.id)
-      const result = await this.mlProxy.getConceptHierarchy(id)
-      res.json(util.replaceStringsInObject(
-        result,
-        this.searchUriHost,
-        this.resultUriHost,
-      ))
-    } catch (err) {
-      handleError(err, `failed to get concept hierarchy for ${req.query.id}`, res)
-    } finally {
-      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for concept hierarchy for ${id} ${util.remoteIps(req)}`)
-    }
-  }
-
-  async handlePlaceHierarchy(req, res) {
-    const start = hrtime.bigint()
-    let id = ''
-
-    try {
-      id = translateQuery(req.query.id)
-      const result = await this.mlProxy.getPlaceHierarchy(id)
-
-      res.json(util.replaceStringsInObject(
-        result,
-        this.searchUriHost,
-        this.resultUriHost,
-      ))
-    } catch (err) {
-      handleError(err, `failed to get place hierarchy for ${req.query.id}`, res)
-    } finally {
-      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for place hierarchy for ${id} ${util.remoteIps(req)}`)
-    }
-  }
-
-  async handleSetHierarchy(req, res) {
-    const start = hrtime.bigint()
-    let id = ''
-
-    try {
-      id = translateQuery(req.query.id)
-      const result = await this.mlProxy.getSetHierarchy(id)
-      res.json(util.replaceStringsInObject(
-        result,
-        this.searchUriHost,
-        this.resultUriHost,
-      ))
-    } catch (err) {
-      handleError(err, `failed to get set hierarchy for ${req.query.id}`, res)
-    } finally {
-      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for set hierarchy for ${id} ${util.remoteIps(req)}`)
-    }
   }
 
   handleSearch(req, res) {

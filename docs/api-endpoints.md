@@ -70,18 +70,6 @@ Provides facets.
 - See [backend documentation](https://git.yale.edu/lux-its/marklogic/blob/main/docs/lux-backend-api-usage.md#facets) for detailed description of parameters and responses.
 - Example: https://lux.collections.yale.edu/api/facets?names=responsibleUnits&q=%7B%22_scope%22%3A%22item%22%2C%22text%22%3A%22warhol%22%2C%22_lang%22%3A%22en%22%7D
 
-## Concept Hierarchy
-To be deprecated
-- URL: /api/hierarchy/concept
-
-## Place Hierarchy
-To be deprecated
-- URL: /api/hierarchy/place
-
-## Set Hierarchy
-To be deprecated
-- URL: /api/hierarchy/set
-
 ## Related List
 Returns items related to the specified entity (document).
 
