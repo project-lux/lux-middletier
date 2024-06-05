@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.1.10, Marklogic client code was regnerated against ML v1.18.0 dated 06/05/24
 - With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
 - With v1.1.0, Marklogic client code was regenerated against ML v1.6.0 dated 11/21/23
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
@@ -9,6 +10,10 @@
 ---
 
 ## Unreleased
+
+## 1.1.10
+
+- Add parameters for 'page' and 'pageLength' to facets endpoint
 
 ## 1.1.9
 
