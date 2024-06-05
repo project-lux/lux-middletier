@@ -13,7 +13,7 @@
 
 ## 1.1.10
 
-- Add parameters for 'page' and 'pageLength' to facets endpoint
+- Add parameters for 'page', 'pageLength', and 'sort' to facets endpoint
 
 ## 1.1.9
 
