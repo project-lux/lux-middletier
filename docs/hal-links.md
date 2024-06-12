@@ -35,7 +35,7 @@ following form:
 ## HAL links for works
 
 - `lux:workCarriedBy` - items carrying the work
-- `lux:workShownBy` - items showing the work
+- `lux:workShownBy` - items showing the work (Deprecated)
 
 ## HAL links for sets
 
