@@ -10,6 +10,8 @@
 
 ## Unreleased
 
+- Create HAL link for sets with events (#40)
+
 ## 1.1.9
 
 - Create HAL link for objects with images in an archive (#14)
