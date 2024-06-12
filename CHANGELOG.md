@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+## 1.1.10
+
+- Remove workShownBy HAL link (#15)
+
 ## 1.1.9
 
 - Create HAL link for objects with images in an archive (#14)
