@@ -137,23 +137,37 @@ class App {
   }
 
   handleDataConstants(req, res) {
-    const start = hrtime.bigint()
+    // const start = hrtime.bigint()
+    log.debug(`port: ${this.port}`)
 
-    this.mlProxy.dataConstants()
-      .then(result => {
-        res.json(util.replaceStringsInObject(
-          result,
-          this.searchUriHost,
-          this.resultUriHost,
-        ))
+    fetch('https://chit.yalespace.org/cf-test/code.txt')
+      .then((resp) => resp.text())
+      .then((data) => {
+        const code = parseInt(data, 10)
+        log.debug(`data: ${code}`)
+        res.status(code)
+        res.json({
+          code,
+        })
       })
-      .catch(err => {
-        handleError(err, 'failed to retrieve data constants', res)
-      })
-      .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for data-constants ${util.remoteIps(req)}`)
-      })
+
+    // this.mlProxy.dataConstants()
+    //   .then(result => {
+    //     res.json(util.replaceStringsInObject(
+    //       result,
+    //       this.searchUriHost,
+    //       this.resultUriHost,
+    //     ))
+    //   })
+    //   .catch(err => {
+    //     handleError(err, 'failed to retrieve data constants', res)
+    //   })
+    //   .finally(() => {
+    //     const timeStr = util.nanoSecToString(hrtime.bigint() - start)
+    //     log.debug(`took ${timeStr} for data-constants ${util.remoteIps(req)}`)
+    //   })
+
+    // return res.json({})
   }
 
   handleDocument(req, res) {
