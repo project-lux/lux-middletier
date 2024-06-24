@@ -10,8 +10,13 @@
 
 ## Unreleased
 
+## 1.1.11
+
+- Change HAL links such that influencing Creation/Production is integrated into existing links (#27)
+
 ## 1.1.10
 
+- Add HAL links for Agents Influencing Creation/Production of Works/Objects (#27)
 - Remove workShownBy HAL link (#15)
 - Removed hierarchy endpoints (#6)
 
