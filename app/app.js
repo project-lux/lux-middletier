@@ -198,10 +198,13 @@ class App {
     const {
       name,
       q,
+      page,
+      pageLength,
+      sort,
     } = req.query
     const qstr = translateQuery(q || '')
 
-    this.mlProxy.facets(name, qstr, scope)
+    this.mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,
