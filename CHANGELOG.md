@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Add parameters for 'page', 'pageLength', and 'sort' to the facets endpoint. (#65)
+- Update gulpfile to handle new MarkLogic repo structure.
+
 ## 1.1.11
 
 - Change HAL links such that influencing Creation/Production is integrated into existing links (#27)
