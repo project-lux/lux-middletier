@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+## 1.1.13
+
+- Create HAL link for sets with events (#40)
+
 ## 1.1.12
 
 - Add parameters for 'page', 'pageLength', and 'sort' to the facets endpoint. (#65)
