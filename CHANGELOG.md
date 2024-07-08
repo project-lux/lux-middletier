@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.1.12, Marklogic client code was regenerated against ML v1.20.0 dated 07/08/24
 - With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
 - With v1.1.0, Marklogic client code was regenerated against ML v1.6.0 dated 11/21/23
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
@@ -9,6 +10,12 @@
 ---
 
 ## Unreleased
+
+## 1.1.12
+
+- Add parameters for 'page', 'pageLength', and 'sort' to the facets endpoint. (#65)
+- Update gulpfile to handle new MarkLogic repo structure.
+- Regenerate Marklogic client code, which allows for new facets parameters, and removes personRoles endpoint
 
 ## 1.1.11
 
