@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Update HAL link for a set's items with images such that it only looks for items in archives (#77)
+
 ## 1.1.13
 
 - Create HAL link for sets with events (#40)
