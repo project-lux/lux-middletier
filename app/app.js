@@ -83,7 +83,7 @@ class App {
   handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy.advancedSearchConfig()
+    this.mlProxy2.advancedSearchConfig()
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,
@@ -139,7 +139,7 @@ class App {
   handleDataConstants(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy.dataConstants()
+    this.mlProxy2.dataConstants()
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,

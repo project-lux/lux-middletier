@@ -14,6 +14,7 @@
 - Changed the HAL link for placeWorkAbout (#41)
 - Changed HAL link for objects in collection (#40)
 - Update HAL link for a set's items with images such that it only looks for items in archives (#77)
+- Update Data Constants and Advanced Search Config to use mlProxy2 (#78)
 
 ## 1.1.13
 
