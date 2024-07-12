@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Update HAL link for a set's items with images such that it only looks for items in archives (#77)
+- Update Data Constants and Advanced Search Config to use mlProxy2 (#78)
 
 ## 1.1.13
 
