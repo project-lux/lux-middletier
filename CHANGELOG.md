@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Changed the HAL link for placeWorkAbout (#41)
+
 ## 1.1.13
 
 - Create HAL link for sets with events (#40)
