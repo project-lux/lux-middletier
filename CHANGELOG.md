@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Changed the HAL link for placeWorkAbout (#41)
+- Changed HAL link for objects in collection (#40)
 
 ## 1.1.13
 
