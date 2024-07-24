@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Removed the data constants endpoint (#18)
+
 ## 1.1.14
 
 - Changed the HAL link for placeWorkAbout (#41)

@@ -18,7 +18,6 @@
 
 ### Configuration
 
-- [Data Constants](#data-constants)
 - [Search Info](#search-info)
 - [Advanced Search Config](#advanced-search-config)
 
@@ -33,6 +32,7 @@
 - [Concept Hierarchy](#concept-hierarchy)
 - [Place Hierarchy](#place-hierarchy)
 - [Set Hierarchy](#set-hierarchy)
+- [Data Constants](#data-constants)
 
 ---
 
@@ -54,6 +54,7 @@ Returns configurations that inform the frontend to build the advanced search UI,
 - Example: https://lux.collections.yale.edu/api/auto-complete?text=oil&context=item.material
 
 ## Data Constants
+(Deprecated)
 Returns mappings of names to URIs for key concepts so that the frontend code using the constant names will be simpler and more robust against changes.
 
 - URL: /api/data-constants
