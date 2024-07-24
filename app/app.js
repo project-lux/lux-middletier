@@ -58,7 +58,6 @@ class App {
     // Routes
     exp.get('/api/advanced-search-config', this.handleAdvancedSearchConfig.bind(this))
     exp.get('/api/auto-complete', this.handleAutoComplete.bind(this))
-    exp.get('/api/data-constants', this.handleDataConstants.bind(this))
     exp.get('/api/facets/:scope', this.handleFacets.bind(this))
     exp.get('/api/related-list/:scope', this.handleRelatedList.bind(this))
     exp.get('/api/search/:scope', this.handleSearch.bind(this))
@@ -134,26 +133,6 @@ class App {
       const timeStr = util.nanoSecToString(hrtime.bigint() - start)
       log.debug(`took ${timeStr} for auto-complete ${util.remoteIps(req)}`)
     })
-  }
-
-  handleDataConstants(req, res) {
-    const start = hrtime.bigint()
-
-    this.mlProxy2.dataConstants()
-      .then(result => {
-        res.json(util.replaceStringsInObject(
-          result,
-          this.searchUriHost,
-          this.resultUriHost,
-        ))
-      })
-      .catch(err => {
-        handleError(err, 'failed to retrieve data constants', res)
-      })
-      .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for data-constants ${util.remoteIps(req)}`)
-      })
   }
 
   handleDocument(req, res) {
