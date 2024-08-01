@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Removed the data constants endpoint (#18)
+- Add support for the component term HAL link to worksRelatedToConcepts (#85)
 
 ## 1.1.14
 
