@@ -149,24 +149,6 @@ class App {
           code,
         })
       })
-
-    // this.mlProxy.dataConstants()
-    //   .then(result => {
-    //     res.json(util.replaceStringsInObject(
-    //       result,
-    //       this.searchUriHost,
-    //       this.resultUriHost,
-    //     ))
-    //   })
-    //   .catch(err => {
-    //     handleError(err, 'failed to retrieve data constants', res)
-    //   })
-    //   .finally(() => {
-    //     const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-    //     log.debug(`took ${timeStr} for data-constants ${util.remoteIps(req)}`)
-    //   })
-
-    // return res.json({})
   }
 
   handleDocument(req, res) {
