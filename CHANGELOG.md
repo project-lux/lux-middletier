@@ -11,6 +11,8 @@
 
 ## Unreleased
 
+- Added endpoint to get ML version info (#94)
+
 ## 1.1.17
 
 - Fixed resolve endpoint to redirect to /view rather than /data (#93)
