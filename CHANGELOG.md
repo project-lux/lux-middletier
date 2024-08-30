@@ -7,6 +7,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Unreleased
+
+- Added endpoint to get ML version info (#94)
 
 ## 1.1.4
 
