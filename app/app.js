@@ -66,6 +66,7 @@ class App {
     exp.get('/api/search-will-match', this.handleSearchWillMatch.bind(this))
     exp.get('/api/stats', this.handleStats.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
+    exp.get('/api/version-info', this.handleVersionInfo.bind(this))
     exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
     exp.get('/health', (req, res) => {
       res.json({
@@ -362,6 +363,22 @@ class App {
       .finally(() => {
         const timeStr = util.nanoSecToString(hrtime.bigint() - start)
         log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${util.remoteIps(req)}`)
+      })
+  }
+
+  handleVersionInfo(req, res) {
+    const start = hrtime.bigint()
+
+    this.mlProxy.versionInfo()
+      .then(result => {
+        res.json(result)
+      })
+      .catch(err => {
+        handleError(err, 'failed versionInfo', res)
+      })
+      .finally(() => {
+        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for versionInfo ${util.remoteIps(req)}`)
       })
   }
 

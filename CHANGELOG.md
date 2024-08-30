@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Added HAL links for objects/works that are subject of other objects/works (#28)
+- Added endpoint to get ML version info (#94)
 
 ## 1.1.15
 
