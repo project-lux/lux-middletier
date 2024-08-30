@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- Added HAL links for objects/works that are subject of other objects/works (#28)
+
+## 1.1.15
+
 - Removed the data constants endpoint (#18)
 - Add support for the component term HAL link to worksRelatedToConcepts (#85)
 
