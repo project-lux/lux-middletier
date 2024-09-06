@@ -64,13 +64,13 @@ class App {
     exp.get('/api/auto-complete', this.handleAutoComplete.bind(this))
     exp.get('/api/facets/:scope', this.handleFacets.bind(this))
     exp.get('/api/related-list/:scope', this.handleRelatedList.bind(this))
+    exp.get('/api/resolve/:scope/:unit/:identifier', this.handleResolve.bind(this))
     exp.get('/api/search/:scope', this.handleSearch.bind(this))
     exp.get('/api/search-estimate/:scope', this.handleSearchEstimate.bind(this))
     exp.get('/api/search-info', this.handleSearchInfo.bind(this))
     exp.get('/api/search-will-match', this.handleSearchWillMatch.bind(this))
     exp.get('/api/stats', this.handleStats.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
-    exp.get('/resolve/:scope/:unit/:identifier', this.handleResolve.bind(this))
     exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
     exp.get('/health', (req, res) => {
       res.json({
