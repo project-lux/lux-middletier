@@ -9,6 +9,10 @@ const log = require('../lib/log')
 const { MLProxy } = require('../lib/ml-proxy')
 const util = require('../lib/util')
 const { transformEntityDoc, translateQuery } = require('../lib/data-transform')
+const { searchScopes } = require('../lib/scopes')
+const {
+  getSecondaryResolveQuery, ResolveError, validResolveScopes, validResolveUnits,
+} = require('../lib/resolve')
 
 const { version } = require('../package.json')
 
@@ -66,6 +70,7 @@ class App {
     exp.get('/api/search-will-match', this.handleSearchWillMatch.bind(this))
     exp.get('/api/stats', this.handleStats.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
+    exp.get('/resolve/:scope/:unit/:identifier', this.handleResolve.bind(this))
     exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
     exp.get('/health', (req, res) => {
       res.json({
@@ -227,6 +232,82 @@ class App {
         const timeStr = util.nanoSecToString(hrtime.bigint() - start)
         log.debug(`took ${timeStr} for related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation} ${util.remoteIps(req)}`)
       })
+  }
+
+  handleResolve(req, res) {
+    const start = hrtime.bigint()
+    const { scope, unit, identifier } = req.params
+    try {
+      if (!validResolveScopes.includes(scope)) {
+        throw new ResolveError(`Scope must be one of: ${validResolveScopes.join(', ')}`, 400)
+      }
+      if (!validResolveUnits.includes(unit)) {
+        throw new ResolveError(`Unit must be one of: ${validResolveUnits.join(', ')}`, 400)
+      }
+
+      const searchScope = searchScopes[scope]
+      if (!searchScope) {
+        throw new ResolveError(`There is no search scope mapping for ${scope}`, 500)
+      }
+      // first try just doing a search with identifier
+      let q = { identifier }
+      this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(result => {
+        if (result.orderedItems) {
+          if (result.orderedItems.length > 1) {
+          // If there is more than one result, try to find a unique result
+          // by including the unit in the query
+            q = getSecondaryResolveQuery(scope, unit, identifier)
+            this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(secondaryResult => {
+              if (secondaryResult.orderedItems) {
+                if (secondaryResult.orderedItems.length > 1) {
+                // After attempting to narrow results by unit, there is still no unique record
+                  throw new ResolveError(`Identifier '${identifier}' and unit '${unit}' do not resolve to a unique record`, 400)
+                } else if (secondaryResult.orderedItems.length === 1) {
+                // we found a unique result, send a redirect to that record
+                  res.redirect(util.replaceStringsInObject(
+                    secondaryResult.orderedItems[0].id,
+                    this.searchUriHost,
+                    this.resultUriHost,
+                  ))
+                } else {
+                // If the length of orderedItems is 0, there are no results
+                  throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
+                }
+              } else {
+              // If the response doesn't contain orderedItems property, it is invalid
+                throw new ResolveError('Invalid response', 500)
+              }
+            }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
+              .finally(() => {
+                const timeStr = util.nanoSecToString(hrtime.bigint() - start)
+                log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+              })
+          } else if (result.orderedItems.length === 1) {
+          // we found a unique result, send a redirect to that record
+            res.redirect(util.replaceStringsInObject(
+              result.orderedItems[0].id,
+              this.searchUriHost,
+              this.resultUriHost,
+            ))
+          } else {
+          // If the length of orderedItems is 0, there are no results
+            throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
+          }
+        } else {
+        // If the response doesn't contain orderedItems property, it is invalid
+          throw new ResolveError('Invalid response', 500)
+        }
+      }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
+        .finally(() => {
+          const timeStr = util.nanoSecToString(hrtime.bigint() - start)
+          log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+        })
+    } catch (err) {
+      handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res)
+    } finally {
+      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+    }
   }
 
   handleSearch(req, res) {
