@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Added HAL links for objects/works that are subject of other objects/works (#28)
+- Added resolve endpoint to help units provide links to LUX while using their internal indentifiers instead of LUX IRIs (#93)
 
 ## 1.1.15
 
