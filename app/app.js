@@ -264,11 +264,11 @@ class App {
                   throw new ResolveError(`Identifier '${identifier}' and unit '${unit}' do not resolve to a unique record`, 400)
                 } else if (secondaryResult.orderedItems.length === 1) {
                 // we found a unique result, send a redirect to that record
-                  res.redirect(util.replaceStringsInObject(
-                    secondaryResult.orderedItems[0].id,
-                    this.searchUriHost,
-                    this.resultUriHost,
-                  ))
+                  res.redirect(
+                    secondaryResult.orderedItems[0].id
+                      .replace(this.searchUriHost, this.resultUriHost)
+                      .replace('data', 'view'),
+                  )
                 } else {
                 // If the length of orderedItems is 0, there are no results
                   throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
@@ -284,11 +284,11 @@ class App {
               })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
-            res.redirect(util.replaceStringsInObject(
-              result.orderedItems[0].id,
-              this.searchUriHost,
-              this.resultUriHost,
-            ))
+            res.redirect(
+              result.orderedItems[0].id
+                .replace(this.searchUriHost, this.resultUriHost)
+                .replace('data', 'view'),
+            )
           } else {
           // If the length of orderedItems is 0, there are no results
             throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
