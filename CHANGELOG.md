@@ -11,6 +11,12 @@
 
 ## Unreleased
 
+## 1.1.17
+
+- Fixed resolve endpoint to redirect to /view rather than /data (#93)
+
+## 1.1.16
+
 - Added HAL links for objects/works that are subject of other objects/works (#28)
 - Added resolve endpoint to help units provide links to LUX while using their internal indentifiers instead of LUX IRIs (#93)
 
