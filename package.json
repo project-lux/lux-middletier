@@ -11,17 +11,17 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.17.1",
+    "express": "^4.20.0",
     "marklogic": "^3.3.0",
     "winston": "^3.3.3"
   },
   "devDependencies": {
     "ast-types": "^0.14.2",
     "astring": "^1.8.1",
-    "eslint": "^8.22.0",
+    "eslint": "^9.10.0",
     "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-import": "^2.26.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.30.0",
     "gulp": "^4.0.2",
     "jest": "^27.3.1"
   }

@@ -11,8 +11,8 @@ const numInstances = env.numInstances === -1 ? numCores * 2 : env.numInstances
 if (cluster.isMaster) {
   log.info(`numCores: ${numCores}`)
   log.info(`numInstances: ${numInstances}`)
-  log.info(`ML host - fast lane: ${env.mlHost}`)
-  log.info(`ML host - slow lane: ${env.mlHost2}`)
+  log.info(`ML host - fast lane: ${env.mlHost}:${env.mlPort}`)
+  log.info(`ML host - slow lane: ${env.mlHost2}:${env.mlPort2}`)
 }
 
 // Bring up the requested number (= numInstances) of node app servers.

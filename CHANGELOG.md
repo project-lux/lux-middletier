@@ -12,6 +12,7 @@
 ## Unreleased
 
 - Added endpoint to get ML version info (#94)
+- Removed duplicates from estimates queries for HAL links (#4)
 
 ## 1.1.17
 
