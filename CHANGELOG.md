@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.1.18 Marklogic client code was regenerated against ML v1.25.0 dated 09/23/24
 - With v1.1.12, Marklogic client code was regenerated against ML v1.20.0 dated 07/08/24
 - With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
 - With v1.1.0, Marklogic client code was regenerated against ML v1.6.0 dated 11/21/23
@@ -10,6 +11,8 @@
 ---
 
 ## Unreleased
+
+## 1.1.18
 
 - Added endpoint to get ML version info (#94)
 - Removed duplicates from estimates queries for HAL links (#4)
