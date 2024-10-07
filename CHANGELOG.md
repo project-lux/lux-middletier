@@ -12,6 +12,8 @@
 
 ## Unreleased
 
+## 1.1.19
+
 - Fixed typos causing 500 errors ([#104](https://github.com/project-lux/lux-middletier/pull/104)).
 
 ## 1.1.18
