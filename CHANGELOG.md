@@ -12,6 +12,8 @@
 
 ## Unreleased
 
+- Fixed typos causing 500 errors ([#104](https://github.com/project-lux/lux-middletier/pull/104)).
+
 ## 1.1.18
 
 - Added endpoint to get ML version info (#94)
