@@ -1,6 +1,7 @@
 {
   "name": "middleware-nodejs",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "license": "UNLICENSED",
   "private": true,
@@ -13,6 +14,7 @@
     "cors": "^2.8.5",
     "express": "^4.20.0",
     "marklogic": "^3.3.0",
+    "openid-client": "^6.1.0",
     "winston": "^3.3.3"
   },
   "devDependencies": {

@@ -1,20 +1,20 @@
-const { hrtime } = require('node:process')
-const cors = require('cors')
-const express = require('express')
-const marklogic = require('marklogic')
+// const { hrtime } = require('node:process')
+import { hrtime } from 'node:process'
+import cors from 'cors'
+import express from 'express'
+import marklogic from 'marklogic'
 
-const env = require('../config/env')
-const { HalLinksBuilder } = require('../lib/hal-links-builder')
-const log = require('../lib/log')
-const { MLProxy } = require('../lib/ml-proxy')
-const util = require('../lib/util')
-const { transformEntityDoc, translateQuery } = require('../lib/data-transform')
-const { searchScopes } = require('../lib/scopes')
-const {
+import env from '../config/env.js'
+import { HalLinksBuilder } from '../lib/hal-links-builder.js'
+import log from '../lib/log.js'
+import { MLProxy } from '../lib/ml-proxy-oauth.js'
+import { getServiceToken } from '../lib/oidc.js'
+import * as util from '../lib/util.js'
+import { transformEntityDoc, translateQuery } from '../lib/data-transform.js'
+import { searchScopes } from '../lib/scopes.js'
+import {
   getSecondaryResolveQuery, ResolveError, validResolveScopes, validResolveUnits,
-} = require('../lib/resolve')
-
-const { version } = require('../package.json')
+} from '../lib/resolve.js'
 
 /**
  * Create error response based on the error object passed in and send it
@@ -45,18 +45,22 @@ const handleError = (err, defaultMessage, res) => {
 
 class App {
   constructor(config) {
-    this.app = null // express app
     this.port = config.port
-    this.mlProxy = config.mlProxy
-    this.mlProxy2 = config.mlProxy2
+    // this.mlProxy = config.mlProxy
+    // this.mlProxy2 = config.mlProxy2
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
   }
 
-  run() {
+  async run() {
     const { port } = this
     const exp = express()
-    exp.use(cors())
+
+    exp.use(cors({
+      origin: '*',
+      methods: 'GET, POST, OPTIONS',
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }))
     exp.use(express.static('public'))
 
     // Routes
@@ -80,6 +84,8 @@ class App {
     })
     exp.get('/api/_info', App._handleInfo)
 
+    await getServiceToken()
+
     exp.listen(port, () => {
       log.info(`Listening on port ${port}`)
     })
@@ -88,7 +94,9 @@ class App {
   handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy2.advancedSearchConfig()
+    const mlProxy = new MLProxy(req.headers.authorization)
+
+    this.mlProxy.advancedSearchConfig()
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,
@@ -480,8 +488,9 @@ class App {
   }
 }
 
-const newApp = () => {
+export const newApp = () => {
   // Create proxy for MarkLogic database (fast lane)
+  /*
   const mlClient = marklogic.createDatabaseClient({
     host: env.mlHost,
     port: env.mlPort,
@@ -499,16 +508,19 @@ const newApp = () => {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
+    */
 
-  const mlProxy = new MLProxy(mlClient)
-  const mlProxy2 = new MLProxy(mlClient2)
+  // const mlProxy = new MLProxy(mlClient)
+  // const mlProxy2 = new MLProxy(mlClient2)
 
-  const app = new App({
-    port: env.appPort,
-    mlProxy,
-    mlProxy2,
-  })
+  // const app = new App({
+  //   port: env.appPort,
+  //   mlProxy,
+  //   mlProxy2,
+  // })
+
+  const app = new App({ port: env.appPort })
   return app
 }
 
-exports.newApp = newApp
+// exports.newApp = newApp
