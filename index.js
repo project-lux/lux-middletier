@@ -1,9 +1,9 @@
-const os = require('os')
-const cluster = require('cluster')
+import os from 'os'
+import cluster from 'cluster'
 
-const { newApp } = require('./app/app')
-const env = require('./config/env')
-const log = require('./lib/log')
+import newApp from './app/app.js'
+import env from './config/env.js'
+import * as log from './lib/log.js'
 
 const numCores = os.cpus().length
 const numInstances = env.numInstances === -1 ? numCores * 2 : env.numInstances

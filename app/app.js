@@ -1,20 +1,25 @@
-const { hrtime } = require('node:process')
-const cors = require('cors')
-const express = require('express')
-const marklogic = require('marklogic')
+import { hrtime } from 'node:process'
 
-const env = require('../config/env')
-const { HalLinksBuilder } = require('../lib/hal-links-builder')
-const log = require('../lib/log')
-const { MLProxy } = require('../lib/ml-proxy')
-const util = require('../lib/util')
-const { transformEntityDoc, translateQuery } = require('../lib/data-transform')
-const { searchScopes } = require('../lib/scopes')
-const {
-  getSecondaryResolveQuery, ResolveError, validResolveScopes, validResolveUnits,
-} = require('../lib/resolve')
+import cors from 'cors'
 
-const { version } = require('../package.json')
+import express from 'express'
+import marklogic from 'marklogic'
+
+import env from '../config/env.js'
+import HalLinksBuilder from '../lib/hal-links-builder.js'
+import * as log from '../lib/log.js'
+import MLProxy from '../lib/ml-proxy.js'
+import {
+  getNumArg, nanoSecToString, remoteIps, replaceStringsInObject,
+} from '../lib/util.js'
+import { transformEntityDoc, translateQuery } from '../lib/data-transform.js'
+import searchScopes from '../lib/scopes.js'
+import {
+  getSecondaryResolveQuery, ResolveError, validScopes as validResolveScopes,
+  validUnits as validResolveUnits,
+} from '../lib/resolve.js'
+
+import json from '../package.json' with {type: "json"}
 
 /**
  * Create error response based on the error object passed in and send it
@@ -90,7 +95,7 @@ class App {
 
     this.mlProxy2.advancedSearchConfig()
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -100,8 +105,8 @@ class App {
         handleError(err, 'failed to retrieve advanced search config', res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for advanced search config ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for advanced search config ${remoteIps(req)}`)
       })
   }
 
@@ -136,8 +141,8 @@ class App {
         handleError(err, 'failed autocomplete', res)
       },
     ).finally(() => {
-      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for auto-complete ${util.remoteIps(req)}`)
+      const timeStr = nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} for auto-complete ${remoteIps(req)}`)
     })
   }
 
@@ -172,8 +177,8 @@ class App {
         handleError(err, `failed to get doc for ${req.url}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for data/${type}/${uuid} ${profile},${lang} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for data/${type}/${uuid} ${profile},${lang} ${remoteIps(req)}`)
       })
   }
 
@@ -191,7 +196,7 @@ class App {
 
     this.mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -201,8 +206,8 @@ class App {
         handleError(err, `failed to get facets for ${q}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for facet ${name}|${q}|${scope} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for facet ${name}|${q}|${scope} ${remoteIps(req)}`)
       })
   }
 
@@ -211,16 +216,16 @@ class App {
     const scope = req.params.scope || ''
     const name = req.query.name || ''
     const uri = translateQuery(req.query.uri || '')
-    const page = util.getNumArg(req.query.page, 1)
-    const pageLength = util.getNumArg(req.query.pageLength, null)
-    const relationshipsPerRelation = util.getNumArg(
+    const page = getNumArg(req.query.page, 1)
+    const pageLength = getNumArg(req.query.pageLength, null)
+    const relationshipsPerRelation = getNumArg(
       req.query.relationshipsPerRelation,
       null,
     )
 
     this.mlProxy2.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -230,8 +235,8 @@ class App {
         handleError(err, `failed get related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation} ${remoteIps(req)}`)
       })
   }
 
@@ -280,8 +285,8 @@ class App {
               }
             }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
               .finally(() => {
-                const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-                log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+                const timeStr = nanoSecToString(hrtime.bigint() - start)
+                log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
               })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
@@ -300,14 +305,14 @@ class App {
         }
       }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
         .finally(() => {
-          const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-          log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+          const timeStr = nanoSecToString(hrtime.bigint() - start)
+          log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
         })
     } catch (err) {
       handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res)
     } finally {
-      const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${util.remoteIps(req)}`)
+      const timeStr = nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
     }
   }
 
@@ -334,7 +339,7 @@ class App {
       synonymsEnabled,
     )
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -344,8 +349,8 @@ class App {
         handleError(err, `failed search for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search ${qstr} ${page},${pageLength},${sort},${synonymsEnabled} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for search ${qstr} ${page},${pageLength},${sort},${synonymsEnabled} ${remoteIps(req)}`)
       })
   }
 
@@ -356,7 +361,7 @@ class App {
 
     this.mlProxy.searchEstimate(qstr, scope)
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -366,8 +371,8 @@ class App {
         handleError(err, `failed search estimate for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search estimate ${qstr} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for search estimate ${qstr} ${remoteIps(req)}`)
       })
   }
 
@@ -380,8 +385,8 @@ class App {
         handleError(err, 'failed to retrieve search info', res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search-info ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for search-info ${remoteIps(req)}`)
       })
   }
 
@@ -391,7 +396,7 @@ class App {
 
     this.mlProxy.searchWillMatch(qstr)
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -401,8 +406,8 @@ class App {
         handleError(err, `failed match for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for match ${qstr} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for match ${qstr} ${remoteIps(req)}`)
       })
   }
 
@@ -417,8 +422,8 @@ class App {
         handleError(err, 'failed stats', res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for stats ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for stats ${remoteIps(req)}`)
       })
   }
 
@@ -432,7 +437,7 @@ class App {
       scope,
     )
       .then(result => {
-        res.json(util.replaceStringsInObject(
+        res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -442,8 +447,8 @@ class App {
         handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${remoteIps(req)}`)
       })
   }
 
@@ -458,15 +463,15 @@ class App {
         handleError(err, 'failed versionInfo', res)
       })
       .finally(() => {
-        const timeStr = util.nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for versionInfo ${util.remoteIps(req)}`)
+        const timeStr = nanoSecToString(hrtime.bigint() - start)
+        log.debug(`took ${timeStr} for versionInfo ${remoteIps(req)}`)
       })
   }
 
   static _handleInfo = (req, res) => {
     const memUsage = process.memoryUsage()
     res.json({
-      version,
+      version: json.version,
       backendFastLane: `${env.mlHost}:${env.mlPort}`,
       backendSlowLane: `${env.mlHost2}:${env.mlPort2}`,
       numInstances: env.numInstances,
@@ -511,4 +516,4 @@ const newApp = () => {
   return app
 }
 
-exports.newApp = newApp
+export default newApp

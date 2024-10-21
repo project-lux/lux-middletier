@@ -1,7 +1,7 @@
 // gulp config for generating code from MarkLogic data service
 
-const gulp = require('gulp')
-const proxy = require('marklogic/lib/proxy-generator')
+import gulp from 'gulp'
+import proxy from 'marklogic/lib/proxy-generator'
 
 function proxygen() {
   return gulp
@@ -10,4 +10,4 @@ function proxygen() {
     .pipe(gulp.dest('lib/ml-generated'))
 }
 
-exports.proxygen = proxygen
+export default proxygen

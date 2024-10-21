@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "UNLICENSED",
   "private": true,
+  "type":"module",
   "scripts": {
     "start": "node index.js",
     "buildProxy": "gulp proxygen",
