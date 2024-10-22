@@ -1,5 +1,5 @@
 # Image to be used as build space
-FROM node:21.6.0-bookworm as builder
+FROM node:20.18.0-bookworm as builder
 
 RUN mkdir /build
 ADD . /build
@@ -18,7 +18,7 @@ COPY --from=builder /build /app
 # procps contains "free" command
 RUN apt-get update && \
     apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_current.x | bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends ca-certificates wget unzip jq procps nodejs && \
     wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip" && \
     unzip awscliv2.zip && \
