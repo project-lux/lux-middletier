@@ -6,7 +6,7 @@ function getInt(s) {
 }
 
 // All environment variables should be imported here.
-module.exports = {
+const env = {
   appPort: process.env.APP_PORT === undefined ? 8080 : parseInt(process.env.APP_PORT, 10),
   numInstances: getInt(process.env.NUM_INSTANCES) || -1,
   searchUriHost: process.env.SEARCH_URI_HOST || 'https://lux.collections.yale.edu',
@@ -26,3 +26,5 @@ module.exports = {
 
   logLevel: process.env.LOG_LEVEL || 'debug',
 }
+
+export default env
