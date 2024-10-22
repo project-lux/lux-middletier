@@ -6,7 +6,8 @@ const marklogic = require('marklogic')
 const env = require('../config/env')
 const { HalLinksBuilder } = require('../lib/hal-links-builder')
 const log = require('../lib/log')
-const { MLProxy } = require('../lib/ml-proxy')
+const { MLProxy } = require('../lib/ml-proxy-oauth')
+const { getServiceToken } = require('../lib/oidc')
 const util = require('../lib/util')
 const { transformEntityDoc, translateQuery } = require('../lib/data-transform')
 const { searchScopes } = require('../lib/scopes')
@@ -47,8 +48,8 @@ class App {
   constructor(config) {
     this.app = null // express app
     this.port = config.port
-    this.mlProxy = config.mlProxy
-    this.mlProxy2 = config.mlProxy2
+    // this.mlProxy = config.mlProxy
+    // this.mlProxy2 = config.mlProxy2
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
   }
@@ -88,7 +89,9 @@ class App {
   handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy2.advancedSearchConfig()
+    // this.mlProxy2.advancedSearchConfig()
+    const mlProxy = new MLProxy(getServiceToken())
+    this.mlProxy.advancedSearchConfig()
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,
@@ -218,7 +221,8 @@ class App {
       null,
     )
 
-    this.mlProxy2.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
+    // this.mlProxy2.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
+    this.mlProxy.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
         res.json(util.replaceStringsInObject(
           result,
@@ -482,32 +486,34 @@ class App {
 
 const newApp = () => {
   // Create proxy for MarkLogic database (fast lane)
-  const mlClient = marklogic.createDatabaseClient({
-    host: env.mlHost,
-    port: env.mlPort,
-    user: env.mlUser,
-    password: env.mlPass,
-    authType: env.mlAuthType,
-    ssl: env.mlSsl,
-  })
+  // const mlClient = marklogic.createDatabaseClient({
+  //   host: env.mlHost,
+  //   port: env.mlPort,
+  //   user: env.mlUser,
+  //   password: env.mlPass,
+  //   authType: env.mlAuthType,
+  //   ssl: env.mlSsl,
+  // })
   // Create proxy for MarkLogic database (slow lane)
-  const mlClient2 = marklogic.createDatabaseClient({
-    host: env.mlHost2,
-    port: env.mlPort2,
-    user: env.mlUser2,
-    password: env.mlPass2,
-    authType: env.mlAuthType,
-    ssl: env.mlSsl,
-  })
+  // const mlClient2 = marklogic.createDatabaseClient({
+  //   host: env.mlHost2,
+  //   port: env.mlPort2,
+  //   user: env.mlUser2,
+  //   password: env.mlPass2,
+  //   authType: env.mlAuthType,
+  //   ssl: env.mlSsl,
+  // })
 
-  const mlProxy = new MLProxy(mlClient)
-  const mlProxy2 = new MLProxy(mlClient2)
+  // const mlProxy = new MLProxy(mlClient)
+  // const mlProxy2 = new MLProxy(mlClient2)
 
-  const app = new App({
-    port: env.appPort,
-    mlProxy,
-    mlProxy2,
-  })
+  // const app = new App({
+  //   port: env.appPort,
+  //   mlProxy,
+  //   mlProxy2,
+  // })
+
+  const app = new App({ port: env.appPort })
   return app
 }
 

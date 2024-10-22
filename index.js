@@ -13,6 +13,8 @@ if (cluster.isMaster) {
   log.info(`numInstances: ${numInstances}`)
   log.info(`ML host - fast lane: ${env.mlHost}:${env.mlPort}`)
   log.info(`ML host - slow lane: ${env.mlHost2}:${env.mlPort2}`)
+
+  console.log(`process.features.require_module:`, process.features)
 }
 
 // Bring up the requested number (= numInstances) of node app servers.
