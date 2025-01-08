@@ -10,7 +10,11 @@
 
 ---
 
-## Unreleased
+## 1.2.1
+
+- Added HAL link for Works Caused By or Influenced By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
+
+## 1.2.0
 
 - Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/pull/79)).
 
