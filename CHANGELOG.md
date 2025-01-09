@@ -12,7 +12,8 @@
 
 ## 1.2.1
 
-- Added HAL link for Works Caused By or Influenced By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
+- Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
+- Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/pull/111)).
 
 ## 1.2.0
 
