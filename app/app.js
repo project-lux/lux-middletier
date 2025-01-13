@@ -8,7 +8,7 @@ import marklogic from 'marklogic'
 import env from '../config/env.js'
 import HalLinksBuilder from '../lib/hal-links-builder.js'
 import * as log from '../lib/log.js'
-import MLProxy from '../lib/ml-proxy.js'
+import { MLProxy, createMLProxy } from '../lib/ml-proxy-oauth.js'
 import {
   getNumArg, nanoSecToString, remoteIps, replaceStringsInObject,
 } from '../lib/util.js'
@@ -52,8 +52,6 @@ class App {
   constructor(config) {
     this.app = null // express app
     this.port = config.port
-    this.mlProxy = config.mlProxy
-    this.mlProxy2 = config.mlProxy2
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
   }
@@ -90,10 +88,12 @@ class App {
     })
   }
 
-  handleAdvancedSearchConfig(req, res) {
+  async handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy2.advancedSearchConfig()
+    const mlProxy = await createMLProxy(req)
+
+    mlProxy.advancedSearchConfig()
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -103,6 +103,7 @@ class App {
       })
       .catch(err => {
         handleError(err, 'failed to retrieve advanced search config', res)
+
       })
       .finally(() => {
         const timeStr = nanoSecToString(hrtime.bigint() - start)
@@ -110,7 +111,7 @@ class App {
       })
   }
 
-  handleAutoComplete(req, res) {
+  async handleAutoComplete(req, res) {
     const start = hrtime.bigint()
     const q = req.query
     const text = q.text || ''
@@ -125,7 +126,9 @@ class App {
     const timeoutInMilliseconds = parseInt(q.timeoutInMilliseconds, 10) >= 0
       ? q.timeoutInMilliseconds : 0
 
-    this.mlProxy.autoComplete(
+    const mlProxy = await createMLProxy(req)
+
+    mlProxy.autoComplete(
       text,
       context,
       fullyHonorContext,
@@ -146,13 +149,15 @@ class App {
     })
   }
 
-  handleDocument(req, res) {
+  async handleDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query
 
-    this.mlProxy.getDocument(uri, profile || null, lang || null)
+    const mlProxy = await createMLProxy(req)
+
+    mlProxy.getDocument(uri, profile || null, lang || null)
       .then(async doc => {
         if (doc == null) {
           res.status(404)
@@ -161,7 +166,7 @@ class App {
           let links = null
           if (!profile) {
             // Create HAL links only when no profile has been requested
-            const linksBuilder = new HalLinksBuilder(this.mlProxy)
+            const linksBuilder = new HalLinksBuilder(mlProxy)
             links = await linksBuilder.getLinks(doc)
           }
           const doc2 = transformEntityDoc(
@@ -182,7 +187,7 @@ class App {
       })
   }
 
-  handleFacets(req, res) {
+  async handleFacets(req, res) {
     const start = hrtime.bigint()
     const { scope } = req.params
     const {
@@ -194,7 +199,9 @@ class App {
     } = req.query
     const qstr = translateQuery(q || '')
 
-    this.mlProxy.facets(name, qstr, scope, page, pageLength, sort)
+    const mlProxy = await createMLProxy(req)
+
+    mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -211,7 +218,7 @@ class App {
       })
   }
 
-  handleRelatedList(req, res) {
+  async handleRelatedList(req, res) {
     const start = hrtime.bigint()
     const scope = req.params.scope || ''
     const name = req.query.name || ''
@@ -222,8 +229,9 @@ class App {
       req.query.relationshipsPerRelation,
       null,
     )
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy2.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
+    mlProxy.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -240,9 +248,11 @@ class App {
       })
   }
 
-  handleResolve(req, res) {
+  async handleResolve(req, res) {
     const start = hrtime.bigint()
     const { scope, unit, identifier } = req.params
+    const mlProxy = await createMLProxy(req)
+
     try {
       if (!validResolveScopes.includes(scope)) {
         throw new ResolveError(`Scope must be one of: ${validResolveScopes.join(', ')}`, 400)
@@ -257,13 +267,13 @@ class App {
       }
       // first try just doing a search with identifier
       let q = { identifier }
-      this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(result => {
+      mlProxy.search(q, searchScope, false, 1, 2, '', false, false).then(result => {
         if (result.orderedItems) {
           if (result.orderedItems.length > 1) {
           // If there is more than one result, try to find a unique result
           // by including the unit in the query
             q = getSecondaryResolveQuery(scope, unit, identifier)
-            this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(secondaryResult => {
+            mlProxy.search(q, searchScope, false, 1, 2, '', false, false).then(secondaryResult => {
               if (secondaryResult.orderedItems) {
                 if (secondaryResult.orderedItems.length > 1) {
                 // After attempting to narrow results by unit, there is still no unique record
@@ -316,7 +326,7 @@ class App {
     }
   }
 
-  handleSearch(req, res) {
+  async handleSearch(req, res) {
     const start = hrtime.bigint()
     const scope = req.params.scope || ''
     const qstr = decodeURIComponent(translateQuery(req.query.q))
@@ -328,7 +338,9 @@ class App {
     const synonymsEnabled = req.query.synonymsEnabled === ''
       || req.query.synonymsEnabled === 'true'
     const mayChangeScope = false
-    this.mlProxy2.search(
+    const mlProxy = await createMLProxy(req)
+
+    mlProxy.search(
       qstr,
       scope,
       mayChangeScope,
@@ -354,12 +366,13 @@ class App {
       })
   }
 
-  handleSearchEstimate(req, res) {
+  async handleSearchEstimate(req, res) {
     const start = hrtime.bigint()
     const scope = req.params.scope || ''
     const qstr = translateQuery(req.query.q || '')
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy.searchEstimate(qstr, scope)
+    mlProxy.searchEstimate(qstr, scope)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -376,10 +389,11 @@ class App {
       })
   }
 
-  handleSearchInfo(req, res) {
+  async handleSearchInfo(req, res) {
     const start = hrtime.bigint()
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy.searchInfo()
+    mlProxy.searchInfo()
       .then(result => res.json(result))
       .catch(err => {
         handleError(err, 'failed to retrieve search info', res)
@@ -390,11 +404,12 @@ class App {
       })
   }
 
-  handleSearchWillMatch(req, res) {
+  async handleSearchWillMatch(req, res) {
     const start = hrtime.bigint()
     const qstr = translateQuery(req.query.q || '')
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy.searchWillMatch(qstr)
+    mlProxy.searchWillMatch(qstr)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -411,28 +426,29 @@ class App {
       })
   }
 
-  handleStats(req, res) {
+  async handleStats(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy.stats()
-      .then(result => {
-        res.json(result)
-      })
-      .catch(err => {
-        handleError(err, 'failed stats', res)
-      })
-      .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for stats ${remoteIps(req)}`)
-      })
+    try {
+      const mlProxy = await createMLProxy(req)
+      const result = await mlProxy.stats()
+
+      res.json(result)
+    } catch (err) {
+      handleError(err, 'stats failed', res)
+    } finally {
+      const timeStr = nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} for stats ${remoteIps(req)}`)
+    }
   }
 
-  handleTranslate(req, res) {
+  async handleTranslate(req, res) {
     const start = hrtime.bigint()
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy.translate(
+    mlProxy.translate(
       qstr,
       scope,
     )
@@ -452,10 +468,11 @@ class App {
       })
   }
 
-  handleVersionInfo(req, res) {
+  async handleVersionInfo(req, res) {
     const start = hrtime.bigint()
+    const mlProxy = await createMLProxy(req)
 
-    this.mlProxy.versionInfo()
+    mlProxy.versionInfo()
       .then(result => {
         res.json(result)
       })
@@ -486,33 +503,35 @@ class App {
 }
 
 const newApp = () => {
-  // Create proxy for MarkLogic database (fast lane)
-  const mlClient = marklogic.createDatabaseClient({
-    host: env.mlHost,
-    port: env.mlPort,
-    user: env.mlUser,
-    password: env.mlPass,
-    authType: env.mlAuthType,
-    ssl: env.mlSsl,
-  })
-  // Create proxy for MarkLogic database (slow lane)
-  const mlClient2 = marklogic.createDatabaseClient({
-    host: env.mlHost2,
-    port: env.mlPort2,
-    user: env.mlUser2,
-    password: env.mlPass2,
-    authType: env.mlAuthType,
-    ssl: env.mlSsl,
-  })
+  // // Create proxy for MarkLogic database (fast lane)
+  // const mlClient = marklogic.createDatabaseClient({
+  //   host: env.mlHost,
+  //   port: env.mlPort,
+  //   user: env.mlUser,
+  //   password: env.mlPass,
+  //   authType: env.mlAuthType,
+  //   ssl: env.mlSsl,
+  // })
+  // // Create proxy for MarkLogic database (slow lane)
+  // const mlClient2 = marklogic.createDatabaseClient({
+  //   host: env.mlHost2,
+  //   port: env.mlPort2,
+  //   user: env.mlUser2,
+  //   password: env.mlPass2,
+  //   authType: env.mlAuthType,
+  //   ssl: env.mlSsl,
+  // })
 
-  const mlProxy = new MLProxy(mlClient)
-  const mlProxy2 = new MLProxy(mlClient2)
+  // const mlProxy = new MLProxy(mlClient)
+  // const mlProxy2 = new MLProxy(mlClient2)
 
-  const app = new App({
-    port: env.appPort,
-    mlProxy,
-    mlProxy2,
-  })
+  // const app = new App({
+  //   port: env.appPort,
+  //   mlProxy,
+  //   mlProxy2,
+  // })
+
+  const app = new App({port: env.appPort})
   return app
 }
 
