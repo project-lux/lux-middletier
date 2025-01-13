@@ -10,14 +10,18 @@
 
 ---
 
-## 1.2.1
+## 1.2.2
 
 - Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
 - Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/pull/111)).
 
-## 1.2.0
+## 1.2.1
 
 - Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/pull/79)).
+
+## 1.2.0
+
+- Use modules instead of commonjs, update node to version 20 - the current LTS"
 
 ## 1.1.19
 
