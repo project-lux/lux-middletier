@@ -2,7 +2,7 @@
 
 ## Overview
 
-The middle tier is a mediator that sits between the MarkLogic database backend and the JavaScript frontend.  It is a web applicaiton implemented with Node.js. It provides API endpoints that serves data in JSON format.
+The middle tier is a mediator that sits between the MarkLogic database backend and the JavaScript frontend.  It is a web application implemented with Node.js. It provides API endpoints that serves data in JSON format.
 
 ## Running the Application Locally
 
