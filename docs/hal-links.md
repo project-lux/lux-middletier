@@ -27,7 +27,7 @@ following form:
 
 ## HAL links for items
 
-- `lux:itemArchive` - archives (sets) containinig the item
+- `lux:itemArchive` - archives (sets) containing the item
 - `lux:itemEvents` - events that used the item
 - `lux:itemDepartment` - departments (agents) that curated the item
 - `lux:itemUnit` - units responsible for the item
