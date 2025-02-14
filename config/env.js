@@ -11,6 +11,7 @@ const env = {
   numInstances: getInt(process.env.NUM_INSTANCES) || -1,
   searchUriHost: process.env.SEARCH_URI_HOST || 'https://lux.collections.yale.edu',
   resultUriHost: process.env.RESULT_URI_HOST || null,
+  aiHost: process.env.AI_HOST || null,
   mlSsl: process.env.ML_SSL === 'true',
   mlAuthType: process.env.ML_AUTH_TYPE,
 
