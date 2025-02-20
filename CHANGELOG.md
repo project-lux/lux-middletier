@@ -9,6 +9,8 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.2.3
+- Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/pull/125)).
 
 ## 1.2.2
 
