@@ -11,6 +11,7 @@
 ---
 ## 1.2.3
 - Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/pull/125)).
+- Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/pull/120)).
 
 ## 1.2.2
 
