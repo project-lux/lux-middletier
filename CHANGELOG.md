@@ -11,6 +11,7 @@
 ---
 ## 1.2.4
 - Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/pull/128)).
+- Add optional LLM translate
 
 ## 1.2.3
 - Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/pull/125)).
