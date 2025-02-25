@@ -437,17 +437,25 @@ class App {
 
     // Issue a redirect here to python AI code
     if (this.aiHost != null && qstr.startsWith("I want")) {
+      try{
       http.get(this.aiHost+"/api/translate/"+scope+"?q="+qstr,
         res2 => {
           let rawdata = ''
           res2.on('data', chunk => {rawdata += chunk})
           res2.on('end', () => {
             const parsedData = JSON.parse(rawdata);
-            console.log(parsedData);
             res.json(parsedData);
           });
         }
       )
+    }
+    catch(err){
+      handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
+    }
+    finally{
+      const timeStr = nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} for ai translate ${qstr} ${scope} ${remoteIps(req)}`)
+    }
     } else {
       this.mlProxy.translate(
         qstr,
