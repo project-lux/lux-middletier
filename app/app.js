@@ -21,6 +21,8 @@ import {
 
 import json from '../package.json' with {type: "json"}
 
+import * as http from 'http';
+
 /**
  * Create error response based on the error object passed in and send it
  * to client.
@@ -56,6 +58,7 @@ class App {
     this.mlProxy2 = config.mlProxy2
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
+    this.aiHost = env.aiHost || null
   }
 
   run() {
@@ -432,24 +435,47 @@ class App {
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
 
-    this.mlProxy.translate(
-      qstr,
-      scope,
-    )
-      .then(result => {
-        res.json(replaceStringsInObject(
-          result,
-          this.searchUriHost,
-          this.resultUriHost,
-        ))
-      })
-      .catch(err => {
-        handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
-      })
-      .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${remoteIps(req)}`)
-      })
+    // Issue a redirect here to python AI code
+    if (this.aiHost != null && qstr.startsWith("I want")) {
+      try{
+      http.get(this.aiHost+"/api/translate/"+scope+"?q="+qstr,
+        res2 => {
+          let rawdata = ''
+          res2.on('data', chunk => {rawdata += chunk})
+          res2.on('end', () => {
+            const parsedData = JSON.parse(rawdata);
+            res.json(parsedData);
+          });
+        }
+      )
+    }
+    catch(err){
+      handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
+    }
+    finally{
+      const timeStr = nanoSecToString(hrtime.bigint() - start)
+      log.debug(`took ${timeStr} for ai translate ${qstr} ${scope} ${remoteIps(req)}`)
+    }
+    } else {
+      this.mlProxy.translate(
+        qstr,
+        scope,
+      )
+        .then(result => {
+          res.json(replaceStringsInObject(
+            result,
+            this.searchUriHost,
+            this.resultUriHost,
+          ))
+        })
+        .catch(err => {
+          handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
+        })
+        .finally(() => {
+          const timeStr = nanoSecToString(hrtime.bigint() - start)
+          log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${remoteIps(req)}`)
+        })
+    }
   }
 
   handleVersionInfo(req, res) {
