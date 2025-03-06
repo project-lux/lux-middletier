@@ -13,6 +13,9 @@ if (cluster.isMaster) {
   log.info(`numInstances: ${numInstances}`)
   log.info(`ML host - fast lane: ${env.mlHost}:${env.mlPort}`)
   log.info(`ML host - slow lane: ${env.mlHost2}:${env.mlPort2}`)
+  log.info(`cognitoJwksUri: ${env.cognitoJwksUri}`)
+  log.info(`cognitoClientId: ${env.cognitoClientId}`)
+  log.info(`cognitoServiceUsername: ${env.cognitoServiceUsername}`)
 }
 
 // Bring up the requested number (= numInstances) of node app servers.
