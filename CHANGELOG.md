@@ -10,6 +10,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Unreleased
+- Added HAL links for Place timelines ([#113](https://github.com/project-lux/lux-middletier/issues/113)).
+
 ## 1.2.6
 - Added back the configuration for setIncludedItems HAL link ([#135](https://github.com/project-lux/lux-middletier/issues/135)).
 
