@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.2.5 Marklogic client code was regenerated against ML v1.36.0 dated 03/11/25
 - With v1.1.18 Marklogic client code was regenerated against ML v1.25.0 dated 09/23/24
 - With v1.1.12, Marklogic client code was regenerated against ML v1.20.0 dated 07/08/24
 - With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
@@ -9,6 +10,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.2.5
+- Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/pull/133)).
+
 ## 1.2.4
 - Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/pull/128)).
 - Add optional LLM translate

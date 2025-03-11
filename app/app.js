@@ -260,13 +260,13 @@ class App {
       }
       // first try just doing a search with identifier
       let q = { identifier }
-      this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(result => {
+      this.mlProxy2.search(q, searchScope, false, 1, 2, '', '', false, false).then(result => {
         if (result.orderedItems) {
           if (result.orderedItems.length > 1) {
           // If there is more than one result, try to find a unique result
           // by including the unit in the query
             q = getSecondaryResolveQuery(scope, unit, identifier)
-            this.mlProxy2.search(q, searchScope, false, 1, 2, '', false, false).then(secondaryResult => {
+            this.mlProxy2.search(q, searchScope, false, 1, 2, '', '', false, false).then(secondaryResult => {
               if (secondaryResult.orderedItems) {
                 if (secondaryResult.orderedItems.length > 1) {
                 // After attempting to narrow results by unit, there is still no unique record
@@ -325,6 +325,7 @@ class App {
     const qstr = decodeURIComponent(translateQuery(req.query.q))
     const page = req.query.page || 1
     const pageLength = req.query.pageLength || 20
+    const pageWith = req.query.pageWith || ''
     const sort = req.query.sort || ''
     const facetsSoon = req.query.facetsOnly === ''
       || req.query.facetsSoon === 'true'
@@ -337,6 +338,7 @@ class App {
       mayChangeScope,
       page,
       pageLength,
+      pageWith,
       sort,
       facetsSoon,
       synonymsEnabled,
