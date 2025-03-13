@@ -13,6 +13,7 @@
 ## 1.2.5
 - Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/issues/133)).
 - Change "lux:setItemsWithImages" so that users don't see the check for archive classification ([#87](https://github.com/project-lux/lux-middletier/issues/87)).
+- Replace "lux:setIncludedItems" and "lux:setIncludedSets" HAL links with "lux:objectOrSetMemberOfSet" ([#135](https://github.com/project-lux/lux-middletier/pull/135)).
 
 ## 1.2.4
 - Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/issues/128)).
