@@ -11,24 +11,25 @@
 
 ---
 ## 1.2.5
-- Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/pull/133)).
+- Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/issues/133)).
+- Change "lux:setItemsWithImages" so that users don't see the check for archive classification ([#87](https://github.com/project-lux/lux-middletier/issues/87)).
 
 ## 1.2.4
-- Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/pull/128)).
+- Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/issues/128)).
 - Add optional LLM translate
 
 ## 1.2.3
-- Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/pull/125)).
-- Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/pull/120)).
+- Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/issues/125)).
+- Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/issues/120)).
 
 ## 1.2.2
 
-- Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
-- Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/pull/111)).
+- Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/issues/90)).
+- Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/issues/111)).
 
 ## 1.2.1
 
-- Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/pull/79)).
+- Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/issues/79)).
 
 ## 1.2.0
 
