@@ -1,0 +1,18 @@
+// Find items that are member of the set.
+const itemsOrSetsMemberOfSet = (setId) => ({
+    _scope: 'multi',
+    OR:[{
+        _scope: 'item',
+        memberOf: {
+            id: setId,
+        },
+    },
+    {
+        _scope: 'set',
+        memberOf: {
+            id: setId,
+        },
+    }]
+})
+
+export default itemsOrSetsMemberOfSet
