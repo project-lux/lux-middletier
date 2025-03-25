@@ -10,6 +10,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.2.6
+- Added back the configuration for setIncludedItems HAL link ([#135](https://github.com/project-lux/lux-middletier/issues/135)).
+
 ## 1.2.5
 - Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/issues/133)).
 - Change "lux:setItemsWithImages" so that users don't see the check for archive classification ([#87](https://github.com/project-lux/lux-middletier/issues/87)).
