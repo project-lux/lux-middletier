@@ -2,6 +2,7 @@
 
 ## Marklogic Dependencies
 
+- With v1.2.5 Marklogic client code was regenerated against ML v1.36.0 dated 03/11/25
 - With v1.1.18 Marklogic client code was regenerated against ML v1.25.0 dated 09/23/24
 - With v1.1.12, Marklogic client code was regenerated against ML v1.20.0 dated 07/08/24
 - With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
@@ -9,22 +10,31 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.2.6
+- Added back the configuration for setIncludedItems HAL link ([#135](https://github.com/project-lux/lux-middletier/issues/135)).
+
+## 1.2.5
+- Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/issues/133)).
+- Change "lux:setItemsWithImages" so that users don't see the check for archive classification ([#87](https://github.com/project-lux/lux-middletier/issues/87)).
+- Replace "lux:setIncludedItems" and "lux:setIncludedSets" HAL links with "lux:objectOrSetMemberOfSet" ([#135](https://github.com/project-lux/lux-middletier/pull/135)).
+- Add new HAL links "lux:itemCurrentHierarchyPage" and "lux:setCurrentHierarchyPage" so that the front end can get the current page of hierarchy results. ([#136](https://github.com/project-lux/lux-middletier/pull/136)).
+
 ## 1.2.4
-- Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/pull/128)).
+- Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/issues/128)).
 - Add optional LLM translate
 
 ## 1.2.3
-- Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/pull/125)).
-- Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/pull/120)).
+- Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/issues/125)).
+- Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/issues/120)).
 
 ## 1.2.2
 
-- Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/pull/90)).
-- Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/pull/111)).
+- Added HAL link for Works Caused By on event pages ([#90](https://github.com/project-lux/lux-middletier/issues/90)).
+- Added HAL link for Works About on event pages ([#111](https://github.com/project-lux/lux-middletier/issues/111)).
 
 ## 1.2.1
 
-- Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/pull/79)).
+- Added HAL link for Part Of inverse ([#79](https://github.com/project-lux/lux-middletier/issues/79)).
 
 ## 1.2.0
 

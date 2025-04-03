@@ -335,6 +335,7 @@ class App {
     const qstr = decodeURIComponent(translateQuery(req.query.q))
     const page = req.query.page || 1
     const pageLength = req.query.pageLength || 20
+    const pageWith = req.query.pageWith || ''
     const sort = req.query.sort || ''
     const facetsSoon = req.query.facetsOnly === ''
       || req.query.facetsSoon === 'true'
@@ -349,6 +350,7 @@ class App {
       mayChangeScope,
       page,
       pageLength,
+      pageWith,
       sort,
       facetsSoon,
       synonymsEnabled,
