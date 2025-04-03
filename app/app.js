@@ -8,7 +8,7 @@ import marklogic from 'marklogic'
 import env from '../config/env.js'
 import HalLinksBuilder from '../lib/hal-links-builder.js'
 import * as log from '../lib/log.js'
-import { MLProxy, createMLProxy } from '../lib/ml-proxy-oauth.js'
+import { MLProxy, createMLProxy } from '../lib/ml-proxy.js'
 import {
   getNumArg, nanoSecToString, remoteIps, replaceStringsInObject,
 } from '../lib/util.js'
@@ -475,7 +475,7 @@ class App {
       log.debug(`took ${timeStr} for ai translate ${qstr} ${scope} ${remoteIps(req)}`)
     }
     } else {
-      this.mlProxy.translate(
+      mlProxy.translate(
         qstr,
         scope,
       )
