@@ -92,9 +92,12 @@ class App {
   }
 
   async handleAdvancedSearchConfig(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
 
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`advencedSearch->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.advancedSearchConfig(env.unitName)
       .then(result => {
@@ -153,12 +156,15 @@ class App {
   }
 
   async handleDocument(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const { type, uuid } = req.params
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query
 
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`document->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.getDocument(env.unitName, uri, profile || null, lang || null)
       .then(async doc => {
@@ -191,7 +197,7 @@ class App {
   }
 
   async handleFacets(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const { scope } = req.params
     const {
       name,
@@ -203,6 +209,9 @@ class App {
     const qstr = translateQuery(q || '')
 
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`facets->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.facets(env.unitName, name, qstr, scope, page, pageLength, sort)
       .then(result => {
@@ -222,7 +231,7 @@ class App {
   }
 
   async handleRelatedList(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const scope = req.params.scope || ''
     const name = req.query.name || ''
     const uri = translateQuery(req.query.uri || '')
@@ -233,6 +242,9 @@ class App {
       null,
     )
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`relatedList->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.relatedList(env.unitName, scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
@@ -330,7 +342,7 @@ class App {
   }
 
   async handleSearch(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const scope = req.params.scope || ''
     const qstr = decodeURIComponent(translateQuery(req.query.q))
     const page = req.query.page || 1
@@ -343,6 +355,9 @@ class App {
       || req.query.synonymsEnabled === 'true'
     const mayChangeScope = false
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`search->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.search(
       env.unitName,
@@ -373,10 +388,13 @@ class App {
   }
 
   async handleSearchEstimate(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const scope = req.params.scope || ''
     const qstr = translateQuery(req.query.q || '')
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`searchEstimate->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.searchEstimate(env.unitName, qstr, scope)
       .then(result => {
@@ -396,8 +414,11 @@ class App {
   }
 
   async handleSearchInfo(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`searchInfo->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.searchInfo(env.unitName)
       .then(result => res.json(result))
@@ -411,9 +432,12 @@ class App {
   }
 
   async handleSearchWillMatch(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const qstr = translateQuery(req.query.q || '')
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`searchWillMatch->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     mlProxy.searchWillMatch(env.unitName, qstr)
       .then(result => {
@@ -449,10 +473,13 @@ class App {
   }
 
   async handleTranslate(req, res) {
-    const start = hrtime.bigint()
+    let start = hrtime.bigint()
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
     const mlProxy = await createMLProxy(req)
+
+    log.debug(`translate->createMLProxy: ${nanoSecToString(hrtime.bigint() - start)}`)
+    start = hrtime.bigint()
 
     // Issue a redirect here to python AI code
     if (this.aiHost != null && qstr.startsWith("I want")) {
