@@ -12,6 +12,7 @@
 ---
 ## 1.2.8
 - Added HAL links for Collection tabs and accordions on Place pages ([#142](https://github.com/project-lux/lux-middletier/issues/142)).
+- Added HAL links for Collection tabs and accordions on Event pages ([#143](https://github.com/project-lux/lux-middletier/issues/143)).
 
 ## 1.2.7
 - Added HAL links for Place timelines ([#113](https://github.com/project-lux/lux-middletier/issues/113)).
