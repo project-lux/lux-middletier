@@ -96,7 +96,7 @@ class App {
   handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy2.advancedSearchConfig()
+    this.mlProxy2.advancedSearchConfig(env.unitName)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -128,7 +128,7 @@ class App {
     const timeoutInMilliseconds = parseInt(q.timeoutInMilliseconds, 10) >= 0
       ? q.timeoutInMilliseconds : 0
 
-    this.mlProxy.autoComplete(
+    this.mlProxy.autoComplete(env.unitName,
       text,
       context,
       fullyHonorContext,
@@ -155,7 +155,7 @@ class App {
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query
 
-    this.mlProxy.getDocument(uri, profile || null, lang || null)
+    this.mlProxy.getDocument(env.unitName, uri, profile || null, lang || null)
       .then(async doc => {
         if (doc == null) {
           res.status(404)
@@ -164,7 +164,7 @@ class App {
           let links = null
           if (!profile) {
             // Create HAL links only when no profile has been requested
-            const linksBuilder = new HalLinksBuilder(this.mlProxy)
+            const linksBuilder = new HalLinksBuilder(this.mlProxy, env.unitName)
             links = await linksBuilder.getLinks(doc)
           }
           const doc2 = transformEntityDoc(
@@ -197,7 +197,7 @@ class App {
     } = req.query
     const qstr = translateQuery(q || '')
 
-    this.mlProxy.facets(name, qstr, scope, page, pageLength, sort)
+    this.mlProxy.facets(env.unitName, name, qstr, scope, page, pageLength, sort)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -226,7 +226,7 @@ class App {
       null,
     )
 
-    this.mlProxy2.relatedList(scope, name, uri, page, pageLength, relationshipsPerRelation)
+    this.mlProxy2.relatedList(env.unitName, scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -260,13 +260,13 @@ class App {
       }
       // first try just doing a search with identifier
       let q = { identifier }
-      this.mlProxy2.search(q, searchScope, false, 1, 2, '', '', false, false).then(result => {
+      this.mlProxy2.search(env.unitName, q, searchScope, false, 1, 2, '', '', false, false).then(result => {
         if (result.orderedItems) {
           if (result.orderedItems.length > 1) {
           // If there is more than one result, try to find a unique result
           // by including the unit in the query
             q = getSecondaryResolveQuery(scope, unit, identifier)
-            this.mlProxy2.search(q, searchScope, false, 1, 2, '', '', false, false).then(secondaryResult => {
+            this.mlProxy2.search(env.unitName, q, searchScope, false, 1, 2, '', '', false, false).then(secondaryResult => {
               if (secondaryResult.orderedItems) {
                 if (secondaryResult.orderedItems.length > 1) {
                 // After attempting to narrow results by unit, there is still no unique record
@@ -333,6 +333,7 @@ class App {
       || req.query.synonymsEnabled === 'true'
     const mayChangeScope = false
     this.mlProxy2.search(
+      env.unitName,
       qstr,
       scope,
       mayChangeScope,
@@ -364,7 +365,7 @@ class App {
     const scope = req.params.scope || ''
     const qstr = translateQuery(req.query.q || '')
 
-    this.mlProxy.searchEstimate(qstr, scope)
+    this.mlProxy.searchEstimate(env.unitName, qstr, scope)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -384,7 +385,7 @@ class App {
   handleSearchInfo(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy.searchInfo()
+    this.mlProxy.searchInfo(env.unitName)
       .then(result => res.json(result))
       .catch(err => {
         handleError(err, 'failed to retrieve search info', res)
@@ -399,7 +400,7 @@ class App {
     const start = hrtime.bigint()
     const qstr = translateQuery(req.query.q || '')
 
-    this.mlProxy.searchWillMatch(qstr)
+    this.mlProxy.searchWillMatch(env.unitName, qstr)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -419,7 +420,7 @@ class App {
   handleStats(req, res) {
     const start = hrtime.bigint()
 
-    this.mlProxy.stats()
+    this.mlProxy.stats(env.unitName)
       .then(result => {
         res.json(result)
       })

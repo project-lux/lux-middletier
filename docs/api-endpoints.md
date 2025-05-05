@@ -11,7 +11,7 @@
 - [Search](#search)
 - [Related List](#related-list)
 - [Search Estimate](#search-estimate)
-- [Sarch Will Match](#search-will-match)
+- [Search Will Match](#search-will-match)
 - [Facets](#facets)
 - [Auto Complete](#auto-complete)
 - [Translate](#translate)
@@ -161,7 +161,7 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 
 - Response: A Linked Art document
 
-- See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#document) for detailed descriptions of parameters and responses.
+- See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#read-document) for detailed descriptions of parameters and responses.
 
 - Example: https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22
 
