@@ -23,7 +23,7 @@ import json from '../package.json' with {type: "json"}
 
 import * as http from 'http';
 
-// Until we have unit portals, send null for the unit unit.
+// Until we have unit portals, send null for the unit name.
 const UNIT_NAME = null;
 
 /**
