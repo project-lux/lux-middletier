@@ -15,6 +15,8 @@ const env = {
   mlSsl: process.env.ML_SSL === 'true',
   mlAuthType: process.env.ML_AUTH_TYPE,
 
+  unitName: process.env.UNIT_NAME || null,
+
   mlHost: process.env.ML_HOST,
   mlPort: process.env.ML_PORT,
   mlUser: process.env.ML_USER,
