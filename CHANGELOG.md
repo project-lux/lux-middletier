@@ -1,15 +1,19 @@
 # Changelog
 
-## Marklogic Dependencies
+## MarkLogic Dependencies
 
-- With v1.2.5 Marklogic client code was regenerated against ML v1.36.0 dated 03/11/25
-- With v1.1.18 Marklogic client code was regenerated against ML v1.25.0 dated 09/23/24
-- With v1.1.12, Marklogic client code was regenerated against ML v1.20.0 dated 07/08/24
-- With v1.1.4, Marklogic client code was regenerated against ML v1.11.0 dated 03/04/23
-- With v1.1.0, Marklogic client code was regenerated against ML v1.6.0 dated 11/21/23
+- With v1.2.9 MarkLogic client code was regenerated against ML v1.39.0 dated 05/05/25
+- With v1.2.5 MarkLogic client code was regenerated against ML v1.36.0 dated 03/11/25
+- With v1.1.18 MarkLogic client code was regenerated against ML v1.25.0 dated 09/23/24
+- With v1.1.12, MarkLogic client code was regenerated against ML v1.20.0 dated 07/08/24
+- With v1.1.4, MarkLogic client code was regenerated against ML v1.11.0 dated 03/04/23
+- With v1.1.0, MarkLogic client code was regenerated against ML v1.6.0 dated 11/21/23
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## 1.2.9
+- Changed path to backend Read Document endpoint ([#163](https://github.com/project-lux/lux-middletier/issues/163)).
+
 ## 1.2.8
 - Added HAL links for Collection tabs and accordions on Place pages ([#142](https://github.com/project-lux/lux-middletier/issues/142)).
 - Added HAL links for Collection tabs and accordions on Event pages ([#143](https://github.com/project-lux/lux-middletier/issues/143)).
@@ -85,7 +89,7 @@
 
 - Add parameters for 'page', 'pageLength', and 'sort' to the facets endpoint. (#65)
 - Update gulpfile to handle new MarkLogic repo structure.
-- Regenerate Marklogic client code, which allows for new facets parameters, and removes personRoles endpoint
+- Regenerate MarkLogic client code, which allows for new facets parameters, and removes personRoles endpoint
 
 ## 1.1.11
 
@@ -162,7 +166,7 @@
 ## 0.5.2
 
 - Added HAL link lux:setIncludedWorks (#75).
-- Added Support For Multiple Marklogic Proxies, send facet-only searches to the second app server port (#90).
+- Added Support For Multiple MarkLogic Proxies, send facet-only searches to the second app server port (#90).
 
 ## 0.5.1
 
