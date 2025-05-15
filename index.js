@@ -28,10 +28,10 @@ if (numInstances > 1) {
       log.info(`Worker ${newWorker.id} created.`)
     })
   } else {
-    const app = newApp()
+    const app = await newApp()
     app.run()
   }
 } else {
-  const app = newApp()
+  const app = await newApp()
   app.run()
 }

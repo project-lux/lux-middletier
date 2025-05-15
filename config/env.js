@@ -26,7 +26,13 @@ const env = {
   mlUser2: process.env.ML_USER2,
   mlPass2: process.env.ML_PASS2,
 
+  cognitoJwksUri: process.env.COGNITO_JWKS_URI,
+  cognitoClientId: process.env.COGNITO_CLIENT_ID,
+  cognitoServiceUsername: process.env.COGNITO_SERVICE_USERNAME,
+  cognitoServicePassword: process.env.COGNITO_SERVICE_PASSWORD,
+
   logLevel: process.env.LOG_LEVEL || 'debug',
+  featureMyCollections: process.env.FEATURE_MY_COLLECTIONS === 'true',
 }
 
 export default env
