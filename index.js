@@ -3,16 +3,19 @@ import cluster from 'cluster'
 
 import newApp from './app/app.js'
 import env from './config/env.js'
-import * as log from './lib/log.js'
+import logger from './lib/log.js'
 
 const numCores = os.cpus().length
 const numInstances = env.numInstances === -1 ? numCores * 2 : env.numInstances
 
 if (cluster.isMaster) {
-  log.info(`numCores: ${numCores}`)
-  log.info(`numInstances: ${numInstances}`)
-  log.info(`ML host - fast lane: ${env.mlHost}:${env.mlPort}`)
-  log.info(`ML host - slow lane: ${env.mlHost2}:${env.mlPort2}`)
+  logger.log({
+    level: 'info',
+    numCores,
+    numInstances,
+    mlEndpoint1: `${env.mlHost}:${env.mlPort}`,
+    mlEndpoint2: `${env.mlHost2}:${env.mlPort2}`,
+  })
 }
 
 // Bring up the requested number (= numInstances) of node app servers.

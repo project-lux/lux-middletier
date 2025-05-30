@@ -43,11 +43,14 @@ const handleError = (err, defaultMessage, res) => {
 
   log.error(`${defaultMessage} - ${errorMessage}`)
 
-  res.status(statusCode)
-  res.json({
+  const result = {
     statusCode,
     errorMessage,
-  })
+  }
+
+  res.status(statusCode)
+  res.json(result)
+  return result
 }
 
 class App {
@@ -101,7 +104,7 @@ class App {
       if (accessToken) {
         console.log('user token', req.url)
         const decAccess = await verifyToken(accessToken)
-        // console.log('user token decoded:', decAccess)
+        console.log('user token decoded:', decAccess)
       } else {
         console.log('service token', req.url)
         accessToken = await getServiceToken()
@@ -115,6 +118,7 @@ class App {
   async handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req, 2)
+    let errorCopy = {}
 
     mlProxy.advancedSearchConfig(env.unitName)
       .then(result => {
@@ -125,11 +129,14 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, 'failed to retrieve advanced search config', res)
+        errorCopy = handleError(
+          err,
+          'failed to retrieve advanced search config',
+          res
+        )
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for advanced search config ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -148,6 +155,7 @@ class App {
     const timeoutInMilliseconds = parseInt(q.timeoutInMilliseconds, 10) >= 0
       ? q.timeoutInMilliseconds : 0
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.autoComplete(env.unitName,
       text,
@@ -162,11 +170,10 @@ class App {
       timeoutInMilliseconds,
     ).then(result => res.json(result)).catch(
       (err) => {
-        handleError(err, 'failed autocomplete', res)
+        errorCopy = handleError(err, 'failed autocomplete', res)
       },
     ).finally(() => {
-      const timeStr = nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for auto-complete ${remoteIps(req)}`)
+      log.logResult(req, hrtime.bigint() - start, errorCopy)
     })
   }
 
@@ -176,6 +183,7 @@ class App {
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.getDocument(env.unitName, uri, profile || null, lang || null)
       .then(async doc => {
@@ -199,11 +207,10 @@ class App {
         }
       })
       .catch(err => {
-        handleError(err, `failed to get doc for ${req.url}`, res)
+        errorCopy = handleError(err, `failed to get doc for ${req.url}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for data/${type}/${uuid} ${profile},${lang} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -219,6 +226,7 @@ class App {
     } = req.query
     const qstr = translateQuery(q || '')
     const mlProxy = await this.getMLProxy(req,1)
+    let errorCopy = {}
 
     mlProxy.facets(env.unitName, name, qstr, scope, page, pageLength, sort)
       .then(result => {
@@ -229,11 +237,10 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, `failed to get facets for ${q}`, res)
+        errorCopy = handleError(err, `failed to get facets for ${q}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for facet ${name}|${q}|${scope} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -249,6 +256,7 @@ class App {
       null,
     )
     const mlProxy = await this.getMLProxy(req, 2)
+    let errorCopy = {}
 
     mlProxy.relatedList(env.unitName, scope, name, uri, page, pageLength, relationshipsPerRelation)
       .then(result => {
@@ -259,11 +267,10 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, `failed get related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation}`, res)
+        errorCopy = handleError(err, `failed get related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -271,6 +278,7 @@ class App {
     const start = hrtime.bigint()
     const { scope, unit, identifier } = req.params
     const mlProxy = await this.getMLProxy(req, 2)
+    let errorCopy = {}
 
     try {
       if (!validResolveScopes.includes(scope)) {
@@ -312,11 +320,15 @@ class App {
               // If the response doesn't contain orderedItems property, it is invalid
                 throw new ResolveError('Invalid response', 500)
               }
-            }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
-              .finally(() => {
-                const timeStr = nanoSecToString(hrtime.bigint() - start)
-                log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
-              })
+            }).catch(err => {
+              errorCopy = handleError(
+                err,
+                `failed resolve for ${scope}, ${unit}, ${identifier}`,
+                res,
+              )
+            }).finally(() => {
+              log.logResult(req, hrtime.bigint() - start, errorCopy)
+            })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
             res.redirect(
@@ -332,16 +344,19 @@ class App {
         // If the response doesn't contain orderedItems property, it is invalid
           throw new ResolveError('Invalid response', 500)
         }
-      }).catch(err => handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res))
-        .finally(() => {
-          const timeStr = nanoSecToString(hrtime.bigint() - start)
-          log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
-        })
+      }).catch(err => {
+        errorCopy = handleError(
+          err,
+          `failed resolve for ${scope}, ${unit}, ${identifier}`,
+          res
+        )
+      }).finally(() => {
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
+      })
     } catch (err) {
-      handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res)
+      errorCopy = handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res)
     } finally {
-      const timeStr = nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} to resolve ${scope}, ${unit}, ${identifier} ${remoteIps(req)}`)
+      log.logResult(req, hrtime.bigint() - start, errorCopy)
     }
   }
 
@@ -359,6 +374,7 @@ class App {
       || req.query.synonymsEnabled === 'true'
     const mayChangeScope = false
     const mlProxy = await this.getMLProxy(req, 2)
+    let errorCopy = {}
 
     mlProxy.search(
       env.unitName,
@@ -380,11 +396,10 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, `failed search for ${qstr}`, res)
+        errorCopy = handleError(err, `failed search for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search ${qstr} ${page},${pageLength},${sort},${synonymsEnabled} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -393,6 +408,7 @@ class App {
     const scope = req.params.scope || ''
     const qstr = translateQuery(req.query.q || '')
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.searchEstimate(env.unitName, qstr, scope)
       .then(result => {
@@ -403,26 +419,25 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, `failed search estimate for ${qstr}`, res)
+        errorCopy = handleError(err, `failed search estimate for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search estimate ${qstr} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleSearchInfo(req, res) {
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.searchInfo(env.unitName)
       .then(result => res.json(result))
       .catch(err => {
-        handleError(err, 'failed to retrieve search info', res)
+        errorCopy = handleError(err, 'failed to retrieve search info', res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for search-info ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -430,6 +445,7 @@ class App {
     const start = hrtime.bigint()
     const qstr = translateQuery(req.query.q || '')
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.searchWillMatch(env.unitName, qstr)
       .then(result => {
@@ -440,28 +456,27 @@ class App {
         ))
       })
       .catch(err => {
-        handleError(err, `failed match for ${qstr}`, res)
+        errorCopy = handleError(err, `failed match for ${qstr}`, res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for match ${qstr} ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleStats(req, res) {
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.stats(env.unitName)
       .then(result => {
         res.json(result)
       })
       .catch(err => {
-        handleError(err, 'failed stats', res)
+        errorCopy = handleError(err, 'failed stats', res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for stats ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -470,28 +485,28 @@ class App {
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     // Issue a redirect here to python AI code
     if (this.aiHost != null && qstr.startsWith("I want")) {
-      try{
-      http.get(this.aiHost+"/api/translate/"+scope+"?q="+qstr,
-        res2 => {
-          let rawdata = ''
-          res2.on('data', chunk => {rawdata += chunk})
-          res2.on('end', () => {
-            const parsedData = JSON.parse(rawdata);
-            res.json(parsedData);
-          });
-        }
-      )
-    }
-    catch(err){
-      handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
-    }
-    finally{
-      const timeStr = nanoSecToString(hrtime.bigint() - start)
-      log.debug(`took ${timeStr} for ai translate ${qstr} ${scope} ${remoteIps(req)}`)
-    }
+      try {
+        http.get(this.aiHost+"/api/translate/"+scope+"?q="+qstr,
+          res2 => {
+            let rawdata = ''
+            res2.on('data', chunk => {rawdata += chunk})
+            res2.on('end', () => {
+              const parsedData = JSON.parse(rawdata);
+              res.json(parsedData);
+            });
+          }
+        )
+      }
+      catch(err){
+        errorCopy = handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
+      }
+      finally{
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
+      }
     } else {
       mlProxy.translate(
         qstr,
@@ -505,11 +520,10 @@ class App {
           ))
         })
         .catch(err => {
-          handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
+          errorCopy = handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
         })
         .finally(() => {
-          const timeStr = nanoSecToString(hrtime.bigint() - start)
-          log.debug(`took ${timeStr} for translate ${qstr} ${scope} ${remoteIps(req)}`)
+          log.logResult(req, hrtime.bigint() - start, errorCopy)
         })
     }
   }
@@ -517,17 +531,17 @@ class App {
   async handleVersionInfo(req, res) {
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req, 1)
+    let errorCopy = {}
 
     mlProxy.versionInfo()
       .then(result => {
         res.json(result)
       })
       .catch(err => {
-        handleError(err, 'failed versionInfo', res)
+        errorCopy = handleError(err, 'failed versionInfo', res)
       })
       .finally(() => {
-        const timeStr = nanoSecToString(hrtime.bigint() - start)
-        log.debug(`took ${timeStr} for versionInfo ${remoteIps(req)}`)
+        log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
   }
 
