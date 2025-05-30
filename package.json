@@ -4,16 +4,22 @@
   "main": "index.js",
   "license": "UNLICENSED",
   "private": true,
-  "type":"module",
+  "type": "module",
   "scripts": {
     "start": "node index.js",
     "buildProxy": "gulp proxygen",
     "lint": "eslint . --ext .js"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity": "^3.810.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.810.0",
+    "@aws-sdk/client-cognito-sync": "^3.810.0",
     "cors": "^2.8.5",
     "express": "^4.20.0",
-    "marklogic": "^3.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
+    "marklogic": "^3.5.0",
+    "openid-client": "^6.5.0",
     "winston": "^3.3.3"
   },
   "devDependencies": {
