@@ -11,6 +11,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Unreleased
+- Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
+
 ## 1.2.9
 - Changed path to backend Read Document endpoint ([#163](https://github.com/project-lux/lux-middletier/issues/163)).
 
