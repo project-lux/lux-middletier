@@ -72,6 +72,12 @@ class App {
     exp.use(cors())
     exp.use(express.static('public'))
 
+    exp.options('*', (req, res) => {
+      res.header('Access-Control-Allow-Origin', '*')
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      res.sendStatus(200)
+    })
+
     // Routes
     exp.get('/api/advanced-search-config', this.handleAdvancedSearchConfig.bind(this))
     exp.get('/api/auto-complete', this.handleAutoComplete.bind(this))
