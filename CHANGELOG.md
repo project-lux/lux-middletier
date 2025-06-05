@@ -11,7 +11,10 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
-## Unreleased
+## v1.3.1
+- Added HAL links for Collections About on timelines for Places and Events ([#168](https://github.com/project-lux/lux-middletier/issues/168)).
+
+## v1.3.0
 - Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
 
 ## 1.2.9
