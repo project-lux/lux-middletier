@@ -12,6 +12,11 @@
 
 ---
 ## Unreleased
+## 1.3.1
+- Remove "about concept influenced by" from HAL links now that pre-coordinated subject headings are included directly in the about search terms ([#172](https://github.com/project-lux/lux-middletier/issues/172)).
+
+
+## 1.3.0
 - Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
 
 ## 1.2.9
