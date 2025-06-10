@@ -252,11 +252,14 @@ class App {
 
   async handleRelatedList(req, res) {
     const start = hrtime.bigint()
-    const scope = req.params.scope || ''
-    const name = req.query.name || ''
+    const searchScopeName = req.params.scope || ''
+    const relatedListName = req.query.name || ''
     const uri = translateQuery(req.query.uri || '')
     const page = getNumArg(req.query.page, 1)
     const pageLength = getNumArg(req.query.pageLength, null)
+    const filterResults = req.query.filterResults === undefined // default to true
+      || req.query.filterResults === ''
+      || req.query.filterResults === 'true'
     const relationshipsPerRelation = getNumArg(
       req.query.relationshipsPerRelation,
       null,
@@ -264,7 +267,16 @@ class App {
     const mlProxy = await this.getMLProxy(req, 2)
     let errorCopy = {}
 
-    mlProxy.relatedList(env.unitName, scope, name, uri, page, pageLength, relationshipsPerRelation)
+    mlProxy.relatedList({
+      unitName: env.unitName,
+      searchScopeName,
+      relatedListName,
+      uri,
+      page,
+      pageLength,
+      filterResults,
+      relationshipsPerRelation,
+    })
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -273,7 +285,7 @@ class App {
         ))
       })
       .catch(err => {
-        errorCopy = handleError(err, `failed get related list ${name}, ${uri}, ${page}, ${pageLength}, ${relationshipsPerRelation}`, res)
+        errorCopy = handleError(err, `failed get related list ${searchScopeName}, ${relatedListName}, ${uri}, ${page}, ${pageLength}, ${filterResults}, ${relationshipsPerRelation}`, res)
       })
       .finally(() => {
         log.logResult(req, hrtime.bigint() - start, errorCopy)
@@ -299,14 +311,26 @@ class App {
         throw new ResolveError(`There is no search scope mapping for ${scope}`, 500)
       }
       // first try just doing a search with identifier
-      let q = { identifier }
-      mlProxy.search(env.unitName, q, searchScope, false, 1, 2, '', '', false, false).then(result => {
+      let searchCriteria = { identifier }
+      mlProxy.search({
+        unitName: env.unitName,
+        searchCriteria,
+        searchScope,
+        page: 1,
+        pageLength: 2,
+      }).then(result => {
         if (result.orderedItems) {
           if (result.orderedItems.length > 1) {
-          // If there is more than one result, try to find a unique result
-          // by including the unit in the query
-            q = getSecondaryResolveQuery(scope, unit, identifier)
-            mlProxy.search(env.unitName, q, searchScope, false, 1, 2, '', '', false, false).then(secondaryResult => {
+            // If there is more than one result, try to find a unique result
+            // by including the unit in the query
+            searchCriteria = getSecondaryResolveQuery(scope, unit, identifier)
+            mlProxy.search({
+              unitName: env.unitName,
+              searchCriteria,
+              searchScope,
+              page: 1,
+              pageLength: 2,
+            }).then(secondaryResult => {
               if (secondaryResult.orderedItems) {
                 if (secondaryResult.orderedItems.length > 1) {
                 // After attempting to narrow results by unit, there is still no unique record
@@ -368,32 +392,36 @@ class App {
 
   async handleSearch(req, res) {
     const start = hrtime.bigint()
-    const scope = req.params.scope || ''
-    const qstr = decodeURIComponent(translateQuery(req.query.q))
+    const searchCriteria = decodeURIComponent(translateQuery(req.query.q))
+    const searchScope = req.params.scope || ''
+    const mayChangeScope = req.query.mayChangeScope === 'true' // default to false
     const page = req.query.page || 1
     const pageLength = req.query.pageLength || 20
     const pageWith = req.query.pageWith || ''
-    const sort = req.query.sort || ''
-    const facetsSoon = req.query.facetsOnly === ''
+    const sortDelimitedStr = req.query.sort || ''
+    const filterResults = req.query.filterResults === undefined // default to true
+      || req.query.filterResults === ''
+      || req.query.filterResults === 'true'
+    const facetsSoon = req.query.facetsSoon === ''
       || req.query.facetsSoon === 'true'
     const synonymsEnabled = req.query.synonymsEnabled === ''
       || req.query.synonymsEnabled === 'true'
-    const mayChangeScope = false
     const mlProxy = await this.getMLProxy(req, 2)
     let errorCopy = {}
 
-    mlProxy.search(
-      env.unitName,
-      qstr,
-      scope,
+    mlProxy.search({
+      unitName: env.unitName,
+      searchCriteria,
+      searchScope,
       mayChangeScope,
       page,
       pageLength,
       pageWith,
-      sort,
+      sortDelimitedStr,
+      filterResults,
       facetsSoon,
       synonymsEnabled,
-    )
+    })
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -402,7 +430,7 @@ class App {
         ))
       })
       .catch(err => {
-        errorCopy = handleError(err, `failed search for ${qstr}`, res)
+        errorCopy = handleError(err, `failed search for ${searchCriteria}`, res)
       })
       .finally(() => {
         log.logResult(req, hrtime.bigint() - start, errorCopy)

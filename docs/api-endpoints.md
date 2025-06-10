@@ -8,13 +8,25 @@
 
 ### Search and Helpers
 
-- [Search](#search)
-- [Related List](#related-list)
-- [Search Estimate](#search-estimate)
-- [Search Will Match](#search-will-match)
-- [Facets](#facets)
-- [Auto Complete](#auto-complete)
-- [Translate](#translate)
+- [API Endpoints](#api-endpoints)
+  - [Table of Contents](#table-of-contents)
+    - [Single Document](#single-document)
+    - [Search and Helpers](#search-and-helpers)
+    - [Configuration](#configuration)
+    - [System](#system)
+  - [Advanced Search Config](#advanced-search-config)
+  - [Auto Complete](#auto-complete)
+  - [Facets](#facets)
+  - [Related List](#related-list)
+  - [Search](#search)
+  - [Search Estimate](#search-estimate)
+  - [Search Info](#search-info)
+  - [Search Will Match](#search-will-match)
+  - [Stats](#stats)
+  - [Translate](#translate)
+  - [\_info](#_info)
+  - [Document](#document)
+  - [Health](#health)
 
 ### Configuration
 
@@ -26,13 +38,6 @@
 - [Stats](#stats)
 - [Health](#health)
 - [_info](#_info)
-
-### Deprecated
-
-- [Concept Hierarchy](#concept-hierarchy)
-- [Place Hierarchy](#place-hierarchy)
-- [Set Hierarchy](#set-hierarchy)
-- [Data Constants](#data-constants)
 
 ---
 
@@ -53,16 +58,6 @@ Returns configurations that inform the frontend to build the advanced search UI,
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#auto-complete) for detailed descriptions of input parameters and responses.
 - Example: https://lux.collections.yale.edu/api/auto-complete?text=oil&context=item.material
 
-## Data Constants
-(Deprecated)
-Returns mappings of names to URIs for key concepts so that the frontend code using the constant names will be simpler and more robust against changes.
-
-- URL: /api/data-constants
-- Method: GET
-- Query parameters: None
-- See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#data-constants) for detailed descriptions of output format.
-- Example: https://lux.collections.yale.edu/api/data-constants
-
 ## Facets
 Provides facets.
 
@@ -78,7 +73,7 @@ Returns items related to the specified entity (document).
 - Method: GET
 - Query parameters:
   - Required: name, uri
-  - Optional: page, pageLength, relationshipsPerRelation
+  - Optional: page, pageLength, filterResults, relationshipsPerRelation
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#related-list) for detailed descriptions of parameters and responses.
 - Example: https://lux.collections.yale.edu/api/related-list?scope=agent&name=relatedToAgent&uri=https%3A%2F%2Flux.collections.yale.edu%2Fdata%2Fperson%2F783e7e6f-6863-4978-8aa3-9e6cd8cd8e83
 
@@ -90,9 +85,9 @@ The primary means to search LUX's backend.
 - Query parameters:
   - Required:
     - q - query in JSON search format defined by the backend
-  - Optional:  page, pageLength, sort, facetNames, facetsOnly, facetsSoon, synonymsEnabled, mayChangeScope
+  - Optional: mayChangeScope, page, pageLength, pageWith, sort, filterResults, facetsSoon, synonymsEnabled
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search) for detailed descriptions of parameters and responses.
-- Example: https://lux.collections.yale.edu/api/search?q=%7B%22AND%22%3A%5B%7B%22text%22%3A%22any%22%2C%22_lang%22%3A%22en%22%7D%2C%7B%22text%22%3A%22warhol%22%2C%22_lang%22%3A%22en%22%7D%5D%7D&scope=item&page=1&sort
+- Example: https://lux.collections.yale.edu/api/search?q=%7B%22AND%22%3A%5B%7B%22text%22%3A%22any%22%2C%22_lang%22%3A%22en%22%7D%2C%7B%22text%22%3A%22warhol%22%2C%22_lang%22%3A%22en%22%7D%5D%7D&scope=item&page=1
 
 ## Search Estimate
 Returns estimated number of results for a search.
