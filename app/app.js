@@ -257,9 +257,7 @@ class App {
     const uri = translateQuery(req.query.uri || '')
     const page = getNumArg(req.query.page, 1)
     const pageLength = getNumArg(req.query.pageLength, null)
-    const filterResults = req.query.filterResults === undefined // default to true
-      || req.query.filterResults === ''
-      || req.query.filterResults === 'true'
+    const filterResults = req.query.filterResults !== 'false' // default to true
     const relationshipsPerRelation = getNumArg(
       req.query.relationshipsPerRelation,
       null,
@@ -399,9 +397,7 @@ class App {
     const pageLength = req.query.pageLength || 20
     const pageWith = req.query.pageWith || ''
     const sortDelimitedStr = req.query.sort || ''
-    const filterResults = req.query.filterResults === undefined // default to true
-      || req.query.filterResults === ''
-      || req.query.filterResults === 'true'
+    const filterResults = req.query.filterResults !== 'false' // default to true
     const facetsSoon = req.query.facetsSoon === ''
       || req.query.facetsSoon === 'true'
     const synonymsEnabled = req.query.synonymsEnabled === ''
