@@ -53,4 +53,4 @@ Which will update the file  `./lib/ml-generated/lux.js`.
 
 ## Docker
 
-To get an idea for building  a docker image and running it, see [Dockerfile](../docker/Dockerfile), [build-docker-image.sh](../docker/build-docker-image.sh), and [run-docker-container.sh](../docker/run-docker-container.sh) in the [/docker](../docker) directory for an example.
+To get an idea for building a docker image and running it, see [Dockerfile](../docker/Dockerfile), [build-docker-image.sh](../docker/build-docker-image.sh), and [run-docker-container.sh](../docker/run-docker-container.sh) in the [/docker](../docker) directory for an example.
