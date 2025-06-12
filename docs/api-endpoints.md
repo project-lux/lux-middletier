@@ -6,7 +6,7 @@
 
 - [Document](#document)
   - [Retrieve](#retrieve)
-  - [Create](#create) 
+  - [Create](#create)
 
 
 ### Search and Helpers
@@ -168,9 +168,9 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 
 ### Create
 
-- URL: /data
+- URL: /data/ (the trailing slash is required)
 - Method: POST
-- Data (payload): Document data in JSON 
+- Data (payload): Document data in JSON
 - Headers:
   - Authorization: a base64 encoded JWT access token as a bearer token
 - Response: Created document in JSON with id and creator information
