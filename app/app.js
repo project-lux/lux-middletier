@@ -230,8 +230,18 @@ class App {
 
     try {
       const mlProxy = await this.getMLProxy(req, 1)
-      const result = await mlProxy.createDocument(env.unitName, req.body)
-      res.status(201).json(result)
+      const inDoc = replaceStringsInObject(
+        req.body,
+        this.resultUriHost,
+        this.searchUriHost,
+      )
+      const result = await mlProxy.createDocument(env.unitName, inDoc)
+      const outDoc = replaceStringsInObject(
+        result,
+        this.searchUriHost,
+        this.resultUriHost,
+      )
+      res.status(201).json(outDoc)
     } catch (err) {
       errorCopy = handleError(err, `failed to create data`, res)
     } finally {
