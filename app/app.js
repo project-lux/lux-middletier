@@ -70,6 +70,7 @@ class App {
     const { port } = this
     const exp = express()
     exp.use(cors())
+    exp.use(express.json({ limit: '2mb' }))
     exp.use(express.static('public'))
 
     exp.options('*', (req, res) => {
@@ -91,7 +92,10 @@ class App {
     exp.get('/api/stats', this.handleStats.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
     exp.get('/api/version-info', this.handleVersionInfo.bind(this))
+
     exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
+    exp.post('/data', this.handleCreateDocument.bind(this))
+
     exp.get('/health', (req, res) => {
       res.json({
         status: 'ok',
@@ -218,6 +222,21 @@ class App {
       .finally(() => {
         log.logResult(req, hrtime.bigint() - start, errorCopy)
       })
+  }
+
+  async handleCreateDocument(req, res) {
+    const start = hrtime.bigint()
+    let errorCopy = {}
+
+    try {
+      const mlProxy = await this.getMLProxy(req, 1)
+      const result = await mlProxy.createDocument(env.unitName, req.body)
+      res.status(201).json(result)
+    } catch (err) {
+      errorCopy = handleError(err, `failed to create data`, res)
+    } finally {
+      log.logResult(req, hrtime.bigint() - start, errorCopy)
+    }
   }
 
   async handleFacets(req, res) {
