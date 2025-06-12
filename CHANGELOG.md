@@ -14,6 +14,10 @@
 ## Unreleased
 - Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
 - Added support for the filterResults parameter to the search and related list endpoints, correcting a bug introduced in 1.2.9 whereby results were no longer filtered ([#170](https://github.com/project-lux/lux-middletier/issues/170)). The search endpoint also now supports the mayChangeScope parameter, which was previously hard coded to false and still defaults to false.
+- Added "create data" endpoint at "/data" ([#152](https://github.com/project-lux/lux-middletier/issues/152)).
+
+## 1.3.0
+- Merged MyCollections branch and added a feature flag (FEATURE_MY_COLLECTIONS) to turn it off and on ([166](https://github.com/project-lux/lux-middletier/issues/166), [162](https://github.com/project-lux/lux-middletier/issues/162)).
 
 ## 1.2.9
 - Changed path to backend Read Document endpoint ([#163](https://github.com/project-lux/lux-middletier/issues/163)).

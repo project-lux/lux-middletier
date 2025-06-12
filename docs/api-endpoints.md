@@ -5,6 +5,9 @@
 ### Single Document
 
 - [Document](#document)
+  - [Retrieve](#retrieve)
+  - [Create](#create) 
+
 
 ### Search and Helpers
 
@@ -140,6 +143,9 @@ Provides selected information on middle tier configuration and resource status.
 - Example: https://lux.collections.yale.edu/api/_info
 
 ## Document
+
+### Retrieve
+
 Returns a JSON document for a single entity. If no `profile` is specified in the request,
 the response includes [HAL links](./hal-links.md) based on the entity type.
 
@@ -159,6 +165,15 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#read-document) for detailed descriptions of parameters and responses.
 
 - Example: https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22
+
+### Create
+
+- URL: /data
+- Method: POST
+- Data (payload): Document data in JSON 
+- Headers:
+  - Authorization: a base64 encoded JWT access token as a bearer token
+- Response: Created document in JSON with id and creator information
 
 ## Health
 Health check function that can be called, e.g., by the AWS load balancer.
