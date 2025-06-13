@@ -54,9 +54,6 @@ class App {
     this.useOAuth = config.useOAuth
     this.port = config.port // port on which the Express app listens
     this.mlProxy = config.mlProxy
-    if (!this.useOAuth) {
-      this.mlProxy2 = config.mlProxy2
-    }
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
     this.aiHost = env.aiHost || null
@@ -104,26 +101,29 @@ class App {
     })
   }
 
-  async getMLProxy(req, num) {
+  async getMLProxy(req) {
+    let username = ''
+
     if (this.useOAuth) {
       let accessToken = extractAccessToken(req)
+
       if (accessToken) {
-        console.log('user token', req.url)
         const decAccess = await verifyToken(accessToken)
-        console.log('user token decoded:', decAccess)
+        username = decAccess.username
       } else {
-        console.log('service token', req.url)
-        accessToken = await getServiceToken()
+        const tokenInfo = await getServiceToken()
+        accessToken = tokenInfo.accessToken
+        username = tokenInfo.username
       }
-      this.mlProxy.initOAuth(accessToken)
+      this.mlProxy.initOAuth(accessToken, username)
       return this.mlProxy
     }
-    return num === 1 ? this.mlProxy : this.mlProxy2
+    return this.mlProxy
   }
 
   async handleAdvancedSearchConfig(req, res) {
     const start = hrtime.bigint()
-    const mlProxy = await this.getMLProxy(req, 2)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.advancedSearchConfig(env.unitName)
@@ -142,7 +142,7 @@ class App {
         )
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -160,7 +160,7 @@ class App {
     const previouslyFiltered = parseInt(q.previouslyFiltered, 10) >= 0 ? q.previouslyFiltered : 1
     const timeoutInMilliseconds = parseInt(q.timeoutInMilliseconds, 10) >= 0
       ? q.timeoutInMilliseconds : 0
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.autoComplete(env.unitName,
@@ -179,7 +179,7 @@ class App {
         errorCopy = handleError(err, 'failed autocomplete', res)
       },
     ).finally(() => {
-      log.logResult(req, hrtime.bigint() - start, errorCopy)
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
     })
   }
 
@@ -188,7 +188,7 @@ class App {
     const { type, uuid } = req.params
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.getDocument(env.unitName, uri, profile || null, lang || null)
@@ -216,16 +216,16 @@ class App {
         errorCopy = handleError(err, `failed to get doc for ${req.url}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleCreateDocument(req, res) {
     const start = hrtime.bigint()
     let errorCopy = {}
+    const mlProxy = await this.getMLProxy(req)
 
     try {
-      const mlProxy = await this.getMLProxy(req, 1)
       const inDoc = replaceStringsInObject(
         req.body,
         this.resultUriHost,
@@ -241,7 +241,7 @@ class App {
     } catch (err) {
       errorCopy = handleError(err, `failed to create data`, res)
     } finally {
-      log.logResult(req, hrtime.bigint() - start, errorCopy)
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
     }
   }
 
@@ -256,7 +256,7 @@ class App {
       sort,
     } = req.query
     const qstr = translateQuery(q || '')
-    const mlProxy = await this.getMLProxy(req,1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.facets(env.unitName, name, qstr, scope, page, pageLength, sort)
@@ -271,7 +271,7 @@ class App {
         errorCopy = handleError(err, `failed to get facets for ${q}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -287,7 +287,7 @@ class App {
       req.query.relationshipsPerRelation,
       null,
     )
-    const mlProxy = await this.getMLProxy(req, 2)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.relatedList({
@@ -311,14 +311,14 @@ class App {
         errorCopy = handleError(err, `failed get related list ${searchScopeName}, ${relatedListName}, ${uri}, ${page}, ${pageLength}, ${filterResults}, ${relationshipsPerRelation}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleResolve(req, res) {
     const start = hrtime.bigint()
     const { scope, unit, identifier } = req.params
-    const mlProxy = await this.getMLProxy(req, 2)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     try {
@@ -380,7 +380,7 @@ class App {
                 res,
               )
             }).finally(() => {
-              log.logResult(req, hrtime.bigint() - start, errorCopy)
+              log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
             })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
@@ -404,12 +404,12 @@ class App {
           res
         )
       }).finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
     } catch (err) {
       errorCopy = handleError(err, `failed resolve for ${scope}, ${unit}, ${identifier}`, res)
     } finally {
-      log.logResult(req, hrtime.bigint() - start, errorCopy)
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
     }
   }
 
@@ -427,7 +427,7 @@ class App {
       || req.query.facetsSoon === 'true'
     const synonymsEnabled = req.query.synonymsEnabled === ''
       || req.query.synonymsEnabled === 'true'
-    const mlProxy = await this.getMLProxy(req, 2)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.search({
@@ -454,7 +454,7 @@ class App {
         errorCopy = handleError(err, `failed search for ${searchCriteria}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -462,7 +462,7 @@ class App {
     const start = hrtime.bigint()
     const scope = req.params.scope || ''
     const qstr = translateQuery(req.query.q || '')
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.searchEstimate(env.unitName, qstr, scope)
@@ -477,13 +477,13 @@ class App {
         errorCopy = handleError(err, `failed search estimate for ${qstr}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleSearchInfo(req, res) {
     const start = hrtime.bigint()
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.searchInfo(env.unitName)
@@ -492,14 +492,14 @@ class App {
         errorCopy = handleError(err, 'failed to retrieve search info', res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleSearchWillMatch(req, res) {
     const start = hrtime.bigint()
     const qstr = translateQuery(req.query.q || '')
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.searchWillMatch(env.unitName, qstr)
@@ -514,13 +514,13 @@ class App {
         errorCopy = handleError(err, `failed match for ${qstr}`, res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
   async handleStats(req, res) {
     const start = hrtime.bigint()
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.stats(env.unitName)
@@ -531,7 +531,7 @@ class App {
         errorCopy = handleError(err, 'failed stats', res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -539,7 +539,7 @@ class App {
     const start = hrtime.bigint()
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     // Issue a redirect here to python AI code
@@ -560,7 +560,7 @@ class App {
         errorCopy = handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
       }
       finally{
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       }
     } else {
       mlProxy.translate(
@@ -578,14 +578,14 @@ class App {
           errorCopy = handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
         })
         .finally(() => {
-          log.logResult(req, hrtime.bigint() - start, errorCopy)
+          log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
         })
     }
   }
 
   async handleVersionInfo(req, res) {
     const start = hrtime.bigint()
-    const mlProxy = await this.getMLProxy(req, 1)
+    const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
     mlProxy.versionInfo()
@@ -596,7 +596,7 @@ class App {
         errorCopy = handleError(err, 'failed versionInfo', res)
       })
       .finally(() => {
-        log.logResult(req, hrtime.bigint() - start, errorCopy)
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
   }
 
@@ -604,8 +604,7 @@ class App {
     const memUsage = process.memoryUsage()
     res.json({
       version: json.version,
-      backendFastLane: `${env.mlHost}:${env.mlPort}`,
-      backendSlowLane: `${env.mlHost2}:${env.mlPort2}`,
+      backend: `${env.mlHost}:${env.mlPort}`,
       numInstances: env.numInstances,
       mem: memUsage,
       rsrc: process.resourceUsage(),
@@ -627,19 +626,10 @@ function newAppWithDigestAuth() {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
-  const mlProxy2 = new MLProxy().initDigestAuth({
-    host: env.mlHost2,
-    port: env.mlPort2,
-    user: env.mlUser2,
-    password: env.mlPass2,
-    authType: env.mlAuthType,
-    ssl: env.mlSsl,
-  })
   const app = new App({
     useOAuth: false,
     port: env.appPort,
     mlProxy,
-    mlProxy2,
   })
   return app
 }

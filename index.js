@@ -13,8 +13,7 @@ if (cluster.isMaster) {
     level: 'info',
     numCores,
     numInstances,
-    mlEndpoint1: `${env.mlHost}:${env.mlPort}`,
-    mlEndpoint2: `${env.mlHost2}:${env.mlPort2}`,
+    mlEndpoint: `${env.mlHost}:${env.mlPort}`,
   })
 }
 
