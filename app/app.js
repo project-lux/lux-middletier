@@ -1,17 +1,13 @@
 import { hrtime } from 'node:process'
-
 import cors from 'cors'
 import express from 'express'
-import marklogic from 'marklogic'
 
 import env from '../config/env.js'
 import HalLinksBuilder from '../lib/hal-links-builder.js'
 import { extractAccessToken, getServiceToken, verifyToken } from '../lib/auth/auth.js'
 import * as log from '../lib/log.js'
 import MLProxy from '../lib/ml-proxy.js'
-import {
-  getNumArg, nanoSecToString, remoteIps, replaceStringsInObject,
-} from '../lib/util.js'
+import { getNumArg, replaceStringsInObject } from '../lib/util.js'
 import { transformEntityDoc, translateQuery } from '../lib/data-transform.js'
 import searchScopes from '../lib/scopes.js'
 import {
@@ -21,7 +17,7 @@ import {
 
 import json from '../package.json' with {type: "json"}
 
-import * as http from 'http';
+import * as http from 'http'
 
 /**
  * Create error response based on the error object passed in and send it
