@@ -21,11 +21,6 @@ const env = {
   mlUser: process.env.ML_USER,
   mlPass: process.env.ML_PASS,
 
-  mlHost2: process.env.ML_HOST2,
-  mlPort2: process.env.ML_PORT2,
-  mlUser2: process.env.ML_USER2,
-  mlPass2: process.env.ML_PASS2,
-
   cognitoJwksUri: process.env.COGNITO_JWKS_URI,
   cognitoClientId: process.env.COGNITO_CLIENT_ID,
   cognitoServiceUsername: process.env.COGNITO_SERVICE_USERNAME,
