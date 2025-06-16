@@ -13,14 +13,15 @@
 ---
 ## v1.3.1
 - Added HAL links for Collections About on timelines for Places and Events ([#168](https://github.com/project-lux/lux-middletier/issues/168)).
+- Added Create document endpoint ([#152](https://github.com/project-lux/lux-middletier/issues/152)).
+- Switch from two ML app servers to one ([#146](https://github.com/project-lux/lux-middletier/issues/146)).
+- Start sending filterResults parameter ([#170](https://github.com/project-lux/lux-middletier/issues/170)).
 
 ## v1.3.0
 - Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
 - Added support for the filterResults parameter to the search and related list endpoints, correcting a bug introduced in 1.2.9 whereby results were no longer filtered ([#170](https://github.com/project-lux/lux-middletier/issues/170)). The search endpoint also now supports the mayChangeScope parameter, which was previously hard coded to false and still defaults to false.
 - Added "create data" endpoint at "/data" ([#152](https://github.com/project-lux/lux-middletier/issues/152)).
 - Removed the second ML app server destination and directed all requests to a single endpoint ([#146](https://github.com/project-lux/lux-middletier/issues/146)).
-
-## 1.3.0
 - Merged MyCollections branch and added a feature flag (FEATURE_MY_COLLECTIONS) to turn it off and on ([166](https://github.com/project-lux/lux-middletier/issues/166), [162](https://github.com/project-lux/lux-middletier/issues/162)).
 
 ## 1.2.9
