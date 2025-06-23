@@ -249,7 +249,7 @@ class App {
   async handleUpdateDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
-    const uri = `${this.searchUriHost}/${type}/${uuid}`
+    const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     let errorCopy = {}
     const mlProxy = await this.getMLProxy(req)
 
