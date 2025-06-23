@@ -11,6 +11,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## v1.3.2
+- Added Update document endpoint ([#153](https://github.com/project-lux/lux-middletier/issues/153)).
+
 ## v1.3.1
 - Added HAL links for Collections About on timelines for Places and Events ([#168](https://github.com/project-lux/lux-middletier/issues/168)).
 - Added Create document endpoint ([#152](https://github.com/project-lux/lux-middletier/issues/152)).

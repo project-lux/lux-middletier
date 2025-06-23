@@ -71,14 +71,14 @@ class App {
     exp.use(cors())
     exp.use(express.static('public'))
 
-    exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
+    exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
 
     exp.listen(port, () => {
       log.info(`Listening on port ${port}`)
     })
   }
 
-  handleDocument(req, res) {
+  handleGetDocument(req, res) {
     const { type, uuid } = req.params
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
     const { profile, lang } = req.query

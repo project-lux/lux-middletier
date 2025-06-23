@@ -86,8 +86,9 @@ class App {
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
     exp.get('/api/version-info', this.handleVersionInfo.bind(this))
 
-    exp.get('/data/:type/:uuid', this.handleDocument.bind(this))
+    exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
     exp.post('/data', this.handleCreateDocument.bind(this))
+    exp.put('/data', this.handleUpdateDocument.bind(this))
 
     exp.get('/health', (req, res) => {
       res.json({
@@ -183,7 +184,7 @@ class App {
     })
   }
 
-  async handleDocument(req, res) {
+  async handleGetDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
     const uri = `${this.searchUriHost}/data/${type}/${uuid}`
@@ -240,6 +241,31 @@ class App {
       res.status(201).json(outDoc)
     } catch (err) {
       errorCopy = handleError(err, `failed to create data`, res)
+    } finally {
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+    }
+  }
+
+  async handleUpdateDocument(req, res) {
+    const start = hrtime.bigint()
+    let errorCopy = {}
+    const mlProxy = await this.getMLProxy(req)
+
+    try {
+      const inDoc = replaceStringsInObject(
+        req.body,
+        this.resultUriHost,
+        this.searchUriHost,
+      )
+      const result = await mlProxy.updateDocument(env.unitName, inDoc)
+      const outDoc = replaceStringsInObject(
+        result,
+        this.searchUriHost,
+        this.resultUriHost,
+      )
+      res.status(200).json(outDoc)
+    } catch (err) {
+      errorCopy = handleError(err, `failed to update data`, res)
     } finally {
       log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
     }

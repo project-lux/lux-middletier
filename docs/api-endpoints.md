@@ -7,7 +7,7 @@
 - [Document](#document)
   - [Retrieve](#retrieve)
   - [Create](#create)
-
+  - [Update](#update)
 
 ### Search and Helpers
 
@@ -174,6 +174,15 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 - Headers:
   - Authorization: a base64 encoded JWT access token as a bearer token
 - Response: Created document in JSON with id and creator information
+
+### Update
+
+- URL: /data/ (the trailing slash is required)
+- Method: PUT
+- Data (payload): Document data in JSON
+- Headers:
+  - Authorization: a base64 encoded JWT access token as a bearer token
+- Response: Updated document in JSON with revision information
 
 ## Health
 Health check function that can be called, e.g., by the AWS load balancer.
