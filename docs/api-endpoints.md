@@ -177,8 +177,11 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 
 ### Update
 
-- URL: /data/ (the trailing slash is required)
+- URL: /data/{id}
 - Method: PUT
+- Path parameters:
+  - id: the part that forms the URI of the entity data, along with the scheme, host, and "/data/"
+    - Example: "object/fbe069b3-4d30-4406-a4a0-47303d4fae22" to form the URI "https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22"
 - Data (payload): Document data in JSON
 - Headers:
   - Authorization: a base64 encoded JWT access token as a bearer token

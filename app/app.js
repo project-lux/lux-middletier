@@ -88,7 +88,7 @@ class App {
 
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
     exp.post('/data', this.handleCreateDocument.bind(this))
-    exp.put('/data', this.handleUpdateDocument.bind(this))
+    exp.put('/data/:type/:uuid', this.handleUpdateDocument.bind(this))
 
     exp.get('/health', (req, res) => {
       res.json({
@@ -248,6 +248,8 @@ class App {
 
   async handleUpdateDocument(req, res) {
     const start = hrtime.bigint()
+    const { type, uuid } = req.params
+    const uri = `${this.searchUriHost}/${type}/${uuid}`
     let errorCopy = {}
     const mlProxy = await this.getMLProxy(req)
 
@@ -257,7 +259,7 @@ class App {
         this.resultUriHost,
         this.searchUriHost,
       )
-      const result = await mlProxy.updateDocument(env.unitName, inDoc)
+      const result = await mlProxy.updateDocument(env.unitName, uri, inDoc)
       const outDoc = replaceStringsInObject(
         result,
         this.searchUriHost,
