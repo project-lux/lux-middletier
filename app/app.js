@@ -89,6 +89,7 @@ class App {
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
     exp.post('/data', this.handleCreateDocument.bind(this))
     exp.put('/data/:type/:uuid', this.handleUpdateDocument.bind(this))
+    exp.delete('/data/:type/:uuid', this.handleDeleteDocument.bind(this))
 
     exp.get('/health', (req, res) => {
       res.json({
@@ -268,6 +269,23 @@ class App {
       res.status(200).json(outDoc)
     } catch (err) {
       errorCopy = handleError(err, `failed to update data`, res)
+    } finally {
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+    }
+  }
+
+  async handleDeleteDocument(req, res) {
+    const start = hrtime.bigint()
+    const { type, uuid } = req.params
+    const uri = `${this.searchUriHost}/${type}/${uuid}`
+    let errorCopy = {}
+    const mlProxy = await this.getMLProxy(req)
+
+    try {
+      await mlProxy.deleteDocument(uri)
+      res.status(200).end()
+    } catch (err) {
+      errorCopy = handleError(err, `failed to delete data`, res)
     } finally {
       log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
     }

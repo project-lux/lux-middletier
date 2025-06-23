@@ -8,6 +8,7 @@
   - [Retrieve](#retrieve)
   - [Create](#create)
   - [Update](#update)
+  - [Delete](#delete)
 
 ### Search and Helpers
 
@@ -186,6 +187,17 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 - Headers:
   - Authorization: a base64 encoded JWT access token as a bearer token
 - Response: Updated document in JSON with revision information
+
+### Delete
+
+- URL: /data/{id}
+- Method: DELETE
+- Path parameters:
+  - id: the part that forms the URI of the entity data, along with the scheme, host, and "/data/"
+    - Example: "object/fbe069b3-4d30-4406-a4a0-47303d4fae22" to form the URI "https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22"
+- Headers:
+  - Authorization: a base64 encoded JWT access token as a bearer token
+- Response: Empty response body
 
 ## Health
 Health check function that can be called, e.g., by the AWS load balancer.
