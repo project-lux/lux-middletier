@@ -16,6 +16,7 @@
 - Added Update document endpoint ([#153](https://github.com/project-lux/lux-middletier/issues/153)).
 - Added Delete document endpoint ([#154](https://github.com/project-lux/lux-middletier/issues/154)).
 - Remove unused and incorrect hal link 'lux:placeDepictingWork'
+- Remove "about concept influenced by" from HAL links now that pre-coordinated subject headings are included directly in the about search terms ([#172](https://github.com/project-lux/lux-middletier/issues/172)).
 
 ## v1.3.1
 - Added HAL links for Collections About on timelines for Places and Events ([#168](https://github.com/project-lux/lux-middletier/issues/168)).
