@@ -2,6 +2,7 @@
 
 ## MarkLogic Dependencies
 
+- With v1.3.3 MarkLogic client code was regenerated against ML v1.43.0 dated 07/14/25
 - With v1.3.2 MarkLogic client code was regenerated against ML v1.42.0 dated 06/30/25
 - With v1.2.9 MarkLogic client code was regenerated against ML v1.39.0 dated 05/05/25
 - With v1.2.5 MarkLogic client code was regenerated against ML v1.36.0 dated 03/11/25
@@ -12,6 +13,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## v1.3.3
+- Added the Get Tenant Status endpoint ([#158](https://github.com/project-lux/lux-middletier/issues/158)).
+
 ## v1.3.2
 - Added Update document endpoint ([#153](https://github.com/project-lux/lux-middletier/issues/153)).
 - Added Delete document endpoint ([#154](https://github.com/project-lux/lux-middletier/issues/154)).
