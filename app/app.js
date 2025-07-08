@@ -587,16 +587,14 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.getTenantStatus()
-      .then(result => {
-        res.json(result)
-      })
-      .catch(err => {
-        errorCopy = handleError(err, 'failed tenantStatus', res)
-      })
-      .finally(() => {
-        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-      })
+    try {
+      const result = await mlProxy.getTenantStatus()
+      res.json(result)
+    } catch (err) {
+      errorCopy = handleError(err, 'failed tenantStatus', res)
+    } finally {
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+    }
   }
 
   async handleTranslate(req, res) {
