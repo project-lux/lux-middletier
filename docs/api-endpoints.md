@@ -27,6 +27,7 @@
   - [Search Info](#search-info)
   - [Search Will Match](#search-will-match)
   - [Stats](#stats)
+  - [Tenant Status](#tenant-status)
   - [Translate](#translate)
   - [\_info](#_info)
   - [Document](#document)
@@ -39,6 +40,7 @@
 
 ### System
 
+- [Tenant Status](#tenant-status)
 - [Stats](#stats)
 - [Health](#health)
 - [_info](#_info)
@@ -127,6 +129,15 @@ Returns number of records per context, in the form of estimates.
 - Query parameters: None
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#stats) for details of responses.
 - Example: https://lux.collections.yale.edu/api/stats
+
+## Tenant Status
+Get the status of the tenant, including whether it is production (vs. non-production), in read-only mode, and version information.
+
+- URL: /api/tenant-status
+- Method: GET
+- Query parameters: None
+- See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#get) for details.
+- Example: https://lux.collections.yale.edu/api/tenant-status
 
 ## Translate
 Translates search string to LUX JSON search grammar.

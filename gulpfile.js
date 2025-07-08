@@ -10,8 +10,13 @@ function proxygen() {
     .pipe(generate())
     .pipe(rename({ extname: '.cjs' }))
     .pipe(gulp.dest('lib/ml-generated'))
-  return gulp
+  gulp
     .src('../lux-marklogic/src/main/ml-modules/root/ds/lux/document')
+    .pipe(generate())
+    .pipe(rename({ extname: '.cjs' }))
+    .pipe(gulp.dest('lib/ml-generated'))
+  return gulp
+    .src('../lux-marklogic/src/main/ml-modules/root/ds/lux/tenantStatus')
     .pipe(generate())
     .pipe(rename({ extname: '.cjs' }))
     .pipe(gulp.dest('lib/ml-generated'))
