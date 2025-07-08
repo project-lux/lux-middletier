@@ -83,6 +83,7 @@ class App {
     exp.get('/api/search-info', this.handleSearchInfo.bind(this))
     exp.get('/api/search-will-match', this.handleSearchWillMatch.bind(this))
     exp.get('/api/stats', this.handleStats.bind(this))
+    exp.get('/api/tenant-status', this.handleTenantStatus.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
     exp.get('/api/version-info', this.handleVersionInfo.bind(this))
 
@@ -579,6 +580,21 @@ class App {
       .finally(() => {
         log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
+  }
+
+  async handleTenantStatus(req, res) {
+    const start = hrtime.bigint()
+    const mlProxy = await this.getMLProxy(req)
+    let errorCopy = {}
+
+    try {
+      const result = await mlProxy.getTenantStatus()
+      res.json(result)
+    } catch (err) {
+      errorCopy = handleError(err, 'failed tenantStatus', res)
+    } finally {
+      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+    }
   }
 
   async handleTranslate(req, res) {
