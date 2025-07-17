@@ -104,6 +104,10 @@ class App {
     })
   }
 
+  buildUri(type, uuid) {
+    return `${this.searchUriHost}/data/${type}/${uuid}`
+  }
+
   async getMLProxy(req) {
     let username = ''
 
@@ -189,7 +193,7 @@ class App {
   async handleGetDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
-    const uri = `${this.searchUriHost}/data/${type}/${uuid}`
+    const uri = this.buildUri(type, uuid)
     const { profile, lang } = req.query
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
@@ -251,7 +255,7 @@ class App {
   async handleUpdateDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
-    const uri = `${this.searchUriHost}/data/${type}/${uuid}`
+    const uri = this.buildUri(type, uuid)
     let errorCopy = {}
     const mlProxy = await this.getMLProxy(req)
 
@@ -278,7 +282,7 @@ class App {
   async handleDeleteDocument(req, res) {
     const start = hrtime.bigint()
     const { type, uuid } = req.params
-    const uri = `${this.searchUriHost}/${type}/${uuid}`
+    const uri = this.buildUri(type, uuid)
     let errorCopy = {}
     const mlProxy = await this.getMLProxy(req)
 
