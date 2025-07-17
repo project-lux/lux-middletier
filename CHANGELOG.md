@@ -13,6 +13,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## v1.3.4
+- Fix Delete document endpoint URI formation
+
 ## v1.3.3
 - Added the Get Tenant Status endpoint ([#158](https://github.com/project-lux/lux-middletier/issues/158)).
 
