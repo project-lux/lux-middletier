@@ -8,7 +8,7 @@
     "test": "node run-tests.js ./configs",
     "test:dev": "node run-tests.js ./configs ./reports",
     "test:save": "node run-tests.js ./configs ./reports --save-responses",
-    "create:templates": "node create-templates.js",
+    "create:tests": "node create-tests.js",
     "create:spec": "node create-endpoints-spec.js",
     "compare": "node compare-reports.js",
     "install-deps": "npm install"

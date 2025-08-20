@@ -33,7 +33,7 @@ export class TestDataProvider {
    * Parse and extract test cases from the source
    * @param {Object} apiDef - API definition object containing endpoint information
    * @param {string} endpointKey - Unique key for the endpoint
-   * @param {Array<string>} columns - Array of column names for the test template
+   * @param {Array<string>} columns - Array of column names for the test spreadsheet
    * @returns {Promise<Array<Array>>} - Array of test data rows, each row is an array of values matching the columns
    */
   async extractTestData(apiDef, endpointKey, columns) {

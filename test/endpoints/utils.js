@@ -7,8 +7,8 @@ import path from 'path';
 
 /**
  * Generate endpoint key from path and HTTP method
- * Used by both create-excel-template.js and run-test.js to ensure consistent naming
- * 
+ * Used by both create-tests.js and run-tests.js to ensure consistent naming
+ *
  * @param {string} path - API endpoint path (e.g., "/api/search/:scope")
  * @param {string} method - HTTP method (e.g., "GET", "POST")
  * @returns {string} - Generated endpoint key (e.g., "get-search")

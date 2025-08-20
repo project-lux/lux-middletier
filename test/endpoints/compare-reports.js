@@ -344,7 +344,7 @@ class ReportComparator {
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-grid { display: grid; grid-tests-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .metric-card { background: white; border: 1px solid #ddd; border-radius: 5px; padding: 15px; }
         .metric-value { font-size: 1.5em; font-weight: bold; }
         .positive { color: green; }

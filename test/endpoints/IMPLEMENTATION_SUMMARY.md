@@ -2,7 +2,7 @@
 
 ## Overview
 
-I have successfully implemented a flexible test data provider interface that replaces the hardcoded `generateSampleData` function in `create-templates.js`. This new system allows importing test cases from various sources including CSV files, with easy extensibility for additional formats.
+I have successfully implemented a flexible test data provider interface that replaces the hardcoded `generateSampleData` function in `create-tests.js`. This new system allows importing test cases from various sources including CSV files, with easy extensibility for additional formats.
 
 ## Files Created
 
@@ -36,7 +36,7 @@ I have successfully implemented a flexible test data provider interface that rep
 - Example CSV file demonstrating proper format
 - Shows parameter columns and data types
 
-## Key Changes to `create-templates.js`
+## Key Changes to `create-tests.js`
 
 ### Updated Imports
 ```javascript
@@ -45,8 +45,8 @@ import { generateTestData } from './test-data-providers/index.js';
 
 ### Modified Function Signature
 ```javascript
-async function createEndpointSpecificTemplates(templateDir, options = {})
-async function createTemplateForAPI(apiDef, endpointKey, templateDir, options = {})
+async function createEndpointSpecificTests(Test, options = {})
+async function createTestForAPI(apiDef, endpointKey, Test, options = {})
 ```
 
 ### New Data Generation Call
@@ -56,7 +56,7 @@ const sampleData = await generateTestData(dataSource, apiDef, endpointKey, colum
 
 ### Command Line Arguments Support
 ```bash
-node create-templates.js --data-source=./test-data.csv --test-count=5 --include-errors=false
+node create-tests.js --data-source=./test-data.csv --test-count=5 --include-errors=false
 ```
 
 ## Interface Contract
@@ -84,22 +84,22 @@ Test data is returned as an array of arrays, where each inner array represents a
 
 ### Default Sample Data
 ```bash
-npm run create:templates
+npm run create:tests
 ```
 
 ### CSV Data Source
 ```bash
-npm run create:templates -- --data-source=./my-tests.csv
+npm run create:tests -- --data-source=./my-tests.csv
 ```
 
 ### Configuration Options
 ```bash
-npm run create:templates -- --test-count=5 --include-errors=false --fallback=true
+npm run create:tests -- --test-count=5 --include-errors=false --fallback=true
 ```
 
 ## CSV File Format
 
-CSV files should contain columns matching the template structure:
+CSV files should contain columns matching the tests structure:
 
 ```csv
 test_name,description,enabled,expected_status,param:scope,param:q
@@ -139,6 +139,6 @@ Each new provider only needs to implement the `TestDataProvider` interface and r
 All files have been validated for syntax errors using VS Code's error checking. The implementation maintains the existing functionality while adding the new flexible interface.
 
 To test the implementation:
-1. Use default sample data: `npm run create:templates`
-2. Use CSV data: `npm run create:templates -- --data-source=./sample-search-tests.csv`
-3. Check generated Excel files in the `templates/` directory
+1. Use default sample data: `npm run create:tests`
+2. Use CSV data: `npm run create:tests -- --data-source=./sample-search-tests.csv`
+3. Check generated Excel files in the `configs/` directory

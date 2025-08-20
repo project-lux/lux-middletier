@@ -7,9 +7,9 @@ import { TestDataProvider } from './interface.js';
  * CSV Test Data Provider
  * 
  * Reads test cases from CSV files with the following expected structure:
- * - First row contains column headers matching the template columns
+ * - First row contains column headers matching the spreadsheet columns
  * - Each subsequent row represents a test case
- * - Column names should match the expected template structure
+ * - Column names should match the expected spreadsheet structure
  */
 export class CsvTestDataProvider extends TestDataProvider {
   /**

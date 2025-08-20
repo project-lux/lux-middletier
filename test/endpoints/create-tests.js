@@ -46,11 +46,11 @@ async function discoverAllProviders() {
 }
 
 /**
- * Create separate Excel files for each API endpoint with parameter-specific columns
+ * Create separate Excel test files for each API endpoint with parameter-specific columns
  * Based on endpoints-spec.json file and ALL available TestDataProvider implementations
  */
-async function createEndpointSpecificTemplates(templateDir, options = {}) {
-  console.log('Analyzing endpoints-spec.json to create individual templates...');
+async function createEndpointTests(testsDir, options = {}) {
+  console.log('Analyzing endpoints-spec.json to create individual test files...');
 
   // Get all API definitions
   const apiDefinitions = analyzeEndpointsSpec();
@@ -61,22 +61,23 @@ async function createEndpointSpecificTemplates(templateDir, options = {}) {
   // Discover and instantiate ALL TestDataProvider implementations
   const allProviders = await discoverAllProviders();
 
-  // Create templates directory if it doesn't exist
-  if (!fs.existsSync(templateDir)) {
-    fs.mkdirSync(templateDir, { recursive: true });
+  // Create tests directory if it doesn't exist
+  if (!fs.existsSync(testsDir)) {
+    fs.mkdirSync(testsDir, { recursive: true });
   }
 
-  // Generate Excel files for each API endpoint
+  // Generate Excel test files for each API endpoint
   for (const endpointKey of Object.keys(apiDefinitions)) {
     const apiDef = apiDefinitions[endpointKey];
-    await createTemplateForAPI(apiDef, endpointKey, templateDir, allProviders, options);
+    await createTestsForAPI(apiDef, endpointKey, testsDir, allProviders, options);
   }
 
-  console.log('\nTemplate generation complete!');
+  console.log('\nTest file generation complete!');
   console.log('Next steps:');
-  console.log('1. Fill in test configurations in the Excel files');
-  console.log('2. Yellow highlighted columns contain required parameters');
-  console.log('3. Run tests with: npm test');
+  console.log('1. Review generated test cases in the Excel files');
+  console.log('2. Add additional test configurations as needed');
+  console.log('3. Yellow highlighted columns contain required parameters');
+  console.log('4. Run tests with: npm test');
 }
 
 /**
@@ -177,13 +178,13 @@ function analyzeEndpointsSpec() {
 }
 
 /**
- * Create template for a specific API endpoint using ALL available providers
+ * Create test file for a specific API endpoint using ALL available providers
  */
-async function createTemplateForAPI(apiDef, endpointKey, templateDir, allProviders, options = {}) {
+async function createTestsForAPI(apiDef, endpointKey, testsDir, allProviders, options = {}) {
   const filename = `${endpointKey}-tests.xlsx`;
-  const filePath = path.join(templateDir, filename);
+  const filePath = path.join(testsDir, filename);
 
-  console.log(`Creating template for ${endpointKey}: ${filename}`);
+  console.log(`Creating test file for ${endpointKey}: ${filename}`);
 
   // Build columns array
   const baseColumns = [
@@ -437,7 +438,7 @@ function getEndpointNotes(endpointKey, apiDef) {
 }
 
 // Main execution with optional configuration
-const templateDir = path.join(__dirname, 'templates');
+const testsDir = path.join(__dirname, 'configs');
 
 // Parse command line arguments for configuration
 const args = process.argv.slice(2);
@@ -445,8 +446,8 @@ const options = {};
 
 // Check for data source arguments
 // Usage examples:
-// node create-templates.js --data-source=./test-data.csv
-// node create-templates.js --test-count=5 --include-errors=false
+// node create-tests.js --data-source=./test-data.csv
+// node create-tests.js --test-count=5 --include-errors=false
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg.startsWith('--data-source=')) {
@@ -464,4 +465,4 @@ if (options.dataSource) {
   console.log(`Using data source: ${options.dataSource}`);
 }
 
-await createEndpointSpecificTemplates(templateDir, options);
+await createEndpointTests(testsDir, options);

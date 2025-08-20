@@ -1,6 +1,6 @@
 # Test Data Providers
 
-This module provides a flexible interface for importing test data from various sources when generating Excel templates for endpoint testing.
+This module provides a flexible interface for importing test data from various sources when generating test configuration spreadsheets for endpoint testing.
 
 ## Overview
 
@@ -30,22 +30,22 @@ The test data provider system allows you to import test cases from:
 
 ```bash
 # Generates sample data for all endpoints
-node create-templates.js
+node create-tests.js
 ```
 
 ### Using CSV Data Source
 
 ```bash
 # Use a single CSV file for all endpoints
-node create-templates.js --data-source=./test-data.csv
+node create-tests.js --data-source=./test-data.csv
 
 # Configure test generation
-node create-templates.js --test-count=5 --include-errors=false
+node create-tests.js --test-count=5 --include-errors=false
 ```
 
 ### CSV File Format
 
-Your CSV file should contain columns matching the template structure:
+The sample CSV TestDataProvider uses the same column headers as the test configuration spreadsheets.  A source-specific provider will likely be different.
 
 ```csv
 test_name,description,enabled,expected_status,timeout_ms,max_response_time,delay_after_ms,tags,param:scope,param:q
@@ -167,19 +167,19 @@ See `sample-search-tests.csv` for an example CSV file with search endpoint test 
 
 ```bash
 # Basic usage with sample data
-node create-templates.js
+node create-tests.js
 
 # Use CSV data source
-node create-templates.js --data-source=./my-tests.csv
+node create-tests.js --data-source=./my-tests.csv
 
 # Generate more test cases with sample data
-node create-templates.js --test-count=5
+node create-tests.js --test-count=5
 
 # Disable error test cases
-node create-templates.js --include-errors=false
+node create-tests.js --include-errors=false
 
 # Combine options
-node create-templates.js --data-source=./tests.csv --fallback=true
+node create-tests.js --data-source=./tests.csv --fallback=true
 ```
 
 ## Future Enhancements
@@ -189,5 +189,4 @@ node create-templates.js --data-source=./tests.csv --fallback=true
 - Log file parser
 - Database connectivity
 - REST API data source
-- Template-based generation
 - Test case inheritance

@@ -1,17 +1,35 @@
 # LUX Endpoint Testing Framework
 
-A comprehensive, spreadsheet-driven endpoint testing framework for the LUX MarkLogic backend API. This tool automatically analyzes your Express.js application to discover endpoints, generates detailed specifications, and creates customized Excel templates for testing. You can then configure test cases in Excel files, execute them sequentially or in parallel, and generate detailed reports with response times and status codes.
+A comprehensive automated endpoint testing framework for the LUX MarkLogic backend API. This tool automatically discovers endpoints, generates detailed specifications, and creates ready-to-run Excel test files populated with comprehensive test data from multiple sources. Tests can be executed sequentially or in parallel, generating detailed reports with response times and status codes.
 
 ## Features
 
-- **Generate endpoint specification**: Creates a detailed JSON specifications with parameters and handlers of endpoints found in app.js
-- **Generate test templates**: Creates one Excel (.xlsx) file per endpoint where tests may be configured
+- **Automated endpoint discovery**: Creates detailed JSON specifications with parameters and handlers of endpoints found in app.js
+- **Automated test generation**: Creates Excel files with ready-to-run test cases populated from multiple data sources
+- **Multi-source data integration**: Automatically discovers and uses ALL available test data providers
 - **Comprehensive reporting**: JSON, CSV, and HTML reports with detailed metrics
-- **Report comparison**: Compare the reports from two runs.
+- **Report comparison**: Compare the reports from two runs to identify regressions
 - **Authentication**: Optionally authenticate with digest credentials
 - **Test organization**: Tag-based test filtering and test suite management
 - **Performance monitoring**: Response time tracking and timeout handling
 - **Error handling**: Detailed error reporting and negative test cases
+
+### Test File Generation with Multi-Source Data Providers
+
+The `create-tests.js` script reads the generated `endpoints-spec.json` file and creates comprehensive Excel test files using a flexible data provider system:
+
+- **Individual files**: Separate Excel file for each discovered endpoint with ready-to-run test cases
+- **Parameter columns**: Dedicated columns for each endpoint's specific parameters
+- **Required field highlighting**: Visual indicators for required parameters
+- **Multi-source data**: Automatically discovers and uses ALL available test data providers
+- **Documentation sheets**: Embedded help and parameter descriptions
+
+**Usage:**
+```bash
+npm run create:tests
+# or
+node create-tests.js
+```
 
 ## Available NPM Scripts
 
@@ -22,7 +40,7 @@ The framework includes several convenient npm scripts for common tasks:
 | `npm test` | `node run-tests.js ./configs` | Run all tests with default configuration |
 | `npm run test:dev` | `node run-tests.js ./configs ./reports` | Run tests and save reports to reports directory |
 | `npm run test:save` | `node run-tests.js ./configs ./reports --save-responses` | Run tests with response body saving enabled |
-| `npm run create:templates` | `node create-template.js` | Generate Excel templates from endpoints specification |
+| `npm run create:tests` | `node create-tests.js` | Generate Excel test files from endpoints specification |
 | `npm run create:spec` | `node create-endpoints-spec.js` | Analyze Express.js app and generate endpoints specification |
 | `npm run compare` | `node compare-reports.js` | Interactive tool to compare two test reports |
 | `npm run install-deps` | `npm install` | Install all required dependencies |
@@ -30,11 +48,11 @@ The framework includes several convenient npm scripts for common tasks:
 ## Workflow Overview
 
 1. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
-2. **Generate**: Create customized Excel templates with `npm run create:templates` (automatically discovers and uses all available data sources)
-3. **Configure**: Fill in additional test data in the generated Excel files (optional - templates include data from all available providers)
-4. **Execute**: Run tests with `npm test` or `npm run test:dev`
-5. **Report**: Review detailed HTML, CSV, and JSON reports
-6. **Compare**: Use `npm run compare` to analyze differences between test runs
+2. **Generate**: Create comprehensive test files with `npm run create:tests` (automatically discovers and uses all available data sources to populate ready-to-run test cases)
+3. **Execute**: Run tests with `npm test` or `npm run test:dev` or `npm run test:save` to save the response bodies.
+4. **Report**: Review detailed HTML, CSV, and JSON reports
+5. **Compare**: Use `npm run compare` to analyze differences between test runs.  By default, the last two directories in the reports directory are compared.  To override, specify the reports directory, the baseline report file, and the report file to compare to.  Submit the JSON-formatted report files.
+6. **Customize** (Optional): Add additional test cases may be added within an existing TestDataProvider's implementation source file or a new TestDataProvider's implementation source file.  Do not add them to the generated spreadsheets.
 
 ## Quick Start
 
@@ -72,7 +90,7 @@ $env:AUTH_USERNAME = "prod-user"
 $env:AUTH_PASSWORD = "secure-prod-password"
 ```
 
-### 3. Generate Endpoint Specification and Templates
+### 3. Generate Endpoint Specification and Tests
 
 First, generate the endpoint specification by analyzing the app.js file:
 
@@ -82,16 +100,18 @@ npm run create:spec
 
 This creates an `endpoints-spec.json` file containing all discovered endpoints with their parameters, required fields, and handler information.
 
-Then, create Excel configuration templates based on the specification:
+Then, create Excel test files based on the specification:
 
 ```bash
-npm run create:templates
+npm run create:tests
 ```
 
-This creates separate Excel files for each endpoint in the `configs/` directory based on the endpoints found in `endpoints-spec.json`:
-- Individual Excel files for each discovered endpoint
-- Parameter-specific columns for each endpoint type
-- Pre-configured headers and sample data
+This creates comprehensive Excel test files for each endpoint in the `configs/` directory based on the endpoints found in `endpoints-spec.json`:
+- Individual Excel files for each discovered endpoint with ready-to-run test cases
+- Parameter-specific columns for each endpoint type  
+- Pre-configured test data from all available data sources
+- Multiple test scenarios including success and error cases
+- No manual configuration required - files are ready to execute immediately
 
 ### 4. Run Tests
 
@@ -180,9 +200,9 @@ Creates `endpoints-spec.json` with detailed endpoint specifications in the forma
 }
 ```
 
-### Template Generation with Multi-Source Data Providers
+### Test Generation with Multi-Source Data Providers
 
-The `create-templates.js` script reads the generated `endpoints-spec.json` file and creates customized Excel templates using a flexible data provider system:
+The `create-tests.js` script reads the generated `endpoints-spec.json` file and creates customized Excel spreadsheets of ready-to-run test configurations using a flexible data provider system:
 
 - **Individual files**: Separate Excel file for each discovered endpoint
 - **Parameter columns**: Dedicated columns for each endpoint's specific parameters
@@ -192,9 +212,9 @@ The `create-templates.js` script reads the generated `endpoints-spec.json` file 
 
 **Usage:**
 ```bash
-npm run create:templates
+npm run create:tests
 # or
-node create-templates.js
+node create-tests.js
 ```
 
 #### Test Data Provider System
@@ -215,7 +235,7 @@ The framework now includes a sophisticated test data provider interface that aut
 1. Scans the `test-data-providers/` directory for all provider implementations
 2. Instantiates each discovered provider class
 3. Attempts to extract test data from each provider for every endpoint
-4. Combines data from all successful providers into comprehensive templates
+4. Combines data from all successful providers into comprehensive test files
 5. Falls back to sample data if no external data sources are available
 
 **Provider Implementation:**
@@ -230,10 +250,11 @@ Each provider implements key methods:
 - **Robust**: Graceful error handling and fallback to sample data
 - **Extensible**: New data sources can be added without modifying existing code
 - **Comprehensive**: Combines data from multiple sources for richer test coverage
+- **Ready-to-run**: Generated files contain actual test cases, not just empty templates
 
 ### Shared Utilities
 
-The framework includes shared utility functions in `utils.js` that provide consistent endpoint key generation and parameter handling across all tools. This ensures that endpoint naming and parameter processing is standardized across specification generation, template creation, and test execution.
+The framework includes shared utility functions in `utils.js` that provide consistent endpoint key generation and parameter handling across all tools. This ensures that endpoint naming and parameter processing is standardized across specification generation, test configuration creation, and test execution.
 
 ## Response Body Saving
 
@@ -640,7 +661,7 @@ export { DatabaseProvider } from './database-provider.js';  // Add your provider
 
 ### Automatic Discovery
 
-Once registered, your provider will be automatically discovered and used by `create-templates.js`. The system will:
+Once registered, your provider will be automatically discovered and used by `create-tests.js`. The system will:
 
 1. Import all provider classes from the index file
 2. Instantiate each provider
@@ -651,9 +672,18 @@ Once registered, your provider will be automatically discovered and used by `cre
 
 - **Error Handling**: Implement robust error handling - failures should not prevent other providers from working
 - **Validation**: Always validate data format and completeness
-- **Logging**: Use console.log for status updates during template generation
+- **Logging**: Use console.log for status updates during test configuration generation
 - **Performance**: Consider caching expensive operations (database connections, file parsing)
 - **Configuration**: Use environment variables for connection strings and options
+
+### Automated Test Generation vs Manual Customization
+
+The framework now operates with a fully automated approach:
+
+1. **Automated Test Generation** (`create-tests.js`): Automatically creates comprehensive test files with ready-to-run test cases from all available data sources
+2. **Manual Customization** (optional): Do not add tests within the generated spreadsheets.  Instead, add to one of the existing TestDataProvider's source files or implement a new TestDataProvider and add to its source file.
+
+The generated Excel files contain complete, ready-to-execute test cases and are overwritten the next time create-tests.js is run (inclusive of `npm run test:*`).
 
 ## Advanced Usage
 
@@ -699,7 +729,7 @@ Example GitHub Actions workflow:
     cd test/endpoints
     npm install
     npm run create:spec
-    npm run create:templates  
+    npm run create:tests  
     npm test
     
 - name: Upload Test Reports
@@ -756,7 +786,7 @@ The framework includes several key files:
 
 ### Core Scripts
 - `create-endpoints-spec.js` - Analyzes Express.js app to discover endpoints and generate specifications
-- `create-templates.js` - Generates endpoint-specific Excel templates with automatic data provider discovery
+- `create-tests.js` - Generates endpoint-specific Excel test files with automatic data provider discovery
 - `run-tests.js` - Main test execution engine
 - `compare-reports.js` - Interactive tool for comparing test reports between runs
 - `utils.js` - Shared utility functions for consistent endpoint key generation
@@ -770,14 +800,14 @@ The framework includes several key files:
 
 ### Generated Files
 - `endpoints-spec.json` - Detailed endpoint specifications (generated by `create-endpoints-spec.js`)
-- `configs/*.xlsx` - Individual Excel configuration files for each discovered endpoint (generated by `create-templates.js`)
+- `configs/*.xlsx` - Individual Excel test files for each discovered endpoint (generated by `create-tests.js`)
 - `test-data-providers/` - Modular data provider system for flexible test data sources
 
 ### Configuration Structure
 ```
 test/endpoints/
 ├── create-endpoints-spec.js     # Endpoint discovery script
-├── create-templates.js          # Template generator with auto-discovery
+├── create-tests.js             # Test file generator with auto-discovery
 ├── run-tests.js                 # Test runner
 ├── endpoints-spec.json          # Generated API specification
 ├── test-data-providers/         # Test data provider system
@@ -785,10 +815,10 @@ test/endpoints/
 │   ├── sample-provider.js      # Synthetic test data generator
 │   ├── csv-provider.js         # CSV file data reader
 │   └── index.js               # Provider exports
-├── configs/                     # Generated Excel templates
-│   ├── get-search.xlsx         # Search endpoint tests
-│   ├── get-facets.xlsx         # Facets endpoint tests
-│   ├── post-document-create.xlsx # Document creation tests
+├── configs/                     # Generated Excel test files
+│   ├── get-search.xlsx         # Search endpoint test cases
+│   ├── get-facets.xlsx         # Facets endpoint test cases
+│   ├── post-document-create.xlsx # Document creation test cases
 │   └── ...                     # One file per discovered endpoint
 └── reports/                     # Generated test reports
     ├── results.json

@@ -81,7 +81,6 @@ class EndpointTester {
     const files = fs
       .readdirSync(this.configDir)
       .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
-      .filter((file) => !file.includes('template')) // Skip template files
       .filter((file) => !file.startsWith('~')); // Skip temp files
 
     for (const file of files) {
@@ -146,7 +145,7 @@ class EndpointTester {
       total_rows: totalRows + 1, // +1 to account for header row
       method: row.method || this.getDefaultMethod(endpointType),
       base_endpoint: row.base_endpoint || this.getDefaultEndpoint(endpointType),
-      endpoint_template: row.endpoint_template || this.getEndpointTemplate(endpointType),
+      endpoint_tests: row.endpoint_tests || this.getEndpointTests(endpointType),
       expected_status: parseInt(row.expected_status) || 200,
       timeout_ms: parseInt(row.timeout_ms) || 10000,
       max_response_time: parseInt(row.max_response_time) || 5000,
@@ -220,9 +219,9 @@ class EndpointTester {
   }
 
   /**
-   * Get endpoint template with path parameters for endpoint type
+   * Get endpoint tests with path parameters for endpoint type
    */
-  getEndpointTemplate(endpointType) {
+  getEndpointTests(endpointType) {
     // Use cached endpoints specification
     if (this.endpointsSpec && this.endpointsSpec.endpoints) {
       // Find matching endpoint by comparing endpoint type with generated key
@@ -246,8 +245,8 @@ class EndpointTester {
   buildRequestUrl(testConfig) {
     let url = this.baseUrl;
     
-    // Use endpoint template if available, otherwise fall back to base endpoint
-    let pathTemplate = testConfig.endpoint_template || testConfig.base_endpoint;
+    // Use endpoint tests if available, otherwise fall back to base endpoint
+    let pathTemplate = testConfig.endpoint_tests || testConfig.base_endpoint;
     
     // Substitute path parameters
     const pathParams = this.extractPathParameters(pathTemplate);

@@ -36,7 +36,7 @@ export class SampleTestDataProvider extends TestDataProvider {
    * Generate sample test cases for the API endpoint
    * @param {Object} apiDef - API definition object
    * @param {string} endpointKey - Unique endpoint key
-   * @param {Array<string>} columns - Column structure for the template
+   * @param {Array<string>} columns - Column structure for the spreadsheet
    * @returns {Promise<Array<Array>>} - Array of test data rows
    */
   async extractTestData(apiDef, endpointKey, columns) {
