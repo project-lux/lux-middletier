@@ -22,15 +22,15 @@ The framework includes several convenient npm scripts for common tasks:
 | `npm test` | `node run-tests.js ./configs` | Run all tests with default configuration |
 | `npm run test:dev` | `node run-tests.js ./configs ./reports` | Run tests and save reports to reports directory |
 | `npm run test:save` | `node run-tests.js ./configs ./reports --save-responses` | Run tests with response body saving enabled |
-| `npm run create-templates` | `node create-excel-template.js` | Generate Excel templates from endpoints specification |
-| `npm run create-spec` | `node create-endpoints-spec.js` | Analyze Express.js app and generate endpoints specification |
+| `npm run create:templates` | `node create-excel-template.js` | Generate Excel templates from endpoints specification |
+| `npm run create:spec` | `node create-endpoints-spec.js` | Analyze Express.js app and generate endpoints specification |
 | `npm run compare` | `node compare-reports.js` | Interactive tool to compare two test reports |
 | `npm run install-deps` | `npm install` | Install all required dependencies |
 
 ## Workflow Overview
 
-1. **Analyze**: Run `npm run create-spec` to discover all endpoints in your Express app
-2. **Generate**: Create customized Excel templates with `npm run create-templates`
+1. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
+2. **Generate**: Create customized Excel templates with `npm run create:templates`
 3. **Configure**: Fill in test data in the generated Excel files
 4. **Execute**: Run tests with `npm test` or `npm run test:dev`
 5. **Report**: Review detailed HTML, CSV, and JSON reports
@@ -77,7 +77,7 @@ $env:AUTH_PASSWORD = "secure-prod-password"
 First, generate the endpoint specification by analyzing the app.js file:
 
 ```bash
-npm run create-spec
+npm run create:spec
 ```
 
 This creates an `endpoints-spec.json` file containing all discovered endpoints with their parameters, required fields, and handler information.
@@ -85,7 +85,7 @@ This creates an `endpoints-spec.json` file containing all discovered endpoints w
 Then, create Excel configuration templates based on the specification:
 
 ```bash
-npm run create-templates
+npm run create:templates
 ```
 
 This creates separate Excel files for each endpoint in the `configs/` directory based on the endpoints found in `endpoints-spec.json`:
@@ -150,7 +150,7 @@ The `create-endpoints-spec.js` script automatically analyzes your Express.js app
 
 **Usage:**
 ```bash
-npm run create-spec
+npm run create:spec
 ```
 
 **Output:** 
@@ -192,7 +192,7 @@ The `create-excel-template.js` script reads the generated `endpoints-spec.json` 
 
 **Usage:**
 ```bash
-npm run create-templates
+npm run create:templates
 # or
 node create-excel-template.js
 ```
@@ -588,8 +588,8 @@ Example GitHub Actions workflow:
   run: |
     cd test/endpoints
     npm install
-    npm run create-spec
-    npm run create-templates  
+    npm run create:spec
+    npm run create:templates  
     npm test
     
 - name: Upload Test Reports
