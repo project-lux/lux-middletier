@@ -56,8 +56,20 @@ function analyzeEndpointsSpec() {
     spec.endpoints.forEach((endpoint) => {
       const endpointKey = getEndpointKeyFromPath(endpoint.path, endpoint.method);
       
-      // Parse path parameters
-      const pathParams = endpoint.parameters.path || [];
+      // Parse path parameters - first try from specification, then extract from path
+      let pathParams = endpoint.parameters.path || [];
+      
+      // If no path params in specification, extract them from the path string
+      if (pathParams.length === 0) {
+        const pathParamMatches = endpoint.path.match(/:([^/]+)/g);
+        if (pathParamMatches) {
+          pathParams = pathParamMatches.map(match => ({
+            name: match.substring(1), // Remove the ':' prefix
+            type: 'string'
+          }));
+        }
+      }
+      
       const queryParams = endpoint.parameters.query || [];
       
       const requiredParams = [];
@@ -75,13 +87,14 @@ function analyzeEndpointsSpec() {
 
       // Process query parameters
       queryParams.forEach((param) => {
+        const requiredQueryParams = endpoint.required.query || [];
         const paramInfo = {
           name: param.name,
           datatype: param.type || 'string',
-          nullable: !endpoint.required.query.includes(param.name),
+          nullable: !requiredQueryParams.includes(param.name),
         };
 
-        if (endpoint.required.query.includes(param.name)) {
+        if (requiredQueryParams.includes(param.name)) {
           requiredParams.push(paramInfo);
         } else {
           optionalParams.push(paramInfo);
