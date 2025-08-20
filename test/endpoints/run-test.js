@@ -20,10 +20,30 @@ class EndpointTester {
     this.authUsername = process.env.AUTH_USERNAME || null;
     this.authPassword = process.env.AUTH_PASSWORD || null;
 
+    // Load endpoints specification once during construction
+    this.endpointsSpec = this.loadEndpointsSpec();
+
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
+  }
+
+  /**
+   * Load endpoints specification from endpoints-spec.json once during initialization
+   */
+  loadEndpointsSpec() {
+    try {
+      const endpointsSpecPath = path.join(__dirname, 'endpoints-spec.json');
+      if (fs.existsSync(endpointsSpecPath)) {
+        const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, 'utf8'));
+        console.log(`Loaded ${spec.endpoints?.length || 0} endpoint specifications`);
+        return spec;
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not load endpoints-spec.json: ${error.message}`);
+    }
+    return null;
   }
 
   /**
@@ -173,20 +193,45 @@ class EndpointTester {
    * Get endpoint template with path parameters for endpoint type
    */
   getEndpointTemplate(endpointType) {
-    // Map endpoint types to their path templates
-    const templateMap = {
-      'get-search': '/api/search/:scope',
-      'get-facets': '/api/facets/:scope', 
-      'get-related-list': '/api/related-list/:scope',
-      'get-search-estimate': '/api/search-estimate/:scope',
-      'get-resolve': '/api/resolve/:scope/:unit/:identifier',
-      'post-translate': '/api/translate/:scope',
-      'get-data': '/data/:type/:uuid',
-      'put-data': '/data/:type/:uuid',
-      'delete-data': '/data/:type/:uuid',
-    };
+    // Use cached endpoints specification
+    if (this.endpointsSpec && this.endpointsSpec.endpoints) {
+      // Find matching endpoint by comparing endpoint type with generated key
+      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+        const specKey = this.getEndpointKeyFromPath(ep.path, ep.method);
+        return specKey === endpointType;
+      });
+      
+      if (endpoint) {
+        return endpoint.path;
+      }
+    }
 
-    return templateMap[endpointType] || this.getDefaultEndpoint(endpointType);
+    // Fallback to default endpoint if spec is not available or endpoint not found
+    return this.getDefaultEndpoint(endpointType);
+  }
+
+  /**
+   * Generate endpoint key from path and HTTP method (same logic as create-excel-template.js)
+   */
+  getEndpointKeyFromPath(path, method) {
+    let key = path
+      .replace(/\/api\//, '')
+      .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
+      .split('/') // Split into segments
+      .filter(segment => !segment.startsWith(':')) // Remove parameter segments
+      .join('-') // Join with hyphens
+      .replace(/[^a-zA-Z0-9-]/g, '') // Remove non-alphanumeric chars except hyphens
+      .toLowerCase();
+
+    key = `${method.toLowerCase()}-${key}`;
+
+    // Clean up common patterns
+    key = key
+      .replace(/^api-/, '') // Remove api prefix
+      .replace(/--+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+
+    return key || 'unknown-endpoint';
   }
 
   /**
