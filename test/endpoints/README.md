@@ -22,7 +22,7 @@ The framework includes several convenient npm scripts for common tasks:
 | `npm test` | `node run-tests.js ./configs` | Run all tests with default configuration |
 | `npm run test:dev` | `node run-tests.js ./configs ./reports` | Run tests and save reports to reports directory |
 | `npm run test:save` | `node run-tests.js ./configs ./reports --save-responses` | Run tests with response body saving enabled |
-| `npm run create:templates` | `node create-excel-template.js` | Generate Excel templates from endpoints specification |
+| `npm run create:templates` | `node create-template.js` | Generate Excel templates from endpoints specification |
 | `npm run create:spec` | `node create-endpoints-spec.js` | Analyze Express.js app and generate endpoints specification |
 | `npm run compare` | `node compare-reports.js` | Interactive tool to compare two test reports |
 | `npm run install-deps` | `npm install` | Install all required dependencies |
@@ -30,8 +30,8 @@ The framework includes several convenient npm scripts for common tasks:
 ## Workflow Overview
 
 1. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
-2. **Generate**: Create customized Excel templates with `npm run create:templates`
-3. **Configure**: Fill in test data in the generated Excel files
+2. **Generate**: Create customized Excel templates with `npm run create:templates` (automatically discovers and uses all available data sources)
+3. **Configure**: Fill in additional test data in the generated Excel files (optional - templates include data from all available providers)
 4. **Execute**: Run tests with `npm test` or `npm run test:dev`
 5. **Report**: Review detailed HTML, CSV, and JSON reports
 6. **Compare**: Use `npm run compare` to analyze differences between test runs
@@ -180,22 +180,56 @@ Creates `endpoints-spec.json` with detailed endpoint specifications in the forma
 }
 ```
 
-### Template Generation
+### Template Generation with Multi-Source Data Providers
 
-The `create-excel-template.js` script reads the generated `endpoints-spec.json` file and creates customized Excel templates:
+The `create-templates.js` script reads the generated `endpoints-spec.json` file and creates customized Excel templates using a flexible data provider system:
 
 - **Individual files**: Separate Excel file for each discovered endpoint
 - **Parameter columns**: Dedicated columns for each endpoint's specific parameters
 - **Required field highlighting**: Visual indicators for required parameters
-- **Sample data**: Pre-populated examples to guide test creation
+- **Multi-source data**: Automatically discovers and uses ALL available test data providers
 - **Documentation sheets**: Embedded help and parameter descriptions
 
 **Usage:**
 ```bash
 npm run create:templates
 # or
-node create-excel-template.js
+node create-templates.js
 ```
+
+#### Test Data Provider System
+
+The framework now includes a sophisticated test data provider interface that automatically discovers and uses multiple data sources:
+
+**Provider Interface (`test-data-providers/interface.js`):**
+- Abstract `TestDataProvider` base class with standard methods
+- `TestDataProviderFactory` for dynamic provider discovery and instantiation
+- Consistent interface across all data source types
+
+**Available Providers:**
+- **SampleProvider** (`test-data-providers/sample-provider.js`): Generates synthetic test data with configurable options
+- **CsvProvider** (`test-data-providers/csv-provider.js`): Reads test data from CSV files with flexible column mapping
+- **Extensible**: New providers can be easily added by implementing the `TestDataProvider` interface
+
+**Auto-Discovery Process:**
+1. Scans the `test-data-providers/` directory for all provider implementations
+2. Instantiates each discovered provider class
+3. Attempts to extract test data from each provider for every endpoint
+4. Combines data from all successful providers into comprehensive templates
+5. Falls back to sample data if no external data sources are available
+
+**Provider Implementation:**
+Each provider implements key methods:
+- `canHandle(source)`: Determines if the provider can process a given data source
+- `extractTestData(apiDef, endpointKey, columns)`: Extracts test data for a specific endpoint
+- `validateTestData(data)`: Validates extracted data meets requirements
+
+**Benefits:**
+- **Automatic**: No manual configuration required - discovers all available data sources
+- **Flexible**: Supports CSV files, databases, APIs, or any custom data source
+- **Robust**: Graceful error handling and fallback to sample data
+- **Extensible**: New data sources can be added without modifying existing code
+- **Comprehensive**: Combines data from multiple sources for richer test coverage
 
 ### Shared Utilities
 
@@ -545,6 +579,82 @@ Machine-readable format for integration with other tools:
 }
 ```
 
+## Extending the Data Provider System
+
+The framework's modular data provider system allows you to easily add new data sources for test case generation.
+
+### Creating a Custom Data Provider
+
+To create a new data provider, extend the `TestDataProvider` base class:
+
+```javascript
+// test-data-providers/database-provider.js
+import { TestDataProvider } from './interface.js';
+
+export class DatabaseProvider extends TestDataProvider {
+  constructor() {
+    super();
+    this.connectionString = process.env.TEST_DB_CONNECTION;
+  }
+
+  canHandle(source) {
+    // Return true if this provider can handle the given source
+    return source && source.type === 'database';
+  }
+
+  async extractTestData(apiDef, endpointKey, columns) {
+    // Connect to database and extract test data
+    const query = `SELECT * FROM test_cases WHERE endpoint = ?`;
+    const results = await this.executeQuery(query, [endpointKey]);
+    
+    // Transform database results to match expected format
+    return results.map(row => this.formatTestCase(row, columns));
+  }
+
+  validateTestData(data) {
+    // Validate extracted data meets requirements
+    return data && Array.isArray(data) && data.length > 0;
+  }
+
+  // Custom helper methods
+  async executeQuery(query, params) {
+    // Database connection and query logic
+  }
+
+  formatTestCase(dbRow, columns) {
+    // Transform database row to test case format
+  }
+}
+```
+
+### Registering New Providers
+
+Add your new provider to `test-data-providers/index.js`:
+
+```javascript
+export { TestDataProvider, TestDataProviderFactory } from './interface.js';
+export { SampleProvider } from './sample-provider.js';
+export { CsvProvider } from './csv-provider.js';
+export { DatabaseProvider } from './database-provider.js';  // Add your provider
+```
+
+### Automatic Discovery
+
+Once registered, your provider will be automatically discovered and used by `create-templates.js`. The system will:
+
+1. Import all provider classes from the index file
+2. Instantiate each provider
+3. Call `extractTestData()` for each endpoint
+4. Combine results from all successful providers
+
+### Provider Best Practices
+
+- **Error Handling**: Implement robust error handling - failures should not prevent other providers from working
+- **Validation**: Always validate data format and completeness
+- **Logging**: Use console.log for status updates during template generation
+- **Performance**: Consider caching expensive operations (database connections, file parsing)
+- **Configuration**: Use environment variables for connection strings and options
+
 ## Advanced Usage
 
 ### Running Specific Test Suites
@@ -646,29 +756,41 @@ The framework includes several key files:
 
 ### Core Scripts
 - `create-endpoints-spec.js` - Analyzes Express.js app to discover endpoints and generate specifications
-- `create-excel-template.js` - Generates endpoint-specific Excel templates from specifications  
+- `create-templates.js` - Generates endpoint-specific Excel templates with automatic data provider discovery
 - `run-tests.js` - Main test execution engine
 - `compare-reports.js` - Interactive tool for comparing test reports between runs
 - `utils.js` - Shared utility functions for consistent endpoint key generation
 - `package.json` - Node.js dependencies and npm scripts
 
+### Data Provider System
+- `test-data-providers/interface.js` - Abstract base class and factory for all data providers
+- `test-data-providers/sample-provider.js` - Synthetic test data generation with configurable options
+- `test-data-providers/csv-provider.js` - CSV file reader with flexible column mapping and validation
+- `test-data-providers/index.js` - Central exports for all provider classes
+
 ### Generated Files
 - `endpoints-spec.json` - Detailed endpoint specifications (generated by `create-endpoints-spec.js`)
-- `configs/*.xlsx` - Individual Excel configuration files for each discovered endpoint (generated by `create-excel-template.js`)
+- `configs/*.xlsx` - Individual Excel configuration files for each discovered endpoint (generated by `create-templates.js`)
+- `test-data-providers/` - Modular data provider system for flexible test data sources
 
 ### Configuration Structure
 ```
 test/endpoints/
 ├── create-endpoints-spec.js     # Endpoint discovery script
-├── create-excel-template.js     # Template generator
-├── run-tests.js      # Test runner
+├── create-templates.js          # Template generator with auto-discovery
+├── run-tests.js                 # Test runner
 ├── endpoints-spec.json          # Generated API specification
+├── test-data-providers/         # Test data provider system
+│   ├── interface.js            # Abstract base class and factory
+│   ├── sample-provider.js      # Synthetic test data generator
+│   ├── csv-provider.js         # CSV file data reader
+│   └── index.js               # Provider exports
 ├── configs/                     # Generated Excel templates
 │   ├── get-search.xlsx         # Search endpoint tests
 │   ├── get-facets.xlsx         # Facets endpoint tests
 │   ├── post-document-create.xlsx # Document creation tests
 │   └── ...                     # One file per discovered endpoint
-└── reports/               # Generated test reports
+└── reports/                     # Generated test reports
     ├── results.json
     ├── results.csv
     └── results.html

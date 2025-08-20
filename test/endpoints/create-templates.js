@@ -3,22 +3,63 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getEndpointKeyFromPath } from './utils.js';
+import { TestDataProviderFactory } from './test-data-providers/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Create separate Excel files for each API endpoint with parameter-specific columns
- * Based on endpoints-spec.json file
+ * Discover and instantiate all available TestDataProvider implementations
+ * Each implementation represents a specific data source, not just a file format
+ * @returns {Promise<Array<TestDataProvider>>} Array of all available provider instances
  */
-function createEndpointSpecificTemplates(templateDir) {
+async function discoverAllProviders() {
+  console.log('Discovering all TestDataProvider implementations...');
+  
+  // Get all registered provider classes
+  const providerClasses = TestDataProviderFactory.getRegisteredProviders();
+  const allProviders = [];
+  
+  // Instantiate each provider class - each represents a specific source
+  for (const ProviderClass of providerClasses) {
+    try {
+      console.log(`  Checking ${ProviderClass.name}...`);
+      
+      // Each provider class should have a static method to create instances for available sources
+      if (typeof ProviderClass.createInstances === 'function') {
+        const instances = await ProviderClass.createInstances();
+        allProviders.push(...instances);
+        console.log(`    ✓ Created ${instances.length} instance(s)`);
+      } else {
+        // Fallback: try to create a single instance if no createInstances method
+        const instance = new ProviderClass();
+        allProviders.push(instance);
+        console.log(`    ✓ Created 1 instance (fallback)`);
+      }
+    } catch (error) {
+      console.warn(`    ⚠ Failed to create instances for ${ProviderClass.name}: ${error.message}`);
+    }
+  }
+  
+  console.log(`Found ${allProviders.length} total provider instance(s)\n`);
+  return allProviders;
+}
+
+/**
+ * Create separate Excel files for each API endpoint with parameter-specific columns
+ * Based on endpoints-spec.json file and ALL available TestDataProvider implementations
+ */
+async function createEndpointSpecificTemplates(templateDir, options = {}) {
   console.log('Analyzing endpoints-spec.json to create individual templates...');
 
   // Get all API definitions
   const apiDefinitions = analyzeEndpointsSpec();
   console.log(
-    `Found ${Object.keys(apiDefinitions).length} unique API endpoints`
+    `Found ${Object.keys(apiDefinitions).length} unique API endpoints\n`
   );
+
+  // Discover and instantiate ALL TestDataProvider implementations
+  const allProviders = await discoverAllProviders();
 
   // Create templates directory if it doesn't exist
   if (!fs.existsSync(templateDir)) {
@@ -26,10 +67,10 @@ function createEndpointSpecificTemplates(templateDir) {
   }
 
   // Generate Excel files for each API endpoint
-  Object.keys(apiDefinitions).forEach((endpointKey) => {
+  for (const endpointKey of Object.keys(apiDefinitions)) {
     const apiDef = apiDefinitions[endpointKey];
-    createTemplateForAPI(apiDef, endpointKey, templateDir);
-  });
+    await createTemplateForAPI(apiDef, endpointKey, templateDir, allProviders, options);
+  }
 
   console.log('\nTemplate generation complete!');
   console.log('Next steps:');
@@ -136,9 +177,9 @@ function analyzeEndpointsSpec() {
 }
 
 /**
- * Create template for a specific API endpoint
+ * Create template for a specific API endpoint using ALL available providers
  */
-function createTemplateForAPI(apiDef, endpointKey, templateDir) {
+async function createTemplateForAPI(apiDef, endpointKey, templateDir, allProviders, options = {}) {
   const filename = `${endpointKey}-tests.xlsx`;
   const filePath = path.join(templateDir, filename);
 
@@ -172,12 +213,12 @@ function createTemplateForAPI(apiDef, endpointKey, templateDir) {
     ...optionalParamColumns,
   ];
 
-  // Generate sample data
-  const sampleData = generateSampleData(apiDef, endpointKey, columns);
+  // Collect test data from ALL providers for this endpoint
+  const allTestData = await collectTestDataFromAllProviders(allProviders, apiDef, endpointKey, columns);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet([columns, ...sampleData]);
+  const ws = XLSX.utils.aoa_to_sheet([columns, ...allTestData]);
 
   // Apply styling to required parameter columns (light yellow background)
   if (requiredParamColumns.length > 0) {
@@ -225,138 +266,52 @@ function createTemplateForAPI(apiDef, endpointKey, templateDir) {
 
   // Write the file
   XLSX.writeFile(wb, filePath);
-  console.log(`✓ Created ${filePath}`);
+  console.log(`✓ Created ${filePath} with ${allTestData.length} test cases`);
 }
 
 /**
- * Generate sample test data for an API endpoint
+ * Collect test data from ALL available providers and combine them
  */
-function generateSampleData(apiDef, endpointKey, columns) {
-  const sampleRows = [];
+async function collectTestDataFromAllProviders(allProviders, apiDef, endpointKey, columns) {
+  const allTestData = [];
+  
+  console.log(`Collecting test data from ${allProviders.length} providers for ${endpointKey}...`);
 
-  // Generate 2-3 sample test cases per endpoint
-  const testCases = getSampleTestCases(apiDef, endpointKey);
-
-  testCases.forEach((testCase, index) => {
-    const row = [];
-
-    columns.forEach((col) => {
-      if (col === 'test_name') {
-        row.push(testCase.name);
-      } else if (col === 'description') {
-        row.push(testCase.description);
-      } else if (col === 'enabled') {
-        row.push('true');
-      } else if (col === 'expected_status') {
-        row.push(testCase.expectedStatus || 200);
-      } else if (col === 'timeout_ms') {
-        row.push(10000);
-      } else if (col === 'max_response_time') {
-        row.push(testCase.maxResponseTime || 3000);
-      } else if (col === 'delay_after_ms') {
-        row.push(500);
-      } else if (col === 'tags') {
-        row.push(testCase.tags || `${endpointKey},functional`);
-      } else if (col.startsWith('param:')) {
-        const paramName = col.replace('param:', '');
-        row.push(testCase.params[paramName] || '');
+  // Collect from each provider
+  for (const provider of allProviders) {
+    try {
+      console.log(`  - Trying provider: ${provider.constructor.name}`);
+      
+      const testData = await provider.extractTestData(apiDef, endpointKey, columns);
+      
+      if (testData && testData.length > 0) {
+        console.log(`    ✓ Got ${testData.length} test cases from ${provider.constructor.name}`);
+        allTestData.push(...testData);
       } else {
-        row.push('');
+        console.log(`    - No data from ${provider.constructor.name}`);
       }
-    });
-
-    sampleRows.push(row);
-  });
-
-  return sampleRows;
-}
-
-/**
- * Get sample test cases for an endpoint
- */
-function getSampleTestCases(apiDef, endpointKey) {
-  // Base test case structure
-  const baseCase = {
-    name: `${endpointKey} - Basic Test`,
-    description: `Test ${apiDef.method} ${apiDef.path} endpoint with valid parameters`,
-    expectedStatus: 200,
-    maxResponseTime: 3000,
-    tags: `${endpointKey},functional`,
-    params: {},
-  };
-
-  // Generate sample parameter values based on endpoint type and parameter names
-  apiDef.allParams.forEach((param) => {
-    baseCase.params[param.name] = getSampleParamValue(param, endpointKey);
-  });
-
-  // Create variations for different test scenarios
-  const testCases = [baseCase];
-
-  // Add error test case if there are required parameters
-  if (apiDef.requiredParams.length > 0) {
-    const errorCase = {
-      ...baseCase,
-      name: `${endpointKey} - Missing Required Param`,
-      description: `Test ${apiDef.method} ${apiDef.path} with missing required parameters`,
-      expectedStatus: 400,
-      maxResponseTime: 2000,
-      tags: `${endpointKey},validation`,
-      params: { ...baseCase.params },
-    };
-
-    // Remove first required parameter to trigger error
-    const firstRequired = apiDef.requiredParams[0];
-    if (firstRequired) {
-      errorCase.params[firstRequired.name] = '';
+    } catch (error) {
+      console.log(`    ⚠ Error from ${provider.constructor.name}: ${error.message}`);
     }
-
-    testCases.push(errorCase);
   }
 
-  return testCases;
-}
+  // If no data was collected from any provider, fall back to sample data
+  if (allTestData.length === 0) {
+    console.log(`  ! No data from any provider, falling back to sample data...`);
+    
+    // Try to find sample provider in the list
+    const sampleProvider = allProviders.find(p => p.constructor.name === 'SampleProvider');
+    if (sampleProvider) {
+      const fallbackData = await sampleProvider.extractTestData(apiDef, endpointKey, columns);
+      if (fallbackData && fallbackData.length > 0) {
+        allTestData.push(...fallbackData);
+        console.log(`    ✓ Generated ${fallbackData.length} fallback test cases`);
+      }
+    }
+  }
 
-/**
- * Generate sample parameter values based on parameter name and type
- */
-function getSampleParamValue(param, endpointKey) {
-  const paramName = param.name.toLowerCase();
-
-  // Path parameters
-  if (paramName === 'type') return 'work';
-  if (paramName === 'uuid') return '12345678-1234-1234-1234-123456789abc';
-  if (paramName === 'scope') return 'work';
-  if (paramName === 'unit') return 'yuag';
-  if (paramName === 'identifier') return 'example-123';
-
-  // Common query parameters
-  if (paramName === 'unitname') return '';
-  if (paramName === 'q')
-    return endpointKey.includes('search')
-      ? 'test query'
-      : '{"query": "example"}';
-  if (paramName === 'uri')
-    return 'https://lux.collections.yale.edu/data/test/example';
-  if (paramName === 'page') return '1';
-  if (paramName === 'pagelength') return '20';
-  if (paramName === 'lang') return 'en';
-  if (paramName === 'profile') return 'summary';
-  if (paramName === 'text') return 'sample text';
-  if (paramName === 'context') return 'person';
-  if (paramName === 'name') return 'classification';
-
-  // Body parameter
-  if (paramName === 'body')
-    return '{"@context": "https://linked.art/contexts/base.json", "type": "HumanMadeObject"}';
-
-  // Default values based on data type
-  if (param.datatype === 'string') return 'example';
-  if (param.datatype === 'int' || param.datatype === 'integer') return '1';
-  if (param.datatype === 'boolean') return 'true';
-  if (param.datatype === 'jsonDocument') return '{}';
-
-  return '';
+  console.log(`Total test cases collected: ${allTestData.length}`);
+  return allTestData;
 }
 
 /**
@@ -481,5 +436,32 @@ function getEndpointNotes(endpointKey, apiDef) {
   return notes;
 }
 
+// Main execution with optional configuration
 const templateDir = path.join(__dirname, 'templates');
-createEndpointSpecificTemplates(templateDir);
+
+// Parse command line arguments for configuration
+const args = process.argv.slice(2);
+const options = {};
+
+// Check for data source arguments
+// Usage examples:
+// node create-templates.js --data-source=./test-data.csv
+// node create-templates.js --test-count=5 --include-errors=false
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith('--data-source=')) {
+    options.dataSource = arg.split('=')[1];
+  } else if (arg.startsWith('--test-count=')) {
+    options.testCaseCount = parseInt(arg.split('=')[1]);
+  } else if (arg.startsWith('--include-errors=')) {
+    options.includeErrorCases = arg.split('=')[1].toLowerCase() === 'true';
+  } else if (arg.startsWith('--fallback=')) {
+    options.fallbackToSample = arg.split('=')[1].toLowerCase() === 'true';
+  }
+}
+
+if (options.dataSource) {
+  console.log(`Using data source: ${options.dataSource}`);
+}
+
+await createEndpointSpecificTemplates(templateDir, options);
