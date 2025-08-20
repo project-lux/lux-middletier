@@ -10,11 +10,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class EndpointTester {
-  constructor(configDir, outputDir = './test-reports') {
+  constructor(configDir, reportsDir = './reports', options = {}) {
     this.configDir = configDir;
-    this.outputDir = outputDir;
+    this.reportsDir = reportsDir;
     this.results = [];
     this.baseUrl = process.env.BASE_URL || 'https://lux-middle-dev.collections.yale.edu';
+    
+    // Create a timestamped subdirectory for this test run
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    this.executionDir = path.join(this.reportsDir, `test-run-${timestamp}`);
+    
+    // Response body saving configuration
+    this.saveResponseBodies = options.saveResponseBodies || false;
+    this.responsesDir = path.join(this.executionDir, 'responses');
 
     // Authentication configuration
     this.authType = process.env.AUTH_TYPE || 'none'; // 'digest', 'oauth', or 'none'
@@ -33,9 +41,19 @@ class EndpointTester {
     // Load endpoints specification once during construction
     this.endpointsSpec = this.loadEndpointsSpec();
 
-    // Ensure output directory exists
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    // Ensure base reports directory exists
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+    
+    // Ensure execution directory exists
+    if (!fs.existsSync(this.executionDir)) {
+      fs.mkdirSync(this.executionDir, { recursive: true });
+    }
+    
+    // Ensure responses directory exists if saving response bodies
+    if (this.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
+      fs.mkdirSync(this.responsesDir, { recursive: true });
     }
   }
 
@@ -64,7 +82,8 @@ class EndpointTester {
     const files = fs
       .readdirSync(this.configDir)
       .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
-      .filter((file) => !file.includes('template')); // Skip template files
+      .filter((file) => !file.includes('template')) // Skip template files
+      .filter((file) => !file.startsWith('~')); // Skip temp files
 
     for (const file of files) {
       const filePath = path.join(this.configDir, file);
@@ -402,6 +421,42 @@ class EndpointTester {
   }
 
   /**
+   * Save response body to disk
+   */
+  saveResponseBody(testName, response, timestamp) {
+    if (!this.saveResponseBodies) return null;
+    
+    try {
+      // Create a safe filename from test name and timestamp
+      const safeTestName = testName.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const timestampStr = timestamp.replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+      const filename = `${safeTestName}_${timestampStr}.json`;
+      const filePath = path.join(this.responsesDir, filename);
+      
+      // Save response data
+      const responseData = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+        config: {
+          url: response.config?.url,
+          method: response.config?.method,
+          headers: response.config?.headers,
+        }
+      };
+      
+      fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
+      console.log(`  Response body saved to: ${filename}`);
+      
+      return filename;
+    } catch (error) {
+      console.warn(`  Failed to save response body: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Run a single test configuration
    */
   async runSingleTest(testConfig) {
@@ -434,6 +489,10 @@ class EndpointTester {
       // Make the HTTP request
       const response = await axios(requestConfig);
       const duration = Date.now() - startTime;
+      const timestamp = new Date().toISOString();
+
+      // Save response body if enabled
+      const responseBodyFile = this.saveResponseBody(testConfig.test_name, response, timestamp);
 
       // Determine if test passed based on expected vs actual status
       const actualStatus = response.status;
@@ -453,8 +512,9 @@ class EndpointTester {
         url: url,
         method: testConfig.method,
         parameters: testConfig.parameters,
-        timestamp: new Date().toISOString(),
+        timestamp: timestamp,
         tags: testConfig.tags,
+        ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
 
       // Add failure reason if status doesn't match
@@ -475,6 +535,14 @@ class EndpointTester {
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const timestamp = new Date().toISOString();
+      
+      // Save error response body if available
+      let responseBodyFile = null;
+      if (error.response) {
+        responseBodyFile = this.saveResponseBody(testConfig.test_name, error.response, timestamp);
+      }
+      
       const result = {
         test_name: testConfig.test_name,
         endpoint_type: testConfig.endpoint_type,
@@ -487,8 +555,9 @@ class EndpointTester {
         url: this.buildRequestUrl(testConfig),
         method: testConfig.method,
         parameters: testConfig.parameters,
-        timestamp: new Date().toISOString(),
+        timestamp: timestamp,
         tags: testConfig.tags,
+        ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
 
       return result;
@@ -623,18 +692,17 @@ class EndpointTester {
    * Generate comprehensive test report
    */
   generateReport() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const reportFile = path.join(
-      this.outputDir,
-      `endpoint-test-report-${timestamp}.json`
+      this.executionDir,
+      `endpoint-test-report.json`
     );
     const csvFile = path.join(
-      this.outputDir,
-      `endpoint-test-report-${timestamp}.csv`
+      this.executionDir,
+      `endpoint-test-report.csv`
     );
     const htmlFile = path.join(
-      this.outputDir,
-      `endpoint-test-report-${timestamp}.html`
+      this.executionDir,
+      `endpoint-test-report.html`
     );
 
     // JSON Report
@@ -682,10 +750,13 @@ class EndpointTester {
     console.log(
       `Total Duration: ${Math.round(report.summary.total_duration)}ms`
     );
-    console.log(`\nReports generated:`);
-    console.log(`- JSON: ${reportFile}`);
-    console.log(`- CSV: ${csvFile}`);
-    console.log(`- HTML: ${htmlFile}`);
+    console.log(`\nReports generated in: ${this.executionDir}`);
+    console.log(`- JSON: ${path.basename(reportFile)}`);
+    console.log(`- CSV: ${path.basename(csvFile)}`);
+    console.log(`- HTML: ${path.basename(htmlFile)}`);
+    if (this.saveResponseBodies) {
+      console.log(`- Response bodies: responses/ directory`);
+    }
   }
 
   /**
@@ -838,6 +909,7 @@ class EndpointTester {
                 <th>Actual</th>
                 <th>Duration (ms)</th>
                 <th>Parameters</th>
+                <th>Response File</th>
                 <th>Timestamp</th>
             </tr>
         </thead>
@@ -855,6 +927,7 @@ class EndpointTester {
                     <td class="parameters">${JSON.stringify(
                       result.parameters || {}
                     )}</td>
+                    <td>${result.response_body_file || 'N/A'}</td>
                     <td>${result.timestamp}</td>
                 </tr>
             `
@@ -869,18 +942,65 @@ class EndpointTester {
 
 // CLI Interface
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const configDir = process.argv[2] || './configs';
-  const outputDir = process.argv[3] || './reports';
+  const args = process.argv.slice(2);
+  
+  // Parse arguments
+  let configDir = './configs';
+  let reportsDir = './reports';
+  let saveResponseBodies = false;
+  let positionalArgIndex = 0;
+  
+  // Process command line arguments
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--save-responses' || arg === '-r') {
+      saveResponseBodies = true;
+    } else if (arg === '--help' || arg === '-h') {
+      console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
+      console.log('');
+      console.log('Arguments:');
+      console.log('  configDir    Directory containing test configuration files (default: ./configs)');
+      console.log('  reportsDir   Directory for test reports (default: ./reports)');
+      console.log('');
+      console.log('Options:');
+      console.log('  --save-responses, -r    Save response bodies to disk');
+      console.log('  --help, -h              Show this help message');
+      console.log('');
+      console.log('Examples:');
+      console.log('  node run-tests.js');
+      console.log('  node run-tests.js ./configs ./reports');
+      console.log('  node run-tests.js ./configs ./reports --save-responses');
+      process.exit(0);
+    } else if (!arg.startsWith('-')) {
+      // Positional arguments
+      if (positionalArgIndex === 0) {
+        configDir = arg;
+        positionalArgIndex++;
+      } else if (positionalArgIndex === 1) {
+        reportsDir = arg;
+        positionalArgIndex++;
+      }
+    }
+  }
 
   if (!fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
-    console.log(
-      'Usage: node run-tests.js <config-directory> [output-dir]'
-    );
+    console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
+    console.log('Use --help for more information');
     process.exit(1);
   }
 
-  const tester = new EndpointTester(configDir, outputDir);
+  console.log(`Configuration directory: ${configDir}`);
+  console.log(`Reports directory: ${reportsDir}`);
+  if (saveResponseBodies) {
+    console.log('Response bodies will be saved to disk');
+  }
+
+  const options = { saveResponseBodies };
+  const tester = new EndpointTester(configDir, reportsDir, options);
+  
+  console.log(`Test execution directory: ${tester.executionDir}`);
+  
   tester.runAllTests().catch((error) => {
     console.error('Test execution failed:', error);
     process.exit(1);

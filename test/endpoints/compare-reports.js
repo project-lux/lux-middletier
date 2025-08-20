@@ -511,7 +511,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error('Usage: node compare-reports.js <baseline-report.json> <current-report.json> [output-dir]');
     console.error('');
     console.error('Example:');
-    console.error('  node compare-reports.js ./test-reports/baseline-report.json ./test-reports/latest-report.json');
+    console.error('  node compare-reports.js ./reports/baseline-report.json ./reports/latest-report.json');
     process.exit(1);
   }
 

@@ -20,7 +20,8 @@ The framework includes several convenient npm scripts for common tasks:
 | Script | Command | Description |
 |--------|---------|-------------|
 | `npm test` | `node run-tests.js ./configs` | Run all tests with default configuration |
-| `npm run test:dev` | `node run-tests.js ./configs ./test-reports` | Run tests and save reports to test-reports directory |
+| `npm run test:dev` | `node run-tests.js ./configs ./reports` | Run tests and save reports to reports directory |
+| `npm run test:save` | `node run-tests.js ./configs ./reports --save-responses` | Run tests with response body saving enabled |
 | `npm run create-templates` | `node create-excel-template.js` | Generate Excel templates from endpoints specification |
 | `npm run create-spec` | `node create-endpoints-spec.js` | Analyze Express.js app and generate endpoints specification |
 | `npm run compare` | `node compare-reports.js` | Interactive tool to compare two test reports |
@@ -99,6 +100,11 @@ This creates separate Excel files for each endpoint in the `configs/` directory 
 npm test
 ```
 
+**With response body saving:**
+```bash
+npm run test:save
+```
+
 **Using Node.js directly:**
 ```bash
 node run-tests.js ./configs
@@ -106,7 +112,12 @@ node run-tests.js ./configs
 
 **With custom output directory:**
 ```bash
-node run-tests.js ./configs ./test-reports
+node run-tests.js ./configs ./reports
+```
+
+**With response body saving:**
+```bash
+node run-tests.js ./configs ./reports --save-responses
 ```
 
 ### 5. Compare Test Results
@@ -189,6 +200,111 @@ node create-excel-template.js
 ### Shared Utilities
 
 The framework includes shared utility functions in `utils.js` that provide consistent endpoint key generation and parameter handling across all tools. This ensures that endpoint naming and parameter processing is standardized across specification generation, template creation, and test execution.
+
+## Response Body Saving
+
+The framework includes an option to save all HTTP response bodies to disk for detailed analysis, debugging, and archival purposes.
+
+### Enable Response Body Saving
+
+**Using npm scripts:**
+```bash
+npm run test:save
+```
+
+**Using command line flag:**
+```bash
+node run-tests.js ./configs ./reports --save-responses
+```
+
+**Using short flag:**
+```bash
+node run-tests.js ./configs ./reports -r
+```
+
+### Response File Organization
+
+When response body saving is enabled, each test execution creates its own timestamped subdirectory with a `responses/` subdirectory for response bodies:
+
+```
+reports/
+└── test-run-2025-08-20_14-30-15/
+    ├── endpoint-test-report.json
+    ├── endpoint-test-report.csv
+    ├── endpoint-test-report.html
+    └── responses/                    # Only created when --save-responses is used
+        ├── search_basic_2025-08-20_14-30-15.json
+        ├── facets_test_2025-08-20_14-30-16.json
+        ├── document_create_test_2025-08-20_14-30-17.json
+        └── ...
+└── test-run-2025-08-20_15-45-20/     # Next test execution
+    ├── endpoint-test-report.json
+    ├── endpoint-test-report.csv
+    ├── endpoint-test-report.html
+    └── responses/
+        └── ...
+```
+
+**Benefits of this structure:**
+- **Complete Isolation**: Each test run is fully self-contained
+- **Easy Organization**: Chronological organization by execution time  
+- **No Conflicts**: No filename conflicts between test runs
+- **Selective Storage**: Response bodies only created when explicitly requested
+- **Easy Cleanup**: Can delete entire test execution directories as needed
+
+### Response File Format
+
+Each response file contains complete HTTP response information in JSON format:
+
+```json
+{
+  "status": 200,
+  "statusText": "OK",
+  "headers": {
+    "content-type": "application/json",
+    "content-length": "1234",
+    "server": "MarkLogic"
+  },
+  "data": {
+    "results": [...],
+    "total": 42
+  },
+  "config": {
+    "url": "http://localhost:8003/ds/lux/search.mjs",
+    "method": "GET",
+    "headers": {...}
+  }
+}
+```
+
+### Use Cases for Response Body Saving
+
+**Debugging:** Compare actual response data when tests fail
+**API Documentation:** Generate examples from real response data
+**Data Analysis:** Analyze response patterns and data structures
+**Regression Testing:** Compare response bodies between API versions
+**Performance Analysis:** Examine response size and structure changes
+**Compliance:** Archive API responses for audit purposes
+
+### Integration with Reports
+
+When response body saving is enabled, test reports include a `response_body_file` field that references the saved response file:
+
+**JSON Report:**
+```json
+{
+  "test_name": "search_basic",
+  "status": "PASS",
+  "response_body_file": "search_basic_2025-08-20_14-30-15.json",
+  ...
+}
+```
+
+**HTML Report:**
+The HTML report includes a "Response File" column showing the filename for easy reference.
+
+**CSV Report:**
+The CSV includes the response file name for programmatic processing.
 
 ## Configuration
 
@@ -467,8 +583,8 @@ Example GitHub Actions workflow:
 - name: Upload Test Reports
   uses: actions/upload-artifact@v3
   with:
-    name: endpoint-test-reports
-    path: test/endpoints/test-reports/
+    name: endpoint-reports
+    path: test/endpoints/reports/
 ```
 
 ## Troubleshooting
@@ -540,7 +656,7 @@ test/endpoints/
 │   ├── get-facets.xlsx         # Facets endpoint tests
 │   ├── post-document-create.xlsx # Document creation tests
 │   └── ...                     # One file per discovered endpoint
-└── test-reports/               # Generated test reports
+└── reports/               # Generated test reports
     ├── results.json
     ├── results.csv
     └── results.html
