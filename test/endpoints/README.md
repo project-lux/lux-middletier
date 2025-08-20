@@ -1,10 +1,12 @@
 # LUX Endpoint Testing Framework
 
-A comprehensive, spreadsheet-driven endpoint testing framework for the LUX MarkLogic backend API. This tool allows you to configure test cases in Excel/CSV files, execute them sequentially or in parallel, and generate detailed reports with response times and status codes.
+A comprehensive, spreadsheet-driven endpoint testing framework for the LUX MarkLogic backend API. This tool automatically analyzes your Express.js application to discover endpoints, generates detailed specifications, and creates customized Excel templates for testing. You can then configure test cases in Excel files, execute them sequentially or in parallel, and generate detailed reports with response times and status codes.
 
 ## Features
 
-- **Spreadsheet-driven configuration**: Define tests in Excel (.xlsx) or CSV files
+- **Automatic endpoint discovery**: Analyzes your Express.js app to find all API endpoints
+- **Specification generation**: Creates detailed JSON specifications with parameters and handlers
+- **Spreadsheet-driven configuration**: Define tests in Excel (.xlsx) files with endpoint-specific columns
 - **Comprehensive reporting**: JSON, CSV, and HTML reports with detailed metrics
 - **Flexible authentication**: Support for Basic Auth, OAuth, and custom headers
 - **Environment management**: Multiple environment configurations
@@ -13,11 +15,19 @@ A comprehensive, spreadsheet-driven endpoint testing framework for the LUX MarkL
 - **Error handling**: Detailed error reporting and negative test cases
 - **Integration ready**: Works with existing Postman collections
 
+## Workflow Overview
+
+1. **Analyze**: Run `create-endpoints-spec.js` to discover all endpoints in your Express app
+2. **Generate**: Create customized Excel templates with `create-excel-template.js`
+3. **Configure**: Fill in test data in the generated Excel files
+4. **Execute**: Run tests with the endpoint test runner
+5. **Report**: Review detailed HTML, CSV, and JSON reports
+
 ## Quick Start
 
 ### 1. Install Dependencies
 
-```powershell
+```bash
 cd scripts/endpointTesting
 npm install
 ```
@@ -27,7 +37,7 @@ npm install
 Set up the required environment variables for your target environment:
 
 **Digest Authentication (default):**
-```powershell
+```bash
 $env:BASE_URL = "http://localhost:8003"
 $env:AUTH_TYPE = "digest"
 $env:AUTH_USERNAME = "your-username"
@@ -35,7 +45,7 @@ $env:AUTH_PASSWORD = "your-password"
 ```
 
 **For different environments:**
-```powershell
+```bash
 # Development
 $env:BASE_URL = "http://dev-server:8003"
 $env:AUTH_TYPE = "digest"
@@ -49,34 +59,105 @@ $env:AUTH_USERNAME = "prod-user"
 $env:AUTH_PASSWORD = "secure-prod-password"
 ```
 
-### 3. Create Configuration Templates
+### 3. Generate Endpoint Specification and Templates
 
-```powershell
+First, generate the endpoint specification by analyzing the app.js file:
+
+```bash
+node create-endpoints-spec.js
+```
+
+This creates an `endpoints-spec.json` file containing all discovered endpoints with their parameters, required fields, and handler information.
+
+Then, create Excel configuration templates based on the specification:
+
+```bash
 npm run create-templates
 ```
 
-This creates separate Excel files for each endpoint type in the `configs/` directory:
-- `configs/search-endpoints.xlsx`
-- `configs/facets-endpoints.xlsx` 
-- `configs/related-list-endpoints.xlsx`
-- `configs/translate-endpoints.xlsx`
-- `configs/document-endpoints.xlsx`
+This creates separate Excel files for each endpoint in the `configs/` directory based on the endpoints found in `endpoints-spec.json`:
+- Individual Excel files for each discovered endpoint
+- Parameter-specific columns for each endpoint type
+- Pre-configured headers and sample data
 
 ### 4. Run Tests
 
 **Using npm scripts (Recommended):**
-```powershell
+```bash
 npm test
 ```
 
 **Using Node.js directly:**
-```powershell
+```bash
 node endpoint-test-runner.js ./configs
 ```
 
 **With custom output directory:**
-```powershell
+```bash
 node endpoint-test-runner.js ./configs ./test-reports
+```
+
+## Endpoint Discovery and Specification Generation
+
+The framework includes automated endpoint discovery that analyzes your Express.js application to generate detailed API specifications.
+
+### Endpoint Analysis Script
+
+The `create-endpoints-spec.js` script automatically analyzes your Express.js application to discover:
+
+- All defined routes and their HTTP methods
+- Path parameters and query parameters
+- Required vs optional parameters
+- Handler function names and middleware
+- Response patterns and status codes
+
+**Usage:**
+```bash
+node create-endpoints-spec.js
+```
+
+**Output:** 
+Creates `endpoints-spec.json` with detailed endpoint specifications in the format:
+```json
+{
+  "/api/search/:scope": {
+    "path": "/api/search/:scope",
+    "method": "GET",
+    "parameters": [
+      {
+        "name": "scope",
+        "type": "path",
+        "required": true,
+        "description": "Search scope (work, person, place, concept)"
+      },
+      {
+        "name": "q",
+        "type": "query", 
+        "required": false,
+        "description": "Search query string"
+      }
+    ],
+    "handlerName": "handleSearch",
+    "middleware": ["authenticate", "validateScope"]
+  }
+}
+```
+
+### Template Generation
+
+The `create-excel-template.js` script reads the generated `endpoints-spec.json` file and creates customized Excel templates:
+
+- **Individual files**: Separate Excel file for each discovered endpoint
+- **Parameter columns**: Dedicated columns for each endpoint's specific parameters
+- **Required field highlighting**: Visual indicators for required parameters
+- **Sample data**: Pre-populated examples to guide test creation
+- **Documentation sheets**: Embedded help and parameter descriptions
+
+**Usage:**
+```bash
+npm run create-templates
+# or
+node create-excel-template.js
 ```
 
 ## Configuration
@@ -95,7 +176,7 @@ The framework uses the following environment variables:
 **Setting Environment Variables:**
 
 **PowerShell:**
-```powershell
+```bash
 $env:BASE_URL = "http://localhost:8003"
 $env:AUTH_TYPE = "digest"
 $env:AUTH_USERNAME = "your-username"
@@ -120,7 +201,7 @@ export AUTH_PASSWORD="your-password"
 
 ### Test Configuration Spreadsheet
 
-The endpoint-specific configuration files contain the following columns:
+The endpoint-specific configuration files are automatically generated based on the `endpoints-spec.json` and contain columns tailored to each endpoint's specific parameters.
 
 #### Standard Columns (All Endpoint Types)
 
@@ -135,33 +216,33 @@ The endpoint-specific configuration files contain the following columns:
 | `delay_after_ms` | Delay after test completion | 500 | No |
 | `tags` | Comma-separated tags | "search,functional,smoke" | No |
 
-#### Parameter Columns (Endpoint-Specific)
+#### Parameter Columns (Dynamically Generated)
 
-Each endpoint type has specific `param:` columns for its parameters:
+Each endpoint gets its own Excel file with parameter columns specific to that endpoint's requirements, automatically discovered from your Express.js application:
 
-**Search Endpoints:**
-- `param:q` - Search query
-- `param:scope` - Search scope (work, person, place, etc.)
+**Example for `/api/search/:scope` endpoint:**
+- `param:scope` - Search scope (work, person, place, etc.) - **Required**
+- `param:q` - Search query string
 - `param:page` - Page number  
 - `param:pageLength` - Results per page
 - `param:sort` - Sort order
 
-**Facets Endpoints:**
-- `param:facetName` - Facet field name
-- `param:q` - Search query
-- `param:scope` - Search scope
-
-**Related-List Endpoints:**
-- `param:id` - Record ID
-- `param:name` - Relationship name
+**Example for `/api/related-list/:id/:name` endpoint:**
+- `param:id` - Record ID - **Required**
+- `param:name` - Relationship name - **Required**
 - `param:page` - Page number
 - `param:pageLength` - Results per page
+
+**Visual Indicators:**
+- Required parameters are highlighted in yellow
+- Optional parameters use standard formatting
+- Each Excel file includes a documentation sheet explaining the endpoint's purpose and parameters
 
 ## Authentication Configuration
 
 Authentication is configured globally using environment variables and applies to all tests. The framework supports digest authentication by default, with the ability to configure different authentication types for future OAuth support.
 
-```powershell
+```bash
 # Digest authentication (default)
 $env:AUTH_TYPE = "digest"
 $env:AUTH_USERNAME = "your-username"
@@ -292,13 +373,13 @@ Example GitHub Actions workflow:
 ### Debug Mode
 
 Enable verbose logging:
-```powershell
+```bash
 $env:DEBUG = "true"
 npm test
 ```
 
 Or set environment variable:
-```powershell
+```bash
 $env:DEBUG = "true"
 npm test
 ```
@@ -314,12 +395,35 @@ npm test
 
 ## Sample Files
 
-The framework includes several sample files:
+The framework includes several key files:
 
-- `configs/*.xlsx` - Endpoint-specific Excel configuration templates
-- `endpoint-test-runner.js` - Main test execution engine  
-- `create-excel-template.js` - Template generator
-- `package.json` - Node.js dependencies
+### Core Scripts
+- `create-endpoints-spec.js` - Analyzes Express.js app to discover endpoints and generate specifications
+- `create-excel-template.js` - Generates endpoint-specific Excel templates from specifications  
+- `endpoint-test-runner.js` - Main test execution engine
+- `package.json` - Node.js dependencies and scripts
+
+### Generated Files
+- `endpoints-spec.json` - Detailed endpoint specifications (generated by `create-endpoints-spec.js`)
+- `configs/*.xlsx` - Individual Excel configuration files for each discovered endpoint (generated by `create-excel-template.js`)
+
+### Configuration Structure
+```
+test/endpoints/
+├── create-endpoints-spec.js     # Endpoint discovery script
+├── create-excel-template.js     # Template generator
+├── endpoint-test-runner.js      # Test runner
+├── endpoints-spec.json          # Generated API specification
+├── configs/                     # Generated Excel templates
+│   ├── get-search.xlsx         # Search endpoint tests
+│   ├── get-facets.xlsx         # Facets endpoint tests
+│   ├── post-document-create.xlsx # Document creation tests
+│   └── ...                     # One file per discovered endpoint
+└── test-reports/               # Generated test reports
+    ├── results.json
+    ├── results.csv
+    └── results.html
+```
 
 ## Dependencies
 
