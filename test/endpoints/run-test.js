@@ -14,12 +14,21 @@ class EndpointTester {
     this.configDir = configDir;
     this.outputDir = outputDir;
     this.results = [];
-    this.baseUrl = process.env.BASE_URL || 'http://localhost:8003';
+    this.baseUrl = process.env.BASE_URL || 'https://lux-middle-dev.collections.yale.edu';
 
     // Authentication configuration
-    this.authType = process.env.AUTH_TYPE || 'digest'; // 'digest', 'oauth', or 'none'
+    this.authType = process.env.AUTH_TYPE || 'none'; // 'digest', 'oauth', or 'none'
     this.authUsername = process.env.AUTH_USERNAME || null;
     this.authPassword = process.env.AUTH_PASSWORD || null;
+
+    // Validate authentication configuration
+    if (this.authType === 'digest') {
+      if (!this.authUsername || !this.authPassword) {
+        throw new Error(
+          'Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables to be set'
+        );
+      }
+    }
 
     // Load endpoints specification once during construction
     this.endpointsSpec = this.loadEndpointsSpec();
@@ -846,7 +855,7 @@ class EndpointTester {
 // CLI Interface
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const configDir = process.argv[2] || './configs';
-  const outputDir = process.argv[3] || './test-reports';
+  const outputDir = process.argv[3] || './reports';
 
   if (!fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
