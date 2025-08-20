@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
+import { getEndpointKeyFromPath } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -197,7 +198,7 @@ class EndpointTester {
     if (this.endpointsSpec && this.endpointsSpec.endpoints) {
       // Find matching endpoint by comparing endpoint type with generated key
       const endpoint = this.endpointsSpec.endpoints.find(ep => {
-        const specKey = this.getEndpointKeyFromPath(ep.path, ep.method);
+        const specKey = getEndpointKeyFromPath(ep.path, ep.method);
         return specKey === endpointType;
       });
       
@@ -208,30 +209,6 @@ class EndpointTester {
 
     // Fallback to default endpoint if spec is not available or endpoint not found
     return this.getDefaultEndpoint(endpointType);
-  }
-
-  /**
-   * Generate endpoint key from path and HTTP method (same logic as create-excel-template.js)
-   */
-  getEndpointKeyFromPath(path, method) {
-    let key = path
-      .replace(/\/api\//, '')
-      .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
-      .split('/') // Split into segments
-      .filter(segment => !segment.startsWith(':')) // Remove parameter segments
-      .join('-') // Join with hyphens
-      .replace(/[^a-zA-Z0-9-]/g, '') // Remove non-alphanumeric chars except hyphens
-      .toLowerCase();
-
-    key = `${method.toLowerCase()}-${key}`;
-
-    // Clean up common patterns
-    key = key
-      .replace(/^api-/, '') // Remove api prefix
-      .replace(/--+/g, '-') // Replace multiple hyphens with single
-      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-
-    return key || 'unknown-endpoint';
   }
 
   /**

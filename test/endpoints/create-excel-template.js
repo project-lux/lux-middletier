@@ -2,6 +2,7 @@ import XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getEndpointKeyFromPath } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,34 +133,6 @@ function analyzeEndpointsSpec() {
     console.error(`Error reading endpoints-spec.json: ${error.message}`);
     throw error;
   }
-}
-
-/**
- * Generate endpoint key from path and HTTP method
- */
-function getEndpointKeyFromPath(path, method) {
-  // Convert path like "/api/search/:scope" to "search-scope"
-  // and "/data/:type/:uuid" to "data-type-uuid"
-  // Convert path like "/api/search/:scope" to "search"
-  // and "/data/:type/:uuid" to "data"
-  let key = path
-    .replace(/\/api\//, '')
-    .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
-    .split('/') // Split into segments
-    .filter(segment => !segment.startsWith(':')) // Remove parameter segments
-    .join('-') // Join with hyphens
-    .replace(/[^a-zA-Z0-9-]/g, '') // Remove non-alphanumeric chars except hyphens
-    .toLowerCase();
-
-  key = `${method.toLowerCase()}-${key}`;
-
-  // Clean up common patterns
-  key = key
-    .replace(/^api-/, '') // Remove api prefix
-    .replace(/--+/g, '-') // Replace multiple hyphens with single
-    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-
-  return key || 'unknown-endpoint';
 }
 
 /**
