@@ -1,16 +1,20 @@
-const XLSX = require('xlsx');
-const fs = require('fs');
-const path = require('path');
+import XLSX from 'xlsx';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Create separate Excel files for each API endpoint with parameter-specific columns
- * Based on actual API definitions from *.api files
+ * Based on endpoints-spec.json file
  */
 function createEndpointSpecificTemplates(templateDir) {
-  console.log('Analyzing API files to create individual templates...');
+  console.log('Analyzing endpoints-spec.json to create individual templates...');
 
   // Get all API definitions
-  const apiDefinitions = analyzeAPIFiles();
+  const apiDefinitions = analyzeEndpointsSpec();
   console.log(
     `Found ${Object.keys(apiDefinitions).length} unique API endpoints`
   );
@@ -34,86 +38,114 @@ function createEndpointSpecificTemplates(templateDir) {
 }
 
 /**
- * Analyze all .api files to extract endpoint definitions and parameters
+ * Analyze endpoints-spec.json file to extract endpoint definitions and parameters
  */
-function analyzeAPIFiles() {
-  const apiDir = path.resolve(__dirname, '../../src/main/ml-modules/root/ds');
+function analyzeEndpointsSpec() {
+  const endpointsSpecPath = path.resolve(__dirname, 'endpoints-spec.json');
   const endpoints = {};
 
-  function findApiFiles(dir) {
-    const files = fs.readdirSync(dir);
+  try {
+    console.log(`Reading endpoints specification from: ${endpointsSpecPath}`);
+    const content = fs.readFileSync(endpointsSpecPath, 'utf8');
+    const spec = JSON.parse(content);
 
-    for (const file of files) {
-      const fullPath = path.join(dir, file);
-      const stat = fs.statSync(fullPath);
+    if (!spec.endpoints || !Array.isArray(spec.endpoints)) {
+      throw new Error('Invalid endpoints-spec.json format: missing endpoints array');
+    }
 
-      if (stat.isDirectory()) {
-        findApiFiles(fullPath);
-      } else if (file.endsWith('.api')) {
-        try {
-          const content = fs.readFileSync(fullPath, 'utf8');
-          const apiDef = JSON.parse(content);
+    spec.endpoints.forEach((endpoint) => {
+      const endpointKey = getEndpointKeyFromPath(endpoint.path, endpoint.method);
+      
+      // Parse path parameters
+      const pathParams = endpoint.parameters.path || [];
+      const queryParams = endpoint.parameters.query || [];
+      
+      const requiredParams = [];
+      const optionalParams = [];
 
-          // Extract relative path for endpoint identification
-          const relativePath = path.relative(apiDir, fullPath);
-          const endpointKey = getEndpointKey(relativePath, apiDef.functionName);
+      // Process path parameters (these are always required)
+      pathParams.forEach((param) => {
+        const paramInfo = {
+          name: param.name,
+          datatype: param.type || 'string',
+          nullable: false,
+        };
+        requiredParams.push(paramInfo);
+      });
 
-          // Parse parameters
-          const requiredParams = [];
-          const optionalParams = [];
+      // Process query parameters
+      queryParams.forEach((param) => {
+        const paramInfo = {
+          name: param.name,
+          datatype: param.type || 'string',
+          nullable: !endpoint.required.query.includes(param.name),
+        };
 
-          if (apiDef.params) {
-            apiDef.params.forEach((param) => {
-              const paramInfo = {
-                name: param.name,
-                datatype: param.datatype,
-                nullable: param.nullable,
-              };
+        if (endpoint.required.query.includes(param.name)) {
+          requiredParams.push(paramInfo);
+        } else {
+          optionalParams.push(paramInfo);
+        }
+      });
 
-              if (param.nullable === true) {
-                optionalParams.push(paramInfo);
-              } else {
-                requiredParams.push(paramInfo);
-              }
-            });
-          }
+      // Add body parameter if it exists
+      if (endpoint.parameters.body) {
+        const bodyParam = {
+          name: 'body',
+          datatype: 'jsonDocument',
+          nullable: !endpoint.required.body,
+        };
 
-          endpoints[endpointKey] = {
-            functionName: apiDef.functionName,
-            filePath: relativePath,
-            requiredParams,
-            optionalParams,
-            allParams: [...requiredParams, ...optionalParams],
-          };
-        } catch (error) {
-          console.warn(
-            `Warning: Could not parse ${fullPath}: ${error.message}`
-          );
+        if (endpoint.required.body) {
+          requiredParams.push(bodyParam);
+        } else {
+          optionalParams.push(bodyParam);
         }
       }
-    }
-  }
 
-  findApiFiles(apiDir);
-  return endpoints;
+      endpoints[endpointKey] = {
+        functionName: endpointKey.replace(/-/g, ' '),
+        method: endpoint.method,
+        path: endpoint.path,
+        description: endpoint.description,
+        requiredParams,
+        optionalParams,
+        allParams: [...requiredParams, ...optionalParams],
+      };
+    });
+
+    return endpoints;
+  } catch (error) {
+    console.error(`Error reading endpoints-spec.json: ${error.message}`);
+    throw error;
+  }
 }
 
 /**
- * Generate endpoint key from file path and function name
+ * Generate endpoint key from path and HTTP method
  */
-function getEndpointKey(filePath, functionName) {
-  // Convert path like "ds/lux/document/create.api" to "document-create"
-  const pathParts = filePath.split(path.sep);
-  const filename = pathParts[pathParts.length - 1].replace('.api', '');
+function getEndpointKeyFromPath(path, method) {
+  // Convert path like "/api/search/:scope" to "search-scope"
+  // and "/data/:type/:uuid" to "data-type-uuid"
+  let key = path
+    .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
+    .replace(/:/g, '') // Remove parameter prefixes
+    .replace(/\//g, '-') // Replace slashes with hyphens
+    .replace(/[^a-zA-Z0-9-]/g, '') // Remove non-alphanumeric chars except hyphens
+    .toLowerCase();
 
-  if (pathParts.includes('document')) {
-    return `document-${filename}`;
-  } else if (pathParts.includes('tenantStatus')) {
-    return `tenant-status-${filename}`;
-  } else {
-    // For files directly in ds/lux/, use the filename
-    return filename;
+  // Add method prefix for non-GET methods
+  if (method.toLowerCase() !== 'get') {
+    key = `${method.toLowerCase()}-${key}`;
   }
+
+  // Clean up common patterns
+  key = key
+    .replace(/^api-/, '') // Remove api prefix
+    .replace(/--+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+
+  return key || 'unknown-endpoint';
 }
 
 /**
@@ -259,7 +291,7 @@ function getSampleTestCases(apiDef, endpointKey) {
   // Base test case structure
   const baseCase = {
     name: `${endpointKey} - Basic Test`,
-    description: `Test ${apiDef.functionName} endpoint with valid parameters`,
+    description: `Test ${apiDef.method} ${apiDef.path} endpoint with valid parameters`,
     expectedStatus: 200,
     maxResponseTime: 3000,
     tags: `${endpointKey},functional`,
@@ -279,7 +311,7 @@ function getSampleTestCases(apiDef, endpointKey) {
     const errorCase = {
       ...baseCase,
       name: `${endpointKey} - Missing Required Param`,
-      description: `Test ${apiDef.functionName} with missing required parameters`,
+      description: `Test ${apiDef.method} ${apiDef.path} with missing required parameters`,
       expectedStatus: 400,
       maxResponseTime: 2000,
       tags: `${endpointKey},validation`,
@@ -304,24 +336,32 @@ function getSampleTestCases(apiDef, endpointKey) {
 function getSampleParamValue(param, endpointKey) {
   const paramName = param.name.toLowerCase();
 
-  // Common parameter patterns
+  // Path parameters
+  if (paramName === 'type') return 'work';
+  if (paramName === 'uuid') return '12345678-1234-1234-1234-123456789abc';
+  if (paramName === 'scope') return 'work';
+  if (paramName === 'unit') return 'yuag';
+  if (paramName === 'identifier') return 'example-123';
+
+  // Common query parameters
   if (paramName === 'unitname') return '';
   if (paramName === 'q')
     return endpointKey.includes('search')
       ? 'test query'
       : '{"query": "example"}';
-  if (paramName === 'scope') return 'work';
   if (paramName === 'uri')
     return 'https://lux.collections.yale.edu/data/test/example';
   if (paramName === 'page') return '1';
   if (paramName === 'pagelength') return '20';
   if (paramName === 'lang') return 'en';
   if (paramName === 'profile') return 'summary';
-  if (paramName === 'doc')
-    return '{"@context": "https://linked.art/contexts/base.json", "type": "HumanMadeObject"}';
   if (paramName === 'text') return 'sample text';
   if (paramName === 'context') return 'person';
   if (paramName === 'name') return 'classification';
+
+  // Body parameter
+  if (paramName === 'body')
+    return '{"@context": "https://linked.art/contexts/base.json", "type": "HumanMadeObject"}';
 
   // Default values based on data type
   if (param.datatype === 'string') return 'example';
@@ -344,8 +384,9 @@ function createDocumentationSheetForAPI(
   const docData = [
     [`LUX Endpoint Testing Framework - ${endpointKey.toUpperCase()}`],
     [''],
-    ['API Function:', apiDef.functionName],
-    ['File Path:', apiDef.filePath],
+    ['HTTP Method:', apiDef.method],
+    ['Path:', apiDef.path],
+    ['Description:', apiDef.description],
     [''],
     ['Column Descriptions:'],
     ['test_name', 'Unique identifier for the test'],
@@ -413,7 +454,11 @@ function getParameterDescription(paramName, datatype) {
  * Get endpoint-specific notes and tips
  */
 function getEndpointNotes(endpointKey, apiDef) {
-  const notes = [`• Function: ${apiDef.functionName}`];
+  const notes = [
+    `• Method: ${apiDef.method}`,
+    `• Path: ${apiDef.path}`,
+    `• Description: ${apiDef.description}`
+  ];
 
   if (apiDef.requiredParams.length > 0) {
     notes.push(
@@ -432,23 +477,22 @@ function getEndpointNotes(endpointKey, apiDef) {
   }
 
   // Add specific notes based on endpoint type
-  if (endpointKey.includes('document')) {
+  if (apiDef.path.includes('/data/') || endpointKey.includes('document')) {
     notes.push(
       '• Document operations may require different parameters based on the operation type'
     );
   }
 
-  if (endpointKey.includes('search')) {
+  if (apiDef.path.includes('/search') || endpointKey.includes('search')) {
     notes.push('• Search queries can be strings or complex JSON objects');
+  }
+
+  if (apiDef.method === 'POST' || apiDef.method === 'PUT') {
+    notes.push('• This endpoint may require a JSON body payload');
   }
 
   return notes;
 }
 
-// Run the template creation if this script is executed directly
-if (require.main === module) {
-  const templateDir = path.join(__dirname, 'templates');
-  createEndpointSpecificTemplates(templateDir);
-}
-
-module.exports = { createEndpointSpecificTemplates };
+const templateDir = path.join(__dirname, 'templates');
+createEndpointSpecificTemplates(templateDir);
