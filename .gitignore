@@ -10,3 +10,4 @@ package-lock.json
 !.env.template
 .config*.json
 !.config.json.templates
+test/endpoints/templates/
