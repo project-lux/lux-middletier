@@ -127,17 +127,18 @@ function analyzeEndpointsSpec() {
 function getEndpointKeyFromPath(path, method) {
   // Convert path like "/api/search/:scope" to "search-scope"
   // and "/data/:type/:uuid" to "data-type-uuid"
+  // Convert path like "/api/search/:scope" to "search"
+  // and "/data/:type/:uuid" to "data"
   let key = path
+    .replace(/\/api\//, '')
     .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
-    .replace(/:/g, '') // Remove parameter prefixes
-    .replace(/\//g, '-') // Replace slashes with hyphens
+    .split('/') // Split into segments
+    .filter(segment => !segment.startsWith(':')) // Remove parameter segments
+    .join('-') // Join with hyphens
     .replace(/[^a-zA-Z0-9-]/g, '') // Remove non-alphanumeric chars except hyphens
     .toLowerCase();
 
-  // Add method prefix for non-GET methods
-  if (method.toLowerCase() !== 'get') {
-    key = `${method.toLowerCase()}-${key}`;
-  }
+  key = `${method.toLowerCase()}-${key}`;
 
   // Clean up common patterns
   key = key
@@ -152,7 +153,7 @@ function getEndpointKeyFromPath(path, method) {
  * Create template for a specific API endpoint
  */
 function createTemplateForAPI(apiDef, endpointKey, templateDir) {
-  const filename = `${endpointKey}-endpoint.xlsx`;
+  const filename = `${endpointKey}-tests.xlsx`;
   const filePath = path.join(templateDir, filename);
 
   console.log(`Creating template for ${endpointKey}: ${filename}`);
@@ -225,7 +226,7 @@ function createTemplateForAPI(apiDef, endpointKey, templateDir) {
   ws['!cols'] = colWidths;
 
   // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, endpointKey);
+  XLSX.utils.book_append_sheet(wb, ws, 'Tests');
 
   // Add documentation sheet
   const docWs = createDocumentationSheetForAPI(
