@@ -7,13 +7,14 @@
 
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { findFileInSubdir } from './utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class ReportComparator {
-  constructor(baselineFile, currentFile, outputDir = './comparison-reports') {
+  constructor(baselineFile, currentFile, outputDir = './comparisons') {
     this.baselineFile = baselineFile;
     this.currentFile = currentFile;
     this.outputDir = outputDir;
@@ -504,24 +505,27 @@ class ReportComparator {
 }
 
 // CLI Interface
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   
-  if (args.length < 2) {
-    console.error('Usage: node compare-reports.js <baseline-report.json> <current-report.json> [output-dir]');
-    console.error('');
-    console.error('Example:');
-    console.error('  node compare-reports.js ./reports/baseline-report.json ./reports/latest-report.json');
+  const reportsDir = path.join(__dirname, args[0] || 'reports');
+  const baselineFile = args[1] || findFileInSubdir(reportsDir, 1, 'json'); // 1 = second-to-last
+  const currentFile = args[2] || findFileInSubdir(reportsDir, 0, 'json'); // 0 = last
+
+  // Validate input files exist
+  if (!baselineFile) {
+    console.error('No baseline report found. Please specify a baseline report file or ensure there are at least 2 test run directories in the reports folder.');
+    process.exit(1);
+  }
+  
+  if (!fs.existsSync(baselineFile)) {
+    console.error(`Baseline report not found: ${baselineFile}`);
     process.exit(1);
   }
 
-  const baselineFile = args[0];
-  const currentFile = args[1];
-  const outputDir = args[2] || './comparison-reports';
-
-  // Validate input files exist
-  if (!fs.existsSync(baselineFile)) {
-    console.error(`Baseline report not found: ${baselineFile}`);
+  if (!currentFile) {
+    console.error('Current report file must be specified as the second argument.');
+    console.error('Usage: node compare-reports.js [reports-dir] [baseline-report.json] <current-report.json> [output-dir]');
     process.exit(1);
   }
 
@@ -529,6 +533,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(`Current report not found: ${currentFile}`);
     process.exit(1);
   }
+
+  const baselineName = path.dirname(baselineFile).split(path.sep).pop();
+  const currentName = path.dirname(currentFile).split(path.sep).pop();
+  const outputDir = args[3] || `./comparisons/${baselineName}-vs-${currentName}`;
 
   try {
     const comparator = new ReportComparator(baselineFile, currentFile, outputDir);
