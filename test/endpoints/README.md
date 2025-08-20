@@ -224,7 +224,7 @@ node run-tests.js ./configs ./reports -r
 
 ### Response File Organization
 
-When response body saving is enabled, each test execution creates its own timestamped subdirectory with a `responses/` subdirectory for response bodies:
+When response body saving is enabled, each test execution creates its own timestamped subdirectory with endpoint-specific subdirectories for response bodies:
 
 ```
 reports/
@@ -232,25 +232,37 @@ reports/
     ├── endpoint-test-report.json
     ├── endpoint-test-report.csv
     ├── endpoint-test-report.html
-    └── responses/                    # Only created when --save-responses is used
-        ├── search_basic_2025-08-20_14-30-15.json
-        ├── facets_test_2025-08-20_14-30-16.json
-        ├── document_create_test_2025-08-20_14-30-17.json
-        └── ...
-└── test-run-2025-08-20_15-45-20/     # Next test execution
+    └── responses/                   # Only created when --save-responses is used
+        ├── get-search/              # Subdirectory for get-search.xlsx tests
+        │   ├── row_001_basicSearch.json
+        │   ├── row_002_advancedSearch.json
+        │   └── ...
+        ├── get-facets/              # Subdirectory for get-facets.xlsx tests
+        │   ├── row_001_agentStartDate.json
+        │   └── ...
+        ├── post-document-create/    # Subdirectory for post-document-create.xlsx tests
+        │   ├── row_001_create.json
+        │   └── ...
+        └── ...                      # One subdirectory per test configuration file
+└── test-run-2025-08-20_15-45-20/    # Next test execution
     ├── endpoint-test-report.json
     ├── endpoint-test-report.csv
     ├── endpoint-test-report.html
     └── responses/
+        ├── get-search/
         └── ...
 ```
 
 **Benefits of this structure:**
 - **Complete Isolation**: Each test run is fully self-contained
-- **Easy Organization**: Chronological organization by execution time  
-- **No Conflicts**: No filename conflicts between test runs
+- **Endpoint Organization**: Response files grouped by spreadsheet
+- **Easy Navigation**: Quickly find responses for specific test
+- **No Conflicts**: No filename conflicts between test runs *when using the same versions of the spreadsheets*\*
 - **Selective Storage**: Response bodies only created when explicitly requested
-- **Easy Cleanup**: Can delete entire test execution directories as needed
+- **Comparison**: In addition to the [report-level comparison feature](#comparison-features), a directory comparison of the response bodies of two runs may be performed
+- **Easy Cleanup**: Can delete entire test execution directories or specific endpoint responses
+
+\* We may want to change to test IDs that we do not change once "assigned" to a test.
 
 ### Response File Format
 

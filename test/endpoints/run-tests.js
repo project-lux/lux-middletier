@@ -129,20 +129,22 @@ class EndpointTester {
     }
 
     // Transform data into standardized test configurations
-    return data.map((row) =>
-      this.transformRowToTestConfig(row, endpointType, filePath)
+    return data.map((row, index) =>
+      this.transformRowToTestConfig(row, endpointType, filePath, index, data.length)
     );
   }
 
   /**
    * Transform a spreadsheet row into a standardized test configuration
    */
-  transformRowToTestConfig(row, endpointType, sourceFile) {
+  transformRowToTestConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     // Extract base configuration
     const testConfig = {
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
       source_file: path.basename(sourceFile),
+      row_number: rowIndex + 2, // +2 because array is 0-based and we skip header row
+      total_rows: totalRows + 1, // +1 to account for header row
       method: row.method || this.getDefaultMethod(endpointType),
       base_endpoint: row.base_endpoint || this.getDefaultEndpoint(endpointType),
       endpoint_template: row.endpoint_template || this.getEndpointTemplate(endpointType),
@@ -423,15 +425,31 @@ class EndpointTester {
   /**
    * Save response body to disk
    */
-  saveResponseBody(testName, response, timestamp) {
+  saveResponseBody(testName, response, timestamp, sourceFile, rowNumber, totalRows) {
     if (!this.saveResponseBodies) return null;
     
     try {
+      // Create endpoint-specific subdirectory based on source file basename
+      const sourceBasename = path.basename(sourceFile, path.extname(sourceFile));
+      const endpointResponsesDir = path.join(this.responsesDir, sourceBasename);
+      
+      // Ensure endpoint-specific directory exists
+      if (!fs.existsSync(endpointResponsesDir)) {
+        fs.mkdirSync(endpointResponsesDir, { recursive: true });
+      }
+      
+      // Calculate the number of digits needed for zero padding
+      const maxDigits = Math.max(totalRows.toString().length, 2); // At least 2 digits
+      const paddedRowNumber = rowNumber.toString().padStart(maxDigits, '0');
+      
       // Create a safe filename from test name and timestamp
-      const safeTestName = testName.replace(/[^a-zA-Z0-9-_]/g, '_');
-      const timestampStr = timestamp.replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
-      const filename = `${safeTestName}_${timestampStr}.json`;
-      const filePath = path.join(this.responsesDir, filename);
+      const safeTestName = testName
+        .replace(/[^a-zA-Z0-9 ]/g, ' ')
+        .split(' ') // start of camelCase conversion
+        .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+      const filename = `row_${paddedRowNumber}_${safeTestName}.json`;
+      const filePath = path.join(endpointResponsesDir, filename);
       
       // Save response data
       const responseData = {
@@ -447,9 +465,10 @@ class EndpointTester {
       };
       
       fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
-      console.log(`  Response body saved to: ${filename}`);
+      console.log(`  Response body saved to: ${sourceBasename}/${filename}`);
       
-      return filename;
+      // Return relative path from responses directory for reporting
+      return `${sourceBasename}/${filename}`;
     } catch (error) {
       console.warn(`  Failed to save response body: ${error.message}`);
       return null;
@@ -492,7 +511,7 @@ class EndpointTester {
       const timestamp = new Date().toISOString();
 
       // Save response body if enabled
-      const responseBodyFile = this.saveResponseBody(testConfig.test_name, response, timestamp);
+      const responseBodyFile = this.saveResponseBody(testConfig.test_name, response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
 
       // Determine if test passed based on expected vs actual status
       const actualStatus = response.status;
@@ -540,7 +559,7 @@ class EndpointTester {
       // Save error response body if available
       let responseBodyFile = null;
       if (error.response) {
-        responseBodyFile = this.saveResponseBody(testConfig.test_name, error.response, timestamp);
+        responseBodyFile = this.saveResponseBody(testConfig.test_name, error.response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
       }
       
       const result = {
