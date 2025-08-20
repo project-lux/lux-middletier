@@ -419,6 +419,10 @@ class EndpointTester {
         url: url,
         headers: headers,
         timeout: testConfig.timeout_ms,
+        // Don't throw errors for any HTTP status codes - we'll handle them manually
+        validateStatus: function () {
+          return true; // Accept all status codes
+        },
         ...(body && { data: body }),
         ...(auth && { auth }),
       };
@@ -431,13 +435,18 @@ class EndpointTester {
       const response = await axios(requestConfig);
       const duration = Date.now() - startTime;
 
+      // Determine if test passed based on expected vs actual status
+      const actualStatus = response.status;
+      const expectedStatus = testConfig.expected_status;
+      const statusMatches = actualStatus === expectedStatus;
+
       const result = {
         test_name: testConfig.test_name,
         endpoint_type: testConfig.endpoint_type,
         source_file: testConfig.source_file,
-        status: 'PASS',
-        expected_status: testConfig.expected_status,
-        actual_status: response.status,
+        status: statusMatches ? 'PASS' : 'FAIL',
+        expected_status: expectedStatus,
+        actual_status: actualStatus,
         duration_ms: duration,
         response_time_ms: duration,
         response_size_bytes: JSON.stringify(response.data).length,
@@ -448,8 +457,14 @@ class EndpointTester {
         tags: testConfig.tags,
       };
 
-      // Check if response time is acceptable
+      // Add failure reason if status doesn't match
+      if (!statusMatches) {
+        result.error_message = `Expected status ${expectedStatus} but got ${actualStatus}`;
+      }
+
+      // Check if response time is acceptable (only for passing tests)
       if (
+        statusMatches &&
         testConfig.max_response_time &&
         duration > testConfig.max_response_time
       ) {
