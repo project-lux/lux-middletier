@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Automated endpoint testing for LUX MarkLogic API",
-  "main": "endpoint-test-runner.js",
+  "main": "run-tests.js",
   "scripts": {
-    "test": "node endpoint-test-runner.js ./configs",
-    "test:dev": "node endpoint-test-runner.js ./configs ./test-reports",
+    "test": "node run-tests.js ./configs",
+    "test:dev": "node run-tests.js ./configs ./test-reports",
     "create-templates": "node create-excel-template.js",
     "install-deps": "npm install"
   },

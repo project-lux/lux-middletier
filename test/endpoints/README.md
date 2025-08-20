@@ -89,12 +89,12 @@ npm test
 
 **Using Node.js directly:**
 ```bash
-node endpoint-test-runner.js ./configs
+node run-tests.js ./configs
 ```
 
 **With custom output directory:**
 ```bash
-node endpoint-test-runner.js ./configs ./test-reports
+node run-tests.js ./configs ./test-reports
 ```
 
 ## Endpoint Discovery and Specification Generation
@@ -400,7 +400,7 @@ The framework includes several key files:
 ### Core Scripts
 - `create-endpoints-spec.js` - Analyzes Express.js app to discover endpoints and generate specifications
 - `create-excel-template.js` - Generates endpoint-specific Excel templates from specifications  
-- `endpoint-test-runner.js` - Main test execution engine
+- `run-tests.js` - Main test execution engine
 - `package.json` - Node.js dependencies and scripts
 
 ### Generated Files
@@ -412,7 +412,7 @@ The framework includes several key files:
 test/endpoints/
 ├── create-endpoints-spec.js     # Endpoint discovery script
 ├── create-excel-template.js     # Template generator
-├── endpoint-test-runner.js      # Test runner
+├── run-tests.js      # Test runner
 ├── endpoints-spec.json          # Generated API specification
 ├── configs/                     # Generated Excel templates
 │   ├── get-search.xlsx         # Search endpoint tests

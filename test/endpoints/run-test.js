@@ -1,7 +1,12 @@
-const XLSX = require('xlsx');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+import XLSX from 'xlsx';
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { pathToFileURL } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class EndpointTester {
   constructor(configDir, outputDir = './test-reports') {
@@ -91,6 +96,7 @@ class EndpointTester {
       source_file: path.basename(sourceFile),
       method: row.method || this.getDefaultMethod(endpointType),
       base_endpoint: row.base_endpoint || this.getDefaultEndpoint(endpointType),
+      endpoint_template: row.endpoint_template || this.getEndpointTemplate(endpointType),
       expected_status: parseInt(row.expected_status) || 200,
       timeout_ms: parseInt(row.timeout_ms) || 10000,
       max_response_time: parseInt(row.max_response_time) || 5000,
@@ -164,25 +170,55 @@ class EndpointTester {
   }
 
   /**
+   * Get endpoint template with path parameters for endpoint type
+   */
+  getEndpointTemplate(endpointType) {
+    // Map endpoint types to their path templates
+    const templateMap = {
+      'get-search': '/api/search/:scope',
+      'get-facets': '/api/facets/:scope', 
+      'get-related-list': '/api/related-list/:scope',
+      'get-search-estimate': '/api/search-estimate/:scope',
+      'get-resolve': '/api/resolve/:scope/:unit/:identifier',
+      'post-translate': '/api/translate/:scope',
+      'get-data': '/data/:type/:uuid',
+      'put-data': '/data/:type/:uuid',
+      'delete-data': '/data/:type/:uuid',
+    };
+
+    return templateMap[endpointType] || this.getDefaultEndpoint(endpointType);
+  }
+
+  /**
    * Build complete URL from test configuration
    */
   buildRequestUrl(testConfig) {
-    let url = this.baseUrl + testConfig.base_endpoint;
+    let url = this.baseUrl;
+    
+    // Use endpoint template if available, otherwise fall back to base endpoint
+    let pathTemplate = testConfig.endpoint_template || testConfig.base_endpoint;
+    
+    // Substitute path parameters
+    const pathParams = this.extractPathParameters(pathTemplate);
+    let finalPath = pathTemplate;
+    
+    pathParams.forEach(paramName => {
+      const paramValue = testConfig.parameters[paramName];
+      if (paramValue) {
+        finalPath = finalPath.replace(`:${paramName}`, paramValue);
+      } else {
+        console.warn(`Missing required path parameter '${paramName}' for ${testConfig.test_name}`);
+      }
+    });
+    
+    url += finalPath;
 
-    // Handle special cases for related-list endpoints
-    if (
-      testConfig.endpoint_type === 'related-list' &&
-      testConfig.parameters.scope
-    ) {
-      url += `/${testConfig.parameters.scope}.mjs`;
-    }
-
-    // Build query parameters
+    // Build query parameters (exclude path parameters)
     const queryParams = [];
     Object.entries(testConfig.parameters).forEach(([key, value]) => {
       // Skip parameters that are used in path or body
       if (
-        this.isQueryParameter(key, testConfig.endpoint_type, testConfig.method)
+        this.isQueryParameter(key, testConfig.endpoint_type, testConfig.method, pathParams)
       ) {
         queryParams.push(
           `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
@@ -198,16 +234,25 @@ class EndpointTester {
   }
 
   /**
+   * Extract path parameters from URL template
+   */
+  extractPathParameters(pathTemplate) {
+    const matches = pathTemplate.match(/:([^/]+)/g);
+    return matches ? matches.map(match => match.substring(1)) : [];
+  }
+
+  /**
    * Determine if a parameter should be included in query string
    */
-  isQueryParameter(paramName, endpointType, method) {
+  isQueryParameter(paramName, endpointType, method, pathParams = []) {
     // Parameters that go in the path, not query
-    const pathParams = ['scope'];
+    const staticPathParams = ['scope']; // Legacy hardcoded path params
+    const allPathParams = [...staticPathParams, ...pathParams];
 
     // Parameters that go in the body for POST/PUT requests
     const bodyParams = ['doc', 'unitName', 'lang', 'uri'];
 
-    if (pathParams.includes(paramName)) {
+    if (allPathParams.includes(paramName)) {
       return false;
     }
 
@@ -777,14 +822,14 @@ class EndpointTester {
 }
 
 // CLI Interface
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const configDir = process.argv[2] || './configs';
   const outputDir = process.argv[3] || './test-reports';
 
   if (!fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
     console.log(
-      'Usage: node endpoint-test-runner.js <config-directory> [output-dir]'
+      'Usage: node run-tests.js <config-directory> [output-dir]'
     );
     process.exit(1);
   }
@@ -796,4 +841,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = EndpointTester;
+export default EndpointTester;
