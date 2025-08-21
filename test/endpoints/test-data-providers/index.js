@@ -8,10 +8,12 @@
 import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
 import { CsvTestDataProvider, CsvProviderDefaults } from './csv-provider.js';
 import { SampleTestDataProvider } from './sample-provider.js';
+import { AdvancedSearchQueriesTestDataProvider } from './google-sheets/search-and-query-tasks-and-test-cases/provider.js';
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(CsvTestDataProvider);
 TestDataProviderFactory.registerProvider(SampleTestDataProvider);
+TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
 
 /**
  * Convenience function to create test data for an endpoint
@@ -70,20 +72,6 @@ export function getSupportedExtensions() {
   });
   
   return [...new Set(extensions)]; // Remove duplicates
-}
-
-/**
- * Validate a data source can be processed
- * @param {string} dataSource - Path to data source
- * @returns {boolean} - True if a provider can handle this source
- */
-export function canProcessDataSource(dataSource) {
-  try {
-    TestDataProviderFactory.createProvider(dataSource);
-    return true;
-  } catch (error) {
-    return false;
-  }
 }
 
 // Export the main classes and interfaces

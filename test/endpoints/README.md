@@ -84,7 +84,7 @@ To add a new data source, simply:
 
 1. Create a new provider class extending TestDataProvider
 2. Implement getProviderId() and extractTestData()
-3. Register it in index.js
+3. Register it in [./test-data-providers/index.js](./test-data-providers/index.js)
 
 For example, to add a JSON file provider:
 
