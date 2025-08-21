@@ -214,8 +214,9 @@ Implement the TestDataProvider class for each data source to generate tests from
 To add a new data source, simply:
 
 1. Create a new provider class extending TestDataProvider
-2. Implement getProviderId() and extractTestData()
-3. Register it in [./test-data-providers/index.js](./test-data-providers/index.js)
+2. Ensure the class name is unique from all other providers (duplicate names interfere with filtering)
+3. Implement extractTestData()
+4. Register it in [./test-data-providers/index.js](./test-data-providers/index.js)
 
 For example, to add a JSON file provider:
 
@@ -224,10 +225,6 @@ export class JsonTestDataProvider extends TestDataProvider {
   constructor(options = {}) {
     super(options);
     this.sourcePath = path.resolve(__dirname, '../test-data/tests.json');
-  }
-  
-  getProviderId() {
-    return 'json-provider:tests.json';
   }
   
   async extractTestData(apiDef, endpointKey, columns) {
@@ -394,7 +391,7 @@ The framework includes a simplified test data provider system where each provide
 
 **Provider Implementation:**
 Each provider implements key methods:
-- `getProviderId()`: Returns unique identifier for test traceability
+- `getProviderId()`: Returns the class' name for filtering and test traceability
 - `extractTestData(apiDef, endpointKey, columns)`: Extracts test data for a specific endpoint
 - Graceful error handling - returns empty arrays instead of throwing errors
 
@@ -809,14 +806,6 @@ export class JsonTestDataProvider extends TestDataProvider {
     
     // This provider is specific to this JSON file
     this.sourcePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../test-data/endpoint-tests.json');
-  }
-
-  /**
-   * Get a unique identifier for this provider instance
-   * @returns {string} - Provider ID for tracing tests
-   */
-  getProviderId() {
-    return `json-provider:${path.basename(this.sourcePath)}`;
   }
 
   /**

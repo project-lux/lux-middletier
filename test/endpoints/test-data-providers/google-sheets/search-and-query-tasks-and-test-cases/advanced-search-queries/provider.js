@@ -28,14 +28,6 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Get a unique identifier for this provider instance
-   * @returns {string} - Provider ID for tracing tests
-   */
-  getProviderId() {
-    return `google-sheets-search-queries:${path.basename(this.sourcePath)}`;
-  }
-
-  /**
    * Parse TSV file and extract test cases
    * @param {Object} apiDef - API definition object
    * @param {string} endpointKey - Unique endpoint key

@@ -25,7 +25,7 @@ export class TestDataProvider {
    * @returns {string} - Unique identifier for this provider
    */
   getProviderId() {
-    throw new Error('getProviderId() must be implemented by subclass');
+    return this.constructor.name;
   }
 
   /**

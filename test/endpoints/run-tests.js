@@ -87,9 +87,9 @@ class EndpointTester {
   }
 
   /**
-   * Discover and load all endpoint configuration files
+   * Discover and load all endpoint configuration files, filtering when applicable.
    */
-  loadAllEndpointConfigs() {
+  loadFilteredEndpointConfigs() {
     const configs = [];
     const files = fs
       .readdirSync(this.configDir)
@@ -154,6 +154,7 @@ class EndpointTester {
   transformRowToTestConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     // Extract base configuration
     const testConfig = {
+      provider_id: row.provider_id || '',
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
       source_file: path.basename(sourceFile),
@@ -726,62 +727,24 @@ class EndpointTester {
     return files.map(file => this.extractEndpointType(file));
   }
 
-  /**
-   * Filter test configurations based on provider preference
-   * Accepts either TestDataProvider class names or provider IDs
-   */
-  async filterConfigsByProvider(configs) {
-    if (!this.providerFilter) {
-      return configs;
+  shouldRunTest(testConfig) {
+    // Apply provider filter.
+    if (this.providerFilter && !this.providerFilter.includes(testConfig.provider_id)) {
+      return false;
     }
 
-    const availableProviders = await this.getAvailableProviders();
-    const validProviders = [];
-    const invalidProviders = [];
-
-    // Validate and normalize provider names/IDs
-    for (const provider of this.providerFilter) {
-      if (availableProviders.mappings[provider]) {
-        validProviders.push(provider);
-      } else {
-        // Check if it's a partial match for class name or ID
-        const classMatch = availableProviders.classes.find(cls => 
-          cls.toLowerCase().includes(provider.toLowerCase()) || 
-          provider.toLowerCase().includes(cls.toLowerCase())
-        );
-        const idMatch = availableProviders.ids.find(id => 
-          id.toLowerCase().includes(provider.toLowerCase()) || 
-          provider.toLowerCase().includes(id.toLowerCase())
-        );
-
-        if (classMatch) {
-          validProviders.push(classMatch);
-        } else if (idMatch) {
-          validProviders.push(idMatch);
-        } else {
-          invalidProviders.push(provider);
-        }
-      }
+    // Support disabling specific tests.
+    if (!testConfig.enabled) {
+      return false;
     }
 
-    if (invalidProviders.length > 0) {
-      console.warn(`Warning: Invalid providers specified: ${invalidProviders.join(', ')}`);
-      console.warn(`Available provider class names: ${availableProviders.classes.join(', ')}`);
-      console.warn(`Available provider IDs: ${availableProviders.ids.join(', ')}`);
-    }
-
-    if (validProviders.length === 0) {
-      console.warn('Warning: No valid providers specified. Running all tests.');
-      return configs;
-    }
-
-    return configs;
+    return true;
   }
 
   /**
    * Run all tests from all configuration files with filtering support
    */
-  async runTests() {
+  async runFilteredTests() {
     console.log('');
     console.log('Resolved:');
     this.logValues('  Requested providers', this.providerFilter, 'All');
@@ -796,11 +759,8 @@ class EndpointTester {
     this.logValues('  Available endpoints', availableEndpoints);
     console.log('');
 
-    let testConfigs = this.loadAllEndpointConfigs();
+    let testConfigs = this.loadFilteredEndpointConfigs();
     
-    // Apply provider filtering
-    testConfigs = await this.filterConfigsByProvider(testConfigs);
-
     console.log(
       `Found ${testConfigs.length} test configurations across ${
         testConfigs.reduce((acc, t) => {
@@ -830,10 +790,10 @@ class EndpointTester {
       let disabledCount = 0;
       
       for (const testConfig of testConfigs) {
-        if (!testConfig.enabled) {
-          disabledCount++;
-        } else {
+        if (this.shouldRunTest(testConfig)) {
           enabledCount++;
+        } else {
+          disabledCount++;
         }
       }
 
@@ -841,7 +801,7 @@ class EndpointTester {
       console.log('=== DRY RUN SUMMARY ===');
       console.log(`Total tests found: ${testConfigs.length}`);
       console.log(`Tests that would be executed: ${enabledCount}`);
-      console.log(`Tests that would be skipped (disabled): ${disabledCount}`);
+      console.log(`Tests that would be skipped (filtered out or disabled): ${disabledCount}`);
       console.log(`Estimated execution time: ${enabledCount * 2}s - ${enabledCount * 10}s (rough estimate)`);
       console.log('\nNo actual HTTP requests were made.');
       console.log('To execute these tests, run the same command without --dry-run');
@@ -852,20 +812,17 @@ class EndpointTester {
     // Run tests (only if not in dry-run mode)
     console.log('\n=== EXECUTING TESTS ===');
     for (const testConfig of testConfigs) {
-      if (!testConfig.enabled) {
-        console.log(`Skipping disabled test: ${testConfig.test_name}`);
-        continue;
-      }
+      if (this.shouldRunTest(testConfig)) {
+        const result = await this.runSingleTest(testConfig);
+        this.results.push(result);
 
-      const result = await this.runSingleTest(testConfig);
-      this.results.push(result);
-
-      // Optional delay between tests
-      if (testConfig.delay_after_ms > 0) {
-        console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
-        await new Promise((resolve) =>
-          setTimeout(resolve, testConfig.delay_after_ms)
-        );
+        // Optional delay between tests
+        if (testConfig.delay_after_ms > 0) {
+          console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
+          await new Promise((resolve) =>
+            setTimeout(resolve, testConfig.delay_after_ms)
+          );
+        }
       }
     }
 
@@ -1275,7 +1232,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   
   console.log(`Test execution directory: ${tester.executionDir}`);
   
-  tester.runTests().catch((error) => {
+  tester.runFilteredTests().catch((error) => {
     console.error('Test execution failed:', error);
     process.exit(1);
   });
