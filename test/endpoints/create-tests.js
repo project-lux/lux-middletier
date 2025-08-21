@@ -196,6 +196,7 @@ async function createTestsForAPI(apiDef, endpointKey, testsDir, allProviders, op
     'max_response_time',
     'delay_after_ms',
     'tags',
+    'provider_id', // New column for tracing tests to their data source
   ];
 
   // Add required parameters first (will be highlighted)
@@ -287,7 +288,24 @@ async function collectTestDataFromAllProviders(allProviders, apiDef, endpointKey
       
       if (testData && testData.length > 0) {
         console.log(`    ✓ Got ${testData.length} test cases from ${provider.constructor.name}`);
-        allTestData.push(...testData);
+        
+        // Add provider ID to each test row
+        const providerId = provider.getProviderId();
+        const providerIdIndex = columns.indexOf('provider_id');
+        
+        const enrichedTestData = testData.map(row => {
+          // Create a copy of the row to avoid modifying the original
+          const enrichedRow = [...row];
+          
+          // Set the provider ID at the correct column index
+          if (providerIdIndex !== -1) {
+            enrichedRow[providerIdIndex] = providerId;
+          }
+          
+          return enrichedRow;
+        });
+        
+        allTestData.push(...enrichedTestData);
       } else {
         console.log(`    - No data from ${provider.constructor.name}`);
       }
@@ -301,11 +319,23 @@ async function collectTestDataFromAllProviders(allProviders, apiDef, endpointKey
     console.log(`  ! No data from any provider, falling back to sample data...`);
     
     // Try to find sample provider in the list
-    const sampleProvider = allProviders.find(p => p.constructor.name === 'SampleProvider');
+    const sampleProvider = allProviders.find(p => p.constructor.name === 'SampleTestDataProvider');
     if (sampleProvider) {
       const fallbackData = await sampleProvider.extractTestData(apiDef, endpointKey, columns);
       if (fallbackData && fallbackData.length > 0) {
-        allTestData.push(...fallbackData);
+        // Add provider ID to fallback data
+        const providerId = sampleProvider.getProviderId();
+        const providerIdIndex = columns.indexOf('provider_id');
+        
+        const enrichedFallbackData = fallbackData.map(row => {
+          const enrichedRow = [...row];
+          if (providerIdIndex !== -1) {
+            enrichedRow[providerIdIndex] = providerId;
+          }
+          return enrichedRow;
+        });
+        
+        allTestData.push(...enrichedFallbackData);
         console.log(`    ✓ Generated ${fallbackData.length} fallback test cases`);
       }
     }
@@ -340,6 +370,7 @@ function createDocumentationSheetForAPI(
     ['max_response_time', 'Maximum acceptable response time in ms'],
     ['delay_after_ms', 'Delay after test completion in ms'],
     ['tags', 'Comma-separated tags for filtering tests'],
+    ['provider_id', 'Identifier of the data provider that generated this test'],
     [''],
   ];
 

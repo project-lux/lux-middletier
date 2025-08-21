@@ -30,6 +30,15 @@ export class TestDataProvider {
   }
 
   /**
+   * Get a unique identifier for this provider instance
+   * This is used to trace tests back to their data source
+   * @returns {string} - Unique identifier for this provider
+   */
+  getProviderId() {
+    throw new Error('getProviderId() must be implemented by subclass');
+  }
+
+  /**
    * Parse and extract test cases from the source
    * @param {Object} apiDef - API definition object containing endpoint information
    * @param {string} endpointKey - Unique key for the endpoint

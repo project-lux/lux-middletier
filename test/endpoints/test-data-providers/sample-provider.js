@@ -33,6 +33,14 @@ export class SampleTestDataProvider extends TestDataProvider {
   }
 
   /**
+   * Get a unique identifier for this provider instance
+   * @returns {string} - Provider ID for tracing tests
+   */
+  getProviderId() {
+    return 'sample-provider';
+  }
+
+  /**
    * Generate sample test cases for the API endpoint
    * @param {Object} apiDef - API definition object
    * @param {string} endpointKey - Unique endpoint key
