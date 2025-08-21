@@ -8,25 +8,15 @@
 /**
  * Abstract base class for test data providers
  * All test data providers must extend this class and implement the required methods
+ * Each provider is specific to a single data source
  */
 export class TestDataProvider {
   /**
    * Constructor
-   * @param {string} sourcePath - Path to the source file or data
    * @param {Object} options - Provider-specific options
    */
-  constructor(sourcePath, options = {}) {
-    this.sourcePath = sourcePath;
+  constructor(options = {}) {
     this.options = options;
-  }
-
-  /**
-   * Check if the provider can handle the given source
-   * @param {string} sourcePath - Path to the source file
-   * @returns {boolean} - True if this provider can handle the source
-   */
-  static canHandle(sourcePath) {
-    throw new Error('canHandle() must be implemented by subclass');
   }
 
   /**
@@ -81,7 +71,7 @@ export class TestDataProvider {
   getSourceMetadata() {
     return {
       type: this.constructor.name,
-      sourcePath: this.sourcePath,
+      providerId: this.getProviderId(),
       options: this.options,
       lastModified: null,
       recordCount: 0
@@ -90,7 +80,7 @@ export class TestDataProvider {
 }
 
 /**
- * Factory class for creating appropriate test data providers
+ * Factory class for managing test data provider classes
  */
 export class TestDataProviderFactory {
   static providers = [];
@@ -107,19 +97,12 @@ export class TestDataProviderFactory {
   }
 
   /**
-   * Create a test data provider for the given source
-   * @param {string} sourcePath - Path to the source file or data
-   * @param {Object} options - Provider-specific options
-   * @returns {TestDataProvider} - Appropriate provider instance
-   * @throws {Error} - If no suitable provider is found
+   * Create instances of all registered providers
+   * @param {Object} options - Options to pass to provider constructors
+   * @returns {Array<TestDataProvider>} - Array of provider instances
    */
-  static createProvider(sourcePath, options = {}) {
-    for (const ProviderClass of this.providers) {
-      if (ProviderClass.canHandle(sourcePath)) {
-        return new ProviderClass(sourcePath, options);
-      }
-    }
-    throw new Error(`No test data provider found for source: ${sourcePath}`);
+  static createAllProviders(options = {}) {
+    return this.providers.map(ProviderClass => new ProviderClass(options));
   }
 
   /**

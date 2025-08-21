@@ -9,39 +9,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Discover and instantiate all available TestDataProvider implementations
- * Each implementation represents a specific data source, not just a file format
- * @returns {Promise<Array<TestDataProvider>>} Array of all available provider instances
+ * Create instances of all available TestDataProvider implementations
+ * @returns {Array<TestDataProvider>} Array of all available provider instances
  */
-async function discoverAllProviders() {
-  console.log('Discovering all TestDataProvider implementations...');
+function createAllProviders() {
+  console.log('Creating all TestDataProvider instances...');
   
-  // Get all registered provider classes
-  const providerClasses = TestDataProviderFactory.getRegisteredProviders();
-  const allProviders = [];
+  // Create instances of all registered providers
+  const allProviders = TestDataProviderFactory.createAllProviders();
   
-  // Instantiate each provider class - each represents a specific source
-  for (const ProviderClass of providerClasses) {
-    try {
-      console.log(`  Checking ${ProviderClass.name}...`);
-      
-      // Each provider class should have a static method to create instances for available sources
-      if (typeof ProviderClass.createInstances === 'function') {
-        const instances = await ProviderClass.createInstances();
-        allProviders.push(...instances);
-        console.log(`    ✓ Created ${instances.length} instance(s)`);
-      } else {
-        // Fallback: try to create a single instance if no createInstances method
-        const instance = new ProviderClass();
-        allProviders.push(instance);
-        console.log(`    ✓ Created 1 instance (fallback)`);
-      }
-    } catch (error) {
-      console.warn(`    ⚠ Failed to create instances for ${ProviderClass.name}: ${error.message}`);
-    }
-  }
+  console.log(`Created ${allProviders.length} provider instance(s):`);
+  allProviders.forEach(provider => {
+    console.log(`  - ${provider.getProviderId()}`);
+  });
   
-  console.log(`Found ${allProviders.length} total provider instance(s)\n`);
   return allProviders;
 }
 
@@ -58,8 +39,8 @@ async function createEndpointTests(testsDir, options = {}) {
     `Found ${Object.keys(apiDefinitions).length} unique API endpoints\n`
   );
 
-  // Discover and instantiate ALL TestDataProvider implementations
-  const allProviders = await discoverAllProviders();
+  // Create instances of all available TestDataProvider implementations
+  const allProviders = createAllProviders();
 
   // Create tests directory if it doesn't exist
   if (!fs.existsSync(testsDir)) {

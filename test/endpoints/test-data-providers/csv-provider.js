@@ -1,28 +1,33 @@
 import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
+import { fileURLToPath } from 'url';
 import { TestDataProvider } from './interface.js';
 
 /**
  * CSV Test Data Provider
  * 
- * Reads test cases from CSV files with the following expected structure:
- * - First row contains column headers matching the spreadsheet columns
- * - Each subsequent row represents a test case
- * - Column names should match the expected spreadsheet structure
+ * Reads test cases from a specific CSV file: test-data/endpoint-tests.csv
+ * Each CSV provider implementation should be specific to a single file
  */
 export class CsvTestDataProvider extends TestDataProvider {
   /**
-   * Check if this provider can handle the given source
-   * @param {string} sourcePath - Path to the source file
-   * @returns {boolean} - True if source is a CSV file
+   * Constructor
+   * @param {Object} options - Options for CSV parsing
    */
-  static canHandle(sourcePath) {
-    return sourcePath && (
-      sourcePath.endsWith('.csv') || 
-      sourcePath.endsWith('.CSV') ||
-      (typeof sourcePath === 'string' && sourcePath.includes('.csv'))
-    );
+  constructor(options = {}) {
+    super({
+      separator: ',',
+      encoding: 'utf8',
+      headers: true,
+      skipErrorLines: false,
+      strictValidation: false,
+      fallbackToSample: true,
+      ...options
+    });
+    
+    // This provider is specific to this CSV file
+    this.sourcePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../test-data/endpoint-tests.csv');
   }
 
   /**
@@ -44,7 +49,8 @@ export class CsvTestDataProvider extends TestDataProvider {
     try {
       // Check if file exists
       if (!fs.existsSync(this.sourcePath)) {
-        throw new Error(`CSV file not found: ${this.sourcePath}`);
+        console.log(`CSV file not found: ${this.sourcePath} - skipping CSV provider`);
+        return [];
       }
 
       const csvData = await this.parseCsvFile();

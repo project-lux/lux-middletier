@@ -9,27 +9,14 @@ import { TestDataProvider } from './interface.js';
 export class SampleTestDataProvider extends TestDataProvider {
   /**
    * Constructor
-   * @param {string} sourcePath - For sample data, this can be 'sample' or null
    * @param {Object} options - Options for sample generation
    */
-  constructor(sourcePath = 'sample', options = {}) {
-    super(sourcePath, {
+  constructor(options = {}) {
+    super({
       testCaseCount: 2,
       includeErrorCases: true,
       ...options
     });
-  }
-
-  /**
-   * Check if this provider can handle the given source
-   * @param {string} sourcePath - Path or identifier
-   * @returns {boolean} - True if source indicates sample data generation
-   */
-  static canHandle(sourcePath) {
-    return !sourcePath || 
-           sourcePath === 'sample' || 
-           sourcePath === 'default' || 
-           sourcePath === 'generate';
   }
 
   /**
