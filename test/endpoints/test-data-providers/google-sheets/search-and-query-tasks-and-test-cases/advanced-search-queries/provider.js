@@ -216,6 +216,14 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
       const urlObj = new URL(url);
       const params = {};
       
+      // Extract scope from URL path (last part of the path)
+      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+      if (pathParts.length > 0) {
+        const lastPathPart = pathParts[pathParts.length - 1];
+        // Map the extracted scope to supported values
+        params.scope = this.mapScopeValue(lastPathPart);
+      }
+      
       // Iterate through all search parameters
       for (const [key, value] of urlObj.searchParams.entries()) {
         if (key === 'q') {
@@ -246,6 +254,37 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
       console.warn(`Failed to parse URL: ${url}`, error.message);
       return {};
     }
+  }
+
+  /**
+   * Map URL scope value to supported API scope values
+   * @param {string} urlScope - Scope extracted from URL path
+   * @returns {string} - Mapped scope value
+   */
+  mapScopeValue(urlScope) {
+    if (!urlScope || typeof urlScope !== 'string') {
+      return '';
+    }
+
+    const lowerScope = urlScope.toLowerCase();
+    
+    // Special mapping for "objects" -> "item"
+    if (lowerScope === 'objects' || lowerScope === 'object') {
+      return 'item';
+    }
+
+    if (lowerScope === 'people') {
+      return 'agent'
+    }
+    
+    // The plural form of all other support scopes simply end with a 's', and no
+    // singular form of a supported scope does.
+    if (lowerScope.endsWith('s')) {
+      return lowerScope.slice(0, -1);
+    }
+    
+    // Return as-is if no plural pattern matches (already singular or unknown pattern)
+    return lowerScope;
   }
 
   /**

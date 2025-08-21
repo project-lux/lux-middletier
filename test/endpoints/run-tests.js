@@ -1035,7 +1035,9 @@ class EndpointTester {
         .status-FAIL { background-color: #f8d7da; }
         .status-ERROR { background-color: #fff3cd; }
         .status-SLOW { background-color: #d1ecf1; }
-        .parameters { font-size: 0.8em; color: #666; }
+        .url-column { font-size: 0.9em; word-break: break-all; max-width: 300px; }
+        .url-link { color: #0066cc; text-decoration: none; }
+        .url-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -1092,7 +1094,7 @@ class EndpointTester {
                 <th>Expected</th>
                 <th>Actual</th>
                 <th>Duration (ms)</th>
-                <th>Parameters</th>
+                <th>URL</th>
                 <th>Response File</th>
                 <th>Timestamp</th>
             </tr>
@@ -1108,9 +1110,7 @@ class EndpointTester {
                     <td>${result.expected_status}</td>
                     <td>${result.actual_status}</td>
                     <td>${result.duration_ms || 'N/A'}</td>
-                    <td class="parameters">${JSON.stringify(
-                      result.parameters || {}
-                    )}</td>
+                    <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
                     <td>${result.response_body_file || 'N/A'}</td>
                     <td>${result.timestamp}</td>
                 </tr>
@@ -1121,6 +1121,52 @@ class EndpointTester {
     </table>
 </body>
 </html>`;
+  }
+
+  /**
+   * Format URL for HTML display with proper encoding and hyperlink
+   */
+  formatUrlForHtml(url) {
+    if (!url) {
+      return 'N/A';
+    }
+
+    try {
+      // Parse the URL to separate base URL and query parameters
+      const urlObj = new URL(url);
+      let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+      
+      // Build query string with properly encoded parameters
+      const encodedParams = [];
+      const decodedParams = [];
+      for (const [key, value] of urlObj.searchParams.entries()) {
+        const encodedKey = encodeURIComponent(key);
+        const encodedValue = encodeURIComponent(value);
+        encodedParams.push(`${encodedKey}=${encodedValue}`);
+        decodedParams.push(`${key}=${value}`);
+      }
+      
+      let fullEncodedUrl = baseUrl;
+      if (encodedParams.length > 0) {
+        fullEncodedUrl += '?' + encodedParams.join('&');
+      }
+      
+      let fullDecodedUrl = baseUrl;
+      if (decodedParams.length > 0) {
+        fullDecodedUrl += '?' + decodedParams.join('&');
+      }
+      
+      return `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
+    } catch (error) {
+      // If URL parsing fails, return the original URL as text
+      const escapedUrl = url
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      return escapedUrl;
+    }
   }
 }
 
