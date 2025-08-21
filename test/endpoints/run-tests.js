@@ -534,6 +534,7 @@ class EndpointTester {
       const statusMatches = actualStatus === expectedStatus;
 
       const result = {
+        provider_id: testConfig.provider_id,
         test_name: testConfig.test_name,
         endpoint_type: testConfig.endpoint_type,
         source_file: testConfig.source_file,
@@ -547,6 +548,7 @@ class EndpointTester {
         method: testConfig.method,
         parameters: testConfig.parameters,
         timestamp: timestamp,
+        description: testConfig.description,
         tags: testConfig.tags,
         ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
@@ -579,6 +581,7 @@ class EndpointTester {
       
       const result = {
         test_name: testConfig.test_name,
+        provider_id: testConfig.provider_id,
         endpoint_type: testConfig.endpoint_type,
         source_file: testConfig.source_file,
         status: 'FAIL',
@@ -590,6 +593,7 @@ class EndpointTester {
         method: testConfig.method,
         parameters: testConfig.parameters,
         timestamp: timestamp,
+        description: testConfig.description,
         tags: testConfig.tags,
         ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
@@ -1019,6 +1023,14 @@ class EndpointTester {
         .url-column { font-size: 0.9em; word-break: break-all; max-width: 300px; }
         .url-link { color: #0066cc; text-decoration: none; }
         .url-link:hover { text-decoration: underline; }
+        .info-icon { 
+            color: #0066cc; 
+            cursor: help; 
+            margin-left: 5px; 
+            font-size: 0.9em; 
+            opacity: 0.7; 
+        }
+        .info-icon:hover { opacity: 1; }
     </style>
 </head>
 <body>
@@ -1068,42 +1080,69 @@ class EndpointTester {
     </table>
 
     <h2>Individual Test Results</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Test Name</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Expected</th>
-                <th>Actual</th>
-                <th>Duration (ms)</th>
-                <th>URL</th>
-                <th>Response File</th>
-                <th>Timestamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${report.results
-              .map(
-                (result) => `
-                <tr class="status-${result.status}">
-                    <td>${result.test_name}</td>
-                    <td>${result.endpoint_type}</td>
-                    <td>${result.status}</td>
-                    <td>${result.expected_status}</td>
-                    <td>${result.actual_status}</td>
-                    <td>${result.duration_ms || 'N/A'}</td>
-                    <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
-                    <td>${result.response_body_file || 'N/A'}</td>
-                    <td>${result.timestamp}</td>
-                </tr>
-            `
-              )
-              .join('')}
-        </tbody>
-    </table>
+    ${this.generateTestResultsByEndpointType(report)}
 </body>
 </html>`;
+  }
+
+  /**
+   * Generate test results grouped by endpoint type
+   */
+  generateTestResultsByEndpointType(report) {
+    // Group results by endpoint type
+    const resultsByType = {};
+    report.results.forEach(result => {
+      const type = result.endpoint_type;
+      if (!resultsByType[type]) {
+        resultsByType[type] = [];
+      }
+      resultsByType[type].push(result);
+    });
+
+    const getTestNameTooltip = (result) => `
+Provider ID: ${result.provider_id || 'Not specified'}
+&#10;&#10;
+Description: ${result.description || 'Not specified'}
+&#10;&#10;
+Execution timestamp: ${result.timestamp || 'Unknown'}
+    `;
+
+    // Generate HTML for each endpoint type
+    return Object.entries(resultsByType)
+      .map(([endpointType, results]) => `
+        <h3>${endpointType} (${results.length} tests)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>Status</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
+                    <th>Duration (ms)</th>
+                    <th>URL</th>
+                    <th>Response File</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results
+                  .map(
+                    (result) => `
+                    <tr class="status-${result.status}">
+                        <td><span title="${getTestNameTooltip(result)}">${result.test_name} <span class="info-icon">ℹ️</span></span></td>
+                        <td>${result.status}</td>
+                        <td>${result.expected_status}</td>
+                        <td>${result.actual_status}</td>
+                        <td>${result.duration_ms || 'N/A'}</td>
+                        <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
+                        <td>${result.response_body_file || 'N/A'}</td>
+                    </tr>
+                `
+                  )
+                  .join('')}
+            </tbody>
+        </table>
+      `)
+      .join('');
   }
 
   /**

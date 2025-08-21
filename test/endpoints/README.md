@@ -587,6 +587,7 @@ The endpoint-specific configuration files are automatically generated based on t
 
 | Column | Description | Example | Required |
 |--------|-------------|---------|----------|
+| `provider_id` | Data source identifier | "sample-provider", "csv-provider:tests.csv" | Yes |
 | `test_name` | Unique test identifier | "Search - Basic Query" | Yes |
 | `description` | Test description | "Basic search functionality" | No |
 | `enabled` | Whether to run this test | true, false | Yes |
@@ -595,7 +596,6 @@ The endpoint-specific configuration files are automatically generated based on t
 | `max_response_time` | Max acceptable response time | 3000 | No |
 | `delay_after_ms` | Delay after test completion | 500 | No |
 | `tags` | Comma-separated tags | "search,functional,smoke" | No |
-| `provider_id` | Data source identifier | "sample-provider", "csv-provider:tests.csv" | Yes |
 
 #### Parameter Columns (Dynamically Generated)
 

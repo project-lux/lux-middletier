@@ -169,6 +169,7 @@ async function createTestsForAPI(apiDef, endpointKey, testsDir, allProviders, op
 
   // Build columns array
   const baseColumns = [
+    'provider_id',
     'test_name',
     'description',
     'enabled',
@@ -177,7 +178,6 @@ async function createTestsForAPI(apiDef, endpointKey, testsDir, allProviders, op
     'max_response_time',
     'delay_after_ms',
     'tags',
-    'provider_id', // New column for tracing tests to their data source
   ];
 
   // Add required parameters first (will be highlighted)
@@ -343,6 +343,7 @@ function createDocumentationSheetForAPI(
     ['Description:', apiDef.description],
     [''],
     ['Column Descriptions:'],
+    ['provider_id', 'Identifier of the data provider that generated this test'],
     ['test_name', 'Unique identifier for the test'],
     ['description', 'Human-readable description of what the test does'],
     ['enabled', 'Whether to run this test (true/false)'],
@@ -351,7 +352,6 @@ function createDocumentationSheetForAPI(
     ['max_response_time', 'Maximum acceptable response time in ms'],
     ['delay_after_ms', 'Delay after test completion in ms'],
     ['tags', 'Comma-separated tags for filtering tests'],
-    ['provider_id', 'Identifier of the data provider that generated this test'],
     [''],
   ];
 
