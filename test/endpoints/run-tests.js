@@ -747,8 +747,8 @@ class EndpointTester {
   async runFilteredTests() {
     console.log('');
     console.log('Resolved:');
-    this.logValues('  Requested providers', this.providerFilter, 'All');
-    this.logValues('  Requested endpoints', this.endpointFilter, 'All');
+    this.logValues('  Requested providers', this.getProvidersIncluded());
+    this.logValues('  Requested endpoints', this.getEndpointsIncluded());
     console.log('');
 
     console.log('Filtering options:');
@@ -862,6 +862,8 @@ class EndpointTester {
           0
         ),
         tests_by_endpoint_type: this.getTestsByEndpointType(),
+        providers_included: this.getProvidersIncluded(),
+        endpoints_included: this.getEndpointsIncluded(),
         timestamp: new Date().toISOString(),
       },
       results: this.results,
@@ -880,6 +882,8 @@ class EndpointTester {
     fs.writeFileSync(htmlFile, htmlContent);
 
     console.log('\n=== Test Summary ===');
+    console.log(`Providers Included: ${report.summary.providers_included.join(', ')}`);
+    console.log(`Endpoints Included: ${report.summary.endpoints_included.join(', ')}`);
     console.log(`Total Tests: ${report.summary.total_tests}`);
     console.log(`Passed: ${report.summary.passed}`);
     console.log(`Failed: ${report.summary.failed}`);
@@ -928,6 +932,26 @@ class EndpointTester {
       }
     });
     return summary;
+  }
+
+  /**
+   * Get information about which providers were included in the test run
+   */
+  getProvidersIncluded() {
+    if (!this.providerFilter || this.providerFilter.length === 0) {
+      return 'All';
+    }
+    return this.providerFilter;
+  }
+
+  /**
+   * Get information about which endpoints were included in the test run
+   */
+  getEndpointsIncluded() {
+    if (!this.endpointFilter || this.endpointFilter.length === 0) {
+      return 'All';
+    }
+    return this.endpointFilter;
   }
 
   /**
@@ -1003,6 +1027,8 @@ class EndpointTester {
     <div class="summary">
         <h2>Summary</h2>
         <p><strong>Generated:</strong> ${report.summary.timestamp}</p>
+        <p><strong>Providers Included:</strong> ${report.summary.providers_included.join(', ')}</p>
+        <p><strong>Endpoints Included:</strong> ${report.summary.endpoints_included.join(', ')}</p>
         <p><strong>Total Tests:</strong> ${report.summary.total_tests}</p>
         <p><strong>Passed:</strong> <span class="pass">${
           report.summary.passed
