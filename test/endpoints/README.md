@@ -14,23 +14,6 @@ A comprehensive automated endpoint testing framework for the LUX MarkLogic backe
 - **Performance monitoring**: Response time tracking and timeout handling
 - **Error handling**: Detailed error reporting and negative test cases
 
-### Test File Generation with Multi-Source Data Providers
-
-The `create-tests.js` script reads the generated `endpoints-spec.json` file and creates comprehensive Excel test files using a flexible data provider system:
-
-- **Individual files**: Separate Excel file for each discovered endpoint with ready-to-run test cases
-- **Parameter columns**: Dedicated columns for each endpoint's specific parameters
-- **Required field highlighting**: Visual indicators for required parameters
-- **Multi-source data**: Automatically discovers and uses ALL available test data providers
-- **Documentation sheets**: Embedded help and parameter descriptions
-
-**Usage:**
-```bash
-npm run create:tests
-# or
-node create-tests.js
-```
-
 ## Available NPM Scripts
 
 The framework includes several convenient npm scripts for common tasks:
@@ -47,12 +30,13 @@ The framework includes several convenient npm scripts for common tasks:
 
 ## Workflow Overview
 
-1. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
-2. **Generate**: Create comprehensive test files with `npm run create:tests` (automatically discovers and uses all available data sources to populate ready-to-run test cases)
-3. **Execute**: Run tests with `npm test` or `npm run test:dev` or `npm run test:save` to save the response bodies.
-4. **Report**: Review detailed HTML, CSV, and JSON reports
-5. **Compare**: Use `npm run compare` to analyze differences between test runs.  By default, the last two directories in the reports directory are compared.  To override, specify the reports directory, the baseline report file, and the report file to compare to.  Submit the JSON-formatted report files.
-6. **Customize** (Optional): Add additional test cases may be added within an existing TestDataProvider's implementation source file or a new TestDataProvider's implementation source file.  Do not add them to the generated spreadsheets.
+1. **Provide test data**: Implement the TestDataProvider class for each test data source.
+2. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
+3. **Generate**: Create comprehensive test files with `npm run create:tests` (automatically discovers and uses all available data sources to populate ready-to-run test cases)
+4. **Execute**: Run tests with `npm test` or `npm run test:dev` or `npm run test:save` to save the response bodies.
+5. **Report**: Review detailed HTML, CSV, and JSON reports
+6. **Compare**: Use `npm run compare` to analyze differences between test runs.  By default, the last two directories in the reports directory are compared.  To override, specify the reports directory, the baseline report file, and the report file to compare to.  Submit the JSON-formatted report files.
+7. **Customize** (Optional): Additional test cases may be added within an existing TestDataProvider's implementation data file or directly within a new TestDataProvider's implementation that doesn't use an external data source.  Do not add them to the generated spreadsheets.
 
 ## Quick Start
 
@@ -90,7 +74,38 @@ $env:AUTH_USERNAME = "prod-user"
 $env:AUTH_PASSWORD = "secure-prod-password"
 ```
 
-### 3. Generate Endpoint Specification and Tests
+### 3. Implement Test Data Providers
+
+_You can double back to this section if you would first like to see the output when only using the same test data providers._
+
+Implement the TestDataProvider class for each data source to generate tests from.
+
+To add a new data source, simply:
+
+1. Create a new provider class extending TestDataProvider
+2. Implement getProviderId() and extractTestData()
+3. Register it in index.js
+
+For example, to add a JSON file provider:
+
+```javascript
+export class JsonTestDataProvider extends TestDataProvider {
+  constructor(options = {}) {
+    super(options);
+    this.sourcePath = path.resolve(__dirname, '../test-data/tests.json');
+  }
+  
+  getProviderId() {
+    return 'json-provider:tests.json';
+  }
+  
+  async extractTestData(apiDef, endpointKey, columns) {
+    // Implementation specific to JSON file
+  }
+}
+```
+
+### 4. Generate Endpoint Specification and Tests
 
 First, generate the endpoint specification by analyzing the app.js file:
 
@@ -113,7 +128,7 @@ This creates comprehensive Excel test files for each endpoint in the `configs/` 
 - Multiple test scenarios including success and error cases
 - No manual configuration required - files are ready to execute immediately
 
-### 4. Run Tests
+### 5. Run Tests
 
 **Using npm scripts (Recommended):**
 ```bash
@@ -140,7 +155,7 @@ node run-tests.js ./configs ./reports
 node run-tests.js ./configs ./reports --save-responses
 ```
 
-### 5. Compare Test Results
+### 6. Compare Test Results
 
 After running tests multiple times, you can compare results to identify regressions or changes:
 
@@ -200,11 +215,45 @@ Creates `endpoints-spec.json` with detailed endpoint specifications in the forma
 }
 ```
 
-### Test Generation with Multi-Source Data Providers
+#### Test Data Provider System
 
-The `create-tests.js` script reads the generated `endpoints-spec.json` file and creates customized Excel spreadsheets of ready-to-run test configurations using a flexible data provider system:
+The framework includes a simplified test data provider system where each provider is specific to a single data source:
 
-- **Individual files**: Separate Excel file for each discovered endpoint
+**Provider Interface (`test-data-providers/interface.js`):**
+- Abstract `TestDataProvider` base class with simplified methods
+- `TestDataProviderFactory` for instantiating all registered providers
+- Each provider implementation is specific to one data source
+
+**Available Providers:**
+- **SampleTestDataProvider** (`test-data-providers/sample-provider.js`): Generates synthetic test data with configurable options
+- **CsvTestDataProvider** (`test-data-providers/csv-provider.js`): Reads test data from `test-data/endpoint-tests.csv`
+- **Extensible**: New providers can be easily added for specific data sources (JSON files, databases, APIs, etc.)
+
+**Provider System:**
+1. Each provider is registered with the `TestDataProviderFactory`
+2. All registered providers are instantiated when generating tests
+3. Each provider extracts test data for every endpoint
+4. Data from all providers is combined into comprehensive test files
+5. Provider ID is tracked in each test case for full traceability
+
+**Provider Implementation:**
+Each provider implements key methods:
+- `getProviderId()`: Returns unique identifier for test traceability
+- `extractTestData(apiDef, endpointKey, columns)`: Extracts test data for a specific endpoint
+- Graceful error handling - returns empty arrays instead of throwing errors
+
+**Benefits:**
+- **Simple**: Each provider handles exactly one data source
+- **Traceable**: Every test case includes its provider ID for debugging
+- **Robust**: Providers fail gracefully without breaking the system
+- **Extensible**: Adding new data sources requires only creating a new provider class
+- **Ready-to-run**: Generated files contain actual test cases from all available sources
+
+### Test File Generation with Multi-Source Data Providers
+
+The `create-tests.js` script uses registered test data providers (implementations of the TestDataProvider class) and the generated `endpoints-spec.json` file to create endpoint-specific spreadsheets of tests.
+
+- **Individual files**: Separate Excel file for each discovered endpoint with ready-to-run test cases
 - **Parameter columns**: Dedicated columns for each endpoint's specific parameters
 - **Required field highlighting**: Visual indicators for required parameters
 - **Multi-source data**: Automatically discovers and uses ALL available test data providers
@@ -216,41 +265,6 @@ npm run create:tests
 # or
 node create-tests.js
 ```
-
-#### Test Data Provider System
-
-The framework now includes a sophisticated test data provider interface that automatically discovers and uses multiple data sources:
-
-**Provider Interface (`test-data-providers/interface.js`):**
-- Abstract `TestDataProvider` base class with standard methods
-- `TestDataProviderFactory` for dynamic provider discovery and instantiation
-- Consistent interface across all data source types
-
-**Available Providers:**
-- **SampleProvider** (`test-data-providers/sample-provider.js`): Generates synthetic test data with configurable options
-- **CsvProvider** (`test-data-providers/csv-provider.js`): Reads test data from CSV files with flexible column mapping
-- **Extensible**: New providers can be easily added by implementing the `TestDataProvider` interface
-
-**Auto-Discovery Process:**
-1. Scans the `test-data-providers/` directory for all provider implementations
-2. Instantiates each discovered provider class
-3. Attempts to extract test data from each provider for every endpoint
-4. Combines data from all successful providers into comprehensive test files
-5. Falls back to sample data if no external data sources are available
-
-**Provider Implementation:**
-Each provider implements key methods:
-- `canHandle(source)`: Determines if the provider can process a given data source
-- `extractTestData(apiDef, endpointKey, columns)`: Extracts test data for a specific endpoint
-- `validateTestData(data)`: Validates extracted data meets requirements
-
-**Benefits:**
-- **Automatic**: No manual configuration required - discovers all available data sources
-- **Flexible**: Supports CSV files, databases, APIs, or any custom data source
-- **Robust**: Graceful error handling and fallback to sample data
-- **Extensible**: New data sources can be added without modifying existing code
-- **Comprehensive**: Combines data from multiple sources for richer test coverage
-- **Ready-to-run**: Generated files contain actual test cases, not just empty templates
 
 ### Shared Utilities
 
@@ -428,6 +442,7 @@ The endpoint-specific configuration files are automatically generated based on t
 | `max_response_time` | Max acceptable response time | 3000 | No |
 | `delay_after_ms` | Delay after test completion | 500 | No |
 | `tags` | Comma-separated tags | "search,functional,smoke" | No |
+| `provider_id` | Data source identifier | "sample-provider", "csv-provider:tests.csv" | Yes |
 
 #### Parameter Columns (Dynamically Generated)
 
@@ -602,79 +617,217 @@ Machine-readable format for integration with other tools:
 
 ## Extending the Data Provider System
 
-The framework's modular data provider system allows you to easily add new data sources for test case generation.
+The framework's simplified data provider system makes it easy to add new data sources for test case generation. Each provider is specific to a single data source.
 
-### Creating a Custom Data Provider
+### How to Add New Providers
 
-To create a new data provider, extend the `TestDataProvider` base class:
+Adding a new data source is straightforward - each provider implementation is specific to a single source file or data source.
+
+#### Step 1: Create a New Provider Class
+
+Create a new provider class extending `TestDataProvider`. Each provider should be specific to one data source:
 
 ```javascript
-// test-data-providers/database-provider.js
+// test-data-providers/json-provider.js
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { TestDataProvider } from './interface.js';
 
-export class DatabaseProvider extends TestDataProvider {
-  constructor() {
-    super();
-    this.connectionString = process.env.TEST_DB_CONNECTION;
-  }
-
-  canHandle(source) {
-    // Return true if this provider can handle the given source
-    return source && source.type === 'database';
-  }
-
-  async extractTestData(apiDef, endpointKey, columns) {
-    // Connect to database and extract test data
-    const query = `SELECT * FROM test_cases WHERE endpoint = ?`;
-    const results = await this.executeQuery(query, [endpointKey]);
+/**
+ * JSON Test Data Provider
+ * 
+ * Reads test cases from a specific JSON file: test-data/endpoint-tests.json
+ * Each provider implementation should be specific to a single file
+ */
+export class JsonTestDataProvider extends TestDataProvider {
+  /**
+   * Constructor
+   * @param {Object} options - Options for JSON parsing
+   */
+  constructor(options = {}) {
+    super({
+      encoding: 'utf8',
+      ...options
+    });
     
-    // Transform database results to match expected format
-    return results.map(row => this.formatTestCase(row, columns));
+    // This provider is specific to this JSON file
+    this.sourcePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../test-data/endpoint-tests.json');
   }
 
-  validateTestData(data) {
-    // Validate extracted data meets requirements
-    return data && Array.isArray(data) && data.length > 0;
+  /**
+   * Get a unique identifier for this provider instance
+   * @returns {string} - Provider ID for tracing tests
+   */
+  getProviderId() {
+    return `json-provider:${path.basename(this.sourcePath)}`;
   }
 
-  // Custom helper methods
-  async executeQuery(query, params) {
-    // Database connection and query logic
-  }
+  /**
+   * Parse JSON file and extract test cases
+   * @param {Object} apiDef - API definition object
+   * @param {string} endpointKey - Unique endpoint key
+   * @param {Array<string>} columns - Expected column structure
+   * @returns {Promise<Array<Array>>} - Array of test data rows
+   */
+  async extractTestData(apiDef, endpointKey, columns) {
+    try {
+      // Check if file exists
+      if (!fs.existsSync(this.sourcePath)) {
+        console.log(`JSON file not found: ${this.sourcePath} - skipping JSON provider`);
+        return [];
+      }
 
-  formatTestCase(dbRow, columns) {
-    // Transform database row to test case format
+      const jsonData = JSON.parse(fs.readFileSync(this.sourcePath, 'utf8'));
+      
+      // Find tests for this specific endpoint
+      const endpointTests = jsonData[endpointKey] || [];
+      
+      if (endpointTests.length === 0) {
+        console.log(`No test data found for ${endpointKey} in JSON file`);
+        return [];
+      }
+
+      // Convert JSON objects to row arrays matching the column structure
+      const testRows = endpointTests.map(testCase => {
+        return columns.map(columnName => {
+          // Map test case properties to columns
+          if (columnName === 'test_name') return testCase.name || '';
+          if (columnName === 'description') return testCase.description || '';
+          if (columnName === 'enabled') return testCase.enabled !== false ? 'true' : 'false';
+          if (columnName === 'expected_status') return testCase.expectedStatus || 200;
+          if (columnName === 'timeout_ms') return testCase.timeout || 10000;
+          if (columnName === 'max_response_time') return testCase.maxResponseTime || 3000;
+          if (columnName === 'delay_after_ms') return testCase.delayAfter || 500;
+          if (columnName === 'tags') return testCase.tags || `${endpointKey},json`;
+          if (columnName.startsWith('param:')) {
+            const paramName = columnName.replace('param:', '');
+            return testCase.params ? testCase.params[paramName] || '' : '';
+          }
+          return ''; // Default for unknown columns
+        });
+      });
+
+      console.log(`✓ Loaded ${testRows.length} test cases from JSON: ${path.basename(this.sourcePath)}`);
+      return testRows;
+
+    } catch (error) {
+      console.error(`Error reading JSON file ${this.sourcePath}:`, error.message);
+      return []; // Return empty array on error to not break other providers
+    }
   }
 }
 ```
 
-### Registering New Providers
+#### Step 2: Register the New Provider
 
 Add your new provider to `test-data-providers/index.js`:
 
 ```javascript
-export { TestDataProvider, TestDataProviderFactory } from './interface.js';
-export { SampleProvider } from './sample-provider.js';
-export { CsvProvider } from './csv-provider.js';
-export { DatabaseProvider } from './database-provider.js';  // Add your provider
+// test-data-providers/index.js
+import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
+import { CsvTestDataProvider } from './csv-provider.js';
+import { SampleTestDataProvider } from './sample-provider.js';
+import { JsonTestDataProvider } from './json-provider.js';  // Add your new provider
+
+// Register all available providers
+TestDataProviderFactory.registerProvider(CsvTestDataProvider);
+TestDataProviderFactory.registerProvider(SampleTestDataProvider);
+TestDataProviderFactory.registerProvider(JsonTestDataProvider);  // Register your new provider
+
+// ... rest of the file
 ```
 
-### Automatic Discovery
+#### Step 3: Create Your Data Source File
 
-Once registered, your provider will be automatically discovered and used by `create-tests.js`. The system will:
+Create the data source file that your provider expects:
 
-1. Import all provider classes from the index file
-2. Instantiate each provider
-3. Call `extractTestData()` for each endpoint
-4. Combine results from all successful providers
+```javascript
+// test-data/endpoint-tests.json
+{
+  "get-search": [
+    {
+      "name": "Basic Search Test",
+      "description": "Test basic search functionality from JSON",
+      "enabled": true,
+      "expectedStatus": 200,
+      "timeout": 10000,
+      "maxResponseTime": 3000,
+      "delayAfter": 500,
+      "tags": "json,functional,search",
+      "params": {
+        "q": "test query",
+        "scope": "work"
+      }
+    },
+    {
+      "name": "Advanced Search Test",
+      "description": "Test complex search from JSON",
+      "enabled": true,
+      "expectedStatus": 200,
+      "timeout": 15000,
+      "maxResponseTime": 5000,
+      "delayAfter": 1000,
+      "tags": "json,advanced,search",
+      "params": {
+        "q": "complex query",
+        "scope": "person",
+        "page": "1",
+        "pageLength": "20"
+      }
+    }
+  ],
+  "get-facets": [
+    {
+      "name": "Facets Test",
+      "description": "Test facets endpoint from JSON",
+      "enabled": true,
+      "expectedStatus": 200,
+      "params": {
+        "scope": "work"
+      }
+    }
+  ]
+}
+```
 
-### Provider Best Practices
+#### Step 4: Test Your Provider
 
-- **Error Handling**: Implement robust error handling - failures should not prevent other providers from working
-- **Validation**: Always validate data format and completeness
-- **Logging**: Use console.log for status updates during test configuration generation
-- **Performance**: Consider caching expensive operations (database connections, file parsing)
-- **Configuration**: Use environment variables for connection strings and options
+Run the test generation script to verify your provider works:
+
+```bash
+npm run create:tests
+```
+
+Your new provider will be automatically discovered and used. You'll see output like:
+
+```
+Creating all TestDataProvider instances...
+Created 3 provider instances:
+  - sample-provider
+  - csv-provider:endpoint-tests.csv
+  - json-provider:endpoint-tests.json
+
+Creating test file for get-search: get-search-tests.xlsx
+Collecting test data from 3 providers for get-search...
+  - Trying provider: SampleTestDataProvider
+    ✓ Got 2 test cases from SampleTestDataProvider
+  - Trying provider: CsvTestDataProvider
+    CSV file not found: .../test-data/endpoint-tests.csv - skipping CSV provider
+    - No data from CsvTestDataProvider
+  - Trying provider: JsonTestDataProvider
+    ✓ Got 2 test cases from JsonTestDataProvider
+Total test cases collected: 4
+✓ Created get-search-tests.xlsx with 4 test cases
+```
+
+### Provider Design Principles
+
+- **Single Responsibility**: Each provider is specific to exactly one data source
+- **No Configuration**: Providers know their own data source paths internally
+- **Graceful Failure**: Return empty arrays instead of throwing errors to avoid breaking other providers
+- **Clear Identification**: Provide meaningful provider IDs for test traceability
+- **Self-Contained**: Each provider handles its own file format and data structure
 
 ### Automated Test Generation vs Manual Customization
 
