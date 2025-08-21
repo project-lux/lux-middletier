@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { TestDataProvider } from '../../interface.js';
+import { TestDataProvider } from '../../../interface.js';
 
 export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   /**

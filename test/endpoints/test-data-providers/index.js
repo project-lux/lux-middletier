@@ -8,7 +8,8 @@
 import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
 import { CsvTestDataProvider, CsvProviderDefaults } from './csv-provider.js';
 import { SampleTestDataProvider } from './sample-provider.js';
-import { AdvancedSearchQueriesTestDataProvider } from './google-sheets/search-and-query-tasks-and-test-cases/provider.js';
+import { AdvancedSearchQueriesTestDataProvider } from 
+  './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/provider.js';
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(CsvTestDataProvider);
