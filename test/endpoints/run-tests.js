@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { getEndpointKeyFromPath } from './utils.js';
+import { TestDataProviderFactory } from './test-data-providers/interface.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,11 @@ class EndpointTester {
     this.saveResponseBodies = options.saveResponseBodies || false;
     this.responsesDir = path.join(this.executionDir, 'responses');
 
+    // Filtering configuration
+    this.providerFilter = options.providers || null; // null means all providers
+    this.endpointFilter = options.endpoints || null; // null means all endpoints
+    this.dryRun = options.dryRun || false; // dry-run mode
+
     // Authentication configuration
     this.authType = process.env.AUTH_TYPE || 'none'; // 'digest', 'oauth', or 'none'
     this.authUsername = process.env.AUTH_USERNAME || null;
@@ -40,20 +46,27 @@ class EndpointTester {
     // Load endpoints specification once during construction
     this.endpointsSpec = this.loadEndpointsSpec();
 
-    // Ensure base reports directory exists
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
+    if (!this.dryRun) {
+      // Ensure base reports directory exists
+      if (!fs.existsSync(reportsDir)) {
+        fs.mkdirSync(reportsDir, { recursive: true });
+      }
+      
+      // Ensure execution directory exists
+      if (!fs.existsSync(this.executionDir)) {
+        fs.mkdirSync(this.executionDir, { recursive: true });
+      }
+      
+      // Ensure responses directory exists if saving response bodies
+      if (this.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
+        fs.mkdirSync(this.responsesDir, { recursive: true });
+      }
     }
-    
-    // Ensure execution directory exists
-    if (!fs.existsSync(this.executionDir)) {
-      fs.mkdirSync(this.executionDir, { recursive: true });
-    }
-    
-    // Ensure responses directory exists if saving response bodies
-    if (this.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
-      fs.mkdirSync(this.responsesDir, { recursive: true });
-    }
+  }
+
+  logValues(label, values, defaultValue = 'None') {
+    const formattedValues = values && values.length > 0 ? values.join('\n\t') : defaultValue;
+    console.log(`${label}:\n\t${formattedValues}`);
   }
 
   /**
@@ -87,7 +100,10 @@ class EndpointTester {
       const filePath = path.join(this.configDir, file);
       const endpointType = this.extractEndpointType(file);
 
-      console.log(`Loading config for ${endpointType} from ${file}`);
+      // Apply endpoint filtering if specified
+      if (this.endpointFilter && !this.endpointFilter.includes(endpointType)) {
+        continue;
+      }
 
       try {
         const testConfigs = this.loadTestConfig(filePath, endpointType);
@@ -654,11 +670,136 @@ class EndpointTester {
   }
 
   /**
-   * Run all tests from all configuration files
+   * Get available test data providers (both IDs and class names)
    */
-  async runAllTests() {
-    console.log('Discovering endpoint configuration files...');
-    const testConfigs = this.loadAllEndpointConfigs();
+  async getAvailableProviders() {
+    try {
+      // Import the test data providers index to ensure all providers are registered
+      await import('./test-data-providers/index.js');
+      
+      const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
+      const providers = {
+        classes: [],
+        ids: [],
+        mappings: {} // Maps both class names and IDs to their respective provider classes
+      };
+
+      for (const ProviderClass of registeredProviders) {
+        const className = ProviderClass.name;
+        providers.classes.push(className);
+        
+        // Create a temporary instance to get the provider ID
+        try {
+          const instance = new ProviderClass();
+          const providerId = instance.getProviderId();
+          providers.ids.push(providerId);
+          
+          // Map both class name and ID to the class
+          providers.mappings[className] = ProviderClass;
+          providers.mappings[providerId] = ProviderClass;
+        } catch (error) {
+          console.warn(`Warning: Could not instantiate provider ${className}: ${error.message}`);
+        }
+      }
+
+      return providers;
+    } catch (error) {
+      console.warn(`Warning: Could not load test data providers: ${error.message}`);
+      // Fallback to basic provider list
+      return {
+        classes: ['CsvTestDataProvider', 'SampleTestDataProvider', 'AdvancedSearchQueriesTestDataProvider'],
+        ids: ['csv-provider', 'sample-provider', 'google-sheets-search-queries'],
+        mappings: {}
+      };
+    }
+  }
+
+  /**
+   * Get available endpoint types from config files
+   */
+  getAvailableEndpoints() {
+    const files = fs
+      .readdirSync(this.configDir)
+      .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
+      .filter((file) => !file.startsWith('~'));
+
+    return files.map(file => this.extractEndpointType(file));
+  }
+
+  /**
+   * Filter test configurations based on provider preference
+   * Accepts either TestDataProvider class names or provider IDs
+   */
+  async filterConfigsByProvider(configs) {
+    if (!this.providerFilter) {
+      return configs;
+    }
+
+    const availableProviders = await this.getAvailableProviders();
+    const validProviders = [];
+    const invalidProviders = [];
+
+    // Validate and normalize provider names/IDs
+    for (const provider of this.providerFilter) {
+      if (availableProviders.mappings[provider]) {
+        validProviders.push(provider);
+      } else {
+        // Check if it's a partial match for class name or ID
+        const classMatch = availableProviders.classes.find(cls => 
+          cls.toLowerCase().includes(provider.toLowerCase()) || 
+          provider.toLowerCase().includes(cls.toLowerCase())
+        );
+        const idMatch = availableProviders.ids.find(id => 
+          id.toLowerCase().includes(provider.toLowerCase()) || 
+          provider.toLowerCase().includes(id.toLowerCase())
+        );
+
+        if (classMatch) {
+          validProviders.push(classMatch);
+        } else if (idMatch) {
+          validProviders.push(idMatch);
+        } else {
+          invalidProviders.push(provider);
+        }
+      }
+    }
+
+    if (invalidProviders.length > 0) {
+      console.warn(`Warning: Invalid providers specified: ${invalidProviders.join(', ')}`);
+      console.warn(`Available provider class names: ${availableProviders.classes.join(', ')}`);
+      console.warn(`Available provider IDs: ${availableProviders.ids.join(', ')}`);
+    }
+
+    if (validProviders.length === 0) {
+      console.warn('Warning: No valid providers specified. Running all tests.');
+      return configs;
+    }
+
+    return configs;
+  }
+
+  /**
+   * Run all tests from all configuration files with filtering support
+   */
+  async runTests() {
+    console.log('');
+    console.log('Resolved:');
+    this.logValues('  Requested providers', this.providerFilter, 'All');
+    this.logValues('  Requested endpoints', this.endpointFilter, 'All');
+    console.log('');
+
+    console.log('Filtering options:');
+    const availableProviders = await this.getAvailableProviders();
+    this.logValues('  Available provider class names', availableProviders.classes);
+    this.logValues('  Available provider IDs', availableProviders.ids);
+    const availableEndpoints = this.getAvailableEndpoints();
+    this.logValues('  Available endpoints', availableEndpoints);
+    console.log('');
+
+    let testConfigs = this.loadAllEndpointConfigs();
+    
+    // Apply provider filtering
+    testConfigs = await this.filterConfigsByProvider(testConfigs);
 
     console.log(
       `Found ${testConfigs.length} test configurations across ${
@@ -683,7 +824,33 @@ class EndpointTester {
       console.log(`  ${type}: ${tests.length} tests`);
     });
 
-    // Run tests
+    // If dry-run mode, show what would be executed and exit
+    if (this.dryRun) {
+      let enabledCount = 0;
+      let disabledCount = 0;
+      
+      for (const testConfig of testConfigs) {
+        if (!testConfig.enabled) {
+          disabledCount++;
+        } else {
+          enabledCount++;
+        }
+      }
+
+      console.log('');
+      console.log('=== DRY RUN SUMMARY ===');
+      console.log(`Total tests found: ${testConfigs.length}`);
+      console.log(`Tests that would be executed: ${enabledCount}`);
+      console.log(`Tests that would be skipped (disabled): ${disabledCount}`);
+      console.log(`Estimated execution time: ${enabledCount * 2}s - ${enabledCount * 10}s (rough estimate)`);
+      console.log('\nNo actual HTTP requests were made.');
+      console.log('To execute these tests, run the same command without --dry-run');
+      
+      return; // Exit without running tests or generating reports
+    }
+
+    // Run tests (only if not in dry-run mode)
+    console.log('\n=== EXECUTING TESTS ===');
     for (const testConfig of testConfigs) {
       if (!testConfig.enabled) {
         console.log(`Skipping disabled test: ${testConfig.test_name}`);
@@ -965,6 +1132,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let configDir = './configs';
   let reportsDir = './reports';
   let saveResponseBodies = false;
+  let providers = null; // null means use all available providers
+  let endpoints = null; // null means test all endpoints
+  let dryRun = false; // dry-run mode - don't execute tests, just show what would be run
   let positionalArgIndex = 0;
   
   // Process command line arguments
@@ -972,6 +1142,26 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const arg = args[i];
     if (arg === '--save-responses' || arg === '-r') {
       saveResponseBodies = true;
+    } else if (arg === '--dry-run' || arg === '-d') {
+      dryRun = true;
+    } else if (arg === '--providers' || arg === '-p') {
+      // Next argument should be comma-separated list of providers
+      i++;
+      if (i < args.length) {
+        providers = args[i].split(',').map(p => p.trim());
+      } else {
+        console.error('Error: --providers requires a comma-separated list of provider names');
+        process.exit(1);
+      }
+    } else if (arg === '--endpoints' || arg === '-e') {
+      // Next argument should be comma-separated list of endpoints
+      i++;
+      if (i < args.length) {
+        endpoints = args[i].split(',').map(e => e.trim());
+      } else {
+        console.error('Error: --endpoints requires a comma-separated list of endpoint types');
+        process.exit(1);
+      }
     } else if (arg === '--help' || arg === '-h') {
       console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
       console.log('');
@@ -980,13 +1170,24 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log('  reportsDir   Directory for test reports (default: ./reports)');
       console.log('');
       console.log('Options:');
-      console.log('  --save-responses, -r    Save response bodies to disk');
-      console.log('  --help, -h              Show this help message');
+      console.log('  --save-responses, -r          Save response bodies to disk');
+      console.log('  --dry-run, -d                 Helpful to see resolved configuration and available filtering options');
+      console.log('  --providers, -p <providers>   Comma-separated list of test data providers to use');
+      console.log('                                (accepts either class names or provider IDs)');
+      console.log('                                Examples: CsvTestDataProvider, SampleTestDataProvider');
+      console.log('  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test');
+      console.log('                                Available: search, auto-complete, facets, translate, etc.');
+      console.log('  --help, -h                    Show this help message');
       console.log('');
       console.log('Examples:');
       console.log('  node run-tests.js');
       console.log('  node run-tests.js ./configs ./reports');
-      console.log('  node run-tests.js ./configs ./reports --save-responses');
+      console.log('  node run-tests.js --save-responses');
+      console.log('  node run-tests.js --dry-run');
+      console.log('  node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider');
+      console.log('  node run-tests.js --providers csv-provider,sample-provider');
+      console.log('  node run-tests.js --endpoints search,auto-complete');
+      console.log('  node run-tests.js --dry-run --providers csv-provider --endpoints search');
       process.exit(0);
     } else if (!arg.startsWith('-')) {
       // Positional arguments
@@ -1000,7 +1201,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   }
 
-  if (!fs.existsSync(configDir)) {
+  if (!dryRun && !fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
     console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
     console.log('Use --help for more information');
@@ -1012,13 +1213,23 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (saveResponseBodies) {
     console.log('Response bodies will be saved to disk');
   }
+  if (dryRun) {
+    console.log('');
+    console.log('DRY RUN MODE: Tests will not be executed, only planned test execution will be shown');
+    console.log('');
+  }
 
-  const options = { saveResponseBodies };
+  const options = { 
+    saveResponseBodies,
+    providers,
+    endpoints,
+    dryRun
+  };
   const tester = new EndpointTester(configDir, reportsDir, options);
   
   console.log(`Test execution directory: ${tester.executionDir}`);
   
-  tester.runAllTests().catch((error) => {
+  tester.runTests().catch((error) => {
     console.error('Test execution failed:', error);
     process.exit(1);
   });

@@ -28,12 +28,143 @@ The framework includes several convenient npm scripts for common tasks:
 | `npm run compare` | `node compare-reports.js` | Interactive tool to compare two test reports |
 | `npm run install-deps` | `npm install` | Install all required dependencies |
 
+## Command Line Options
+
+The test runner supports several command line options for filtering and customization:
+
+### Basic Usage
+```bash
+node run-tests.js [configDir] [reportsDir] [options]
+```
+
+### Options
+- `--save-responses, -r`: Save response bodies to disk
+- `--dry-run, -d`: Helpful to see resolved configuration **and available filtering options**
+- `--providers, -p <providers>`: Comma-separated list of test data providers to use (accepts either class names or provider IDs)
+- `--endpoints, -e <endpoints>`: Comma-separated list of endpoint types to test
+- `--help, -h`: Show help message
+
+### Examples
+
+**Run all tests:**
+```bash
+node run-tests.js
+```
+
+**Preview what tests would be run (dry-run mode):**
+```bash
+node run-tests.js --dry-run
+```
+
+**Run tests with specific providers (using class names):**
+```bash
+node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider
+```
+
+**Run tests with specific providers (using provider IDs):**
+```bash
+node run-tests.js --providers csv-provider,sample-provider
+```
+
+**Run tests for specific endpoints:**
+```bash
+node run-tests.js --endpoints search,auto-complete
+```
+
+**Combine provider and endpoint filtering:**
+```bash
+node run-tests.js --providers csv-provider --endpoints search ./configs ./reports
+```
+
+**Run with response body saving:**
+```bash
+node run-tests.js --save-responses --providers csv
+```
+
+## Dry-Run Mode
+
+The `--dry-run` (or `-d`) option allows you to preview what tests would be executed without actually running them. This is useful for:
+
+- **Planning test execution**: See exactly which tests will run before committing to a full test run
+- **Debugging configuration**: Verify that filtering options work as expected
+- **Estimating execution time**: Get a rough estimate of how long the actual test run would take
+- **Validating test parameters**: Review the URLs, methods, and parameters that would be used
+
+### Dry-Run Output
+
+When dry-run mode is enabled, the tool will:
+- Show all discovered test configurations
+- Display whether each test is enabled or disabled
+- Provide execution estimates
+
+**Dry-run example:**
+```
+$ node run-tests.js --dry-run --endpoints get-search --providers AdvancedSearchQueriesTestDataProvider
+Configuration directory: ./configs
+Reports directory: ./reports
+
+DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
+
+Loaded 19 endpoint specifications
+Test execution directory: reports\test-run-2025-08-21_15-38-44
+
+Resolved:
+  Requested providers:
+        AdvancedSearchQueriesTestDataProvider
+  Requested endpoints:
+        get-search
+
+Filtering options:
+  Available provider class names:
+        CsvTestDataProvider
+        SampleTestDataProvider
+        AdvancedSearchQueriesTestDataProvider
+  Available provider IDs:
+        csv-provider:endpoint-tests.csv
+        sample-provider
+        google-sheets-search-queries:data.tsv
+  Available endpoints:
+        delete-data
+        get-advanced-search-config
+        get-auto-complete
+        get-data
+        get-facets
+        get-health
+        get-info
+        get-related-list
+        get-resolve
+        get-search-estimate
+        get-search-info
+        get-search
+        get-search-will-match
+        get-stats
+        get-tenant-status
+        get-translate
+        get-version-info
+        post-data
+        put-data
+
+Found 24 test configurations across 1 files
+
+Test distribution by endpoint type:
+  get-search: 24 tests
+
+=== DRY RUN SUMMARY ===
+Total tests found: 24
+Tests that would be executed: 24
+Tests that would be skipped (disabled): 0
+Estimated execution time: 48s - 240s (rough estimate)
+
+No actual HTTP requests were made.
+To execute these tests, run the same command without --dry-run
+```
+
 ## Workflow Overview
 
 1. **Provide test data**: Implement the TestDataProvider class for each test data source.
 2. **Analyze**: Run `npm run create:spec` to discover all endpoints in your Express app
 3. **Generate**: Create comprehensive test files with `npm run create:tests` (automatically discovers and uses all available data sources to populate ready-to-run test cases)
-4. **Execute**: Run tests with `npm test` or `npm run test:dev` or `npm run test:save` to save the response bodies.
+4. **Execute**: Run tests with `npm test` or `npm run test:dev` or `npm run test:save` to save the response bodies. Use `--providers` and `--endpoints` options to filter which tests to run.
 5. **Report**: Review detailed HTML, CSV, and JSON reports
 6. **Compare**: Use `npm run compare` to analyze differences between test runs.  By default, the last two directories in the reports directory are compared.  To override, specify the reports directory, the baseline report file, and the report file to compare to.  Submit the JSON-formatted report files.
 7. **Customize** (Optional): Additional test cases may be added within an existing TestDataProvider's implementation data file or directly within a new TestDataProvider's implementation that doesn't use an external data source.  Do not add them to the generated spreadsheets.
@@ -153,6 +284,31 @@ node run-tests.js ./configs ./reports
 **With response body saving:**
 ```bash
 node run-tests.js ./configs ./reports --save-responses
+```
+
+**With provider filtering (using class names):**
+```bash
+node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider
+```
+
+**With provider filtering (using provider IDs):**
+```bash
+node run-tests.js --providers csv-provider,sample-provider
+```
+
+**With endpoint filtering (run tests for specific endpoint types):**
+```bash
+node run-tests.js --endpoints search,auto-complete,facets
+```
+
+**With combined filtering:**
+```bash
+node run-tests.js --providers csv-provider --endpoints search ./configs ./reports
+```
+
+**Preview filtered tests (dry-run with filtering):**
+```bash
+node run-tests.js --dry-run --providers csv-provider --endpoints search
 ```
 
 ### 6. Compare Test Results
