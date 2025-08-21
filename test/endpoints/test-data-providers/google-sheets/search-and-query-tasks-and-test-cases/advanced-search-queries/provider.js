@@ -22,6 +22,9 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
     
     // This provider is specific to this TSV file
     this.sourcePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'data.tsv');
+
+    // Updated in parseTsvFile
+    this.headerRowIndex = 0;
   }
 
   /**
@@ -60,11 +63,14 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
         return [];
       }
 
-      // Filter for rows that have a URL in the 10th column (Search column) and are for get-search-tests
+      // Filter for rows that have a URL in the Search column and are for get-search-tests
       const searchTestRows = tsvData
-        .map((record, index) => ({ ...record, originalIndex: index + 2 })) // +2 because header is row 1 and data starts at row 2
+        .map((record, index) => ({ 
+          ...record, 
+          originalIndex: index + 1 + this.headerRowIndex // +1 to make it 1-based
+        }))
         .filter(record => {
-          // Get the 10th column (Search column) - column names may vary
+          // Get the Search column - column names may vary
           const searchUrl = this.getSearchUrlFromRecord(record);
           return searchUrl && searchUrl.trim() && this.isValidSearchUrl(searchUrl);
         });
@@ -82,11 +88,11 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
         const row = columns.map(columnName => {
           // Handle standard test columns
           if (columnName === 'test_name') {
-            return `Search Test ${record.originalIndex}` || `Test ${index + 1}`;
+            return `Source row ${record.originalIndex}` || `Test ${index + 1}`;
           } else if (columnName === 'description') {
             return this.getColumnValue(record, 'Research Topic (Graph Query)') || 
                    this.getColumnValue(record, 'Draft query') || 
-                   `Search test from row ${record.originalIndex}`;
+                   `Search test from source row ${record.originalIndex}`;
           } else if (columnName === 'enabled') {
             return 'true';
           } else if (columnName === 'expected_status') {
@@ -140,25 +146,77 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   parseTsvFile() {
     return new Promise((resolve, reject) => {
       const results = [];
+      let headers = null;
+      let rowIndex = 0;
+      
       const stream = fs.createReadStream(this.sourcePath)
         .pipe(csv({
           // Handle tab-delimited format
           separator: this.options.separator || '\t',
           skipEmptyLines: true,
           skipLinesWithError: this.options.skipErrorLines || false,
-          headers: this.options.headers || true,
+          headers: false, // We'll handle headers manually to detect the correct header row
         }));
 
       stream
         .on('data', (data) => {
-          // Trim whitespace from all values
-          const cleanData = {};
-          Object.keys(data).forEach(key => {
-            cleanData[key.trim()] = typeof data[key] === 'string' ? data[key].trim() : data[key];
-          });
-          results.push(cleanData);
+          rowIndex++;
+          
+          // If we don't have headers yet, try to detect the header row
+          if (!headers) {
+            // Look for a row that contains expected column names
+            const expectedColumns = ['Research Topic (Graph Query)', 'Draft query', 'Search'];
+            const rowValues = Object.values(data).map(val => val ? val.trim() : '');
+            
+            // Check if this row contains any of our expected column names
+            const hasExpectedColumns = expectedColumns.some(col => 
+              rowValues.some(val => val && val.includes(col))
+            );
+            
+            if (hasExpectedColumns) {
+              headers = rowValues.filter(val => val && val.trim()); // Remove empty headers
+              this.headerRowIndex = rowIndex;
+              console.log(`Found headers in row ${rowIndex}:`, headers);
+              return; // Skip this row as it's the header
+            } else {
+              // If no expected columns found and we've checked a few rows, use this as headers anyway
+              if (rowIndex <= 3) {
+                return; // Skip rows that might be metadata or empty
+              } else if (rowIndex === 4) {
+                // Fallback: use this row as headers if we haven't found them by row 4
+                headers = rowValues.filter(val => val && val.trim());
+                this.headerRowIndex = rowIndex; // Store as member variable
+                console.log(`Using fallback headers from row ${rowIndex}:`, headers);
+                return;
+              }
+            }
+          }
+          
+          // If we have headers, process this as a data row
+          if (headers) {
+            const cleanData = {};
+            const rowValues = Object.values(data);
+            
+            headers.forEach((header, index) => {
+              if (header && rowValues[index] !== undefined) {
+                const key = header.trim();
+                const value = typeof rowValues[index] === 'string' ? rowValues[index].trim() : rowValues[index];
+                cleanData[key] = value;
+              }
+            });
+            
+            // Only add rows that have some data
+            const hasData = Object.values(cleanData).some(val => val && val.trim());
+            if (hasData) {
+              results.push(cleanData);
+            }
+          }
         })
         .on('end', () => {
+          if (!headers) {
+            console.warn('Warning: Could not detect header row in TSV file');
+          }
+          console.log(`Parsed ${results.length} data rows from TSV (headers in row ${this.headerRowIndex})`);
           resolve(results);
         })
         .on('error', (error) => {
