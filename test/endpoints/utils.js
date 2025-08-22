@@ -5,6 +5,10 @@
 import fs from 'fs';
 import path from 'path';
 
+export function isDefined(value) {
+  return value !== undefined && value !== null;
+}
+
 /**
  * Generate endpoint key from path and HTTP method
  * Used by both create-tests.js and run-tests.js to ensure consistent naming

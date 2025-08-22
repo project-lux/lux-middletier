@@ -542,17 +542,17 @@ class EndpointTester {
   /**
    * Save response body to disk
    */
-  saveResponseBody(testName, response, timestamp, sourceFile, rowNumber, totalRows) {
+  saveResponseBody(provider, testName, response, timestamp, sourceFile, rowNumber, totalRows) {
     if (!this.saveResponseBodies) return null;
     
     try {
-      // Create endpoint-specific subdirectory based on source file basename
-      const sourceBasename = path.basename(sourceFile, path.extname(sourceFile));
-      const endpointResponsesDir = path.join(this.responsesDir, sourceBasename);
-      
+      // Create endpoint- and provider-specific subdirs
+      const endpointResponseDir = path.basename(sourceFile, path.extname(sourceFile));
+      const providerResponseDir = path.join(this.responsesDir, endpointResponseDir, provider);
+
       // Ensure endpoint-specific directory exists
-      if (!fs.existsSync(endpointResponsesDir)) {
-        fs.mkdirSync(endpointResponsesDir, { recursive: true });
+      if (!fs.existsSync(providerResponseDir)) {
+        fs.mkdirSync(providerResponseDir, { recursive: true });
       }
       
       // Calculate the number of digits needed for zero padding
@@ -566,7 +566,7 @@ class EndpointTester {
         .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join('');
       const filename = `row_${paddedRowNumber}_${safeTestName}.json`;
-      const filePath = path.join(endpointResponsesDir, filename);
+      const filePath = path.join(providerResponseDir, filename);
       
       // Save response data
       const responseData = {
@@ -582,10 +582,10 @@ class EndpointTester {
       };
       
       fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
-      console.log(`  Response body saved to: ${sourceBasename}/${filename}`);
+      console.log(`  Response body saved to: ${providerResponseDir}/${filename}`);
       
       // Return relative path from responses directory for reporting
-      return `${sourceBasename}/${filename}`;
+      return `${providerResponseDir}/${filename}`;
     } catch (error) {
       console.warn(`  Failed to save response body: ${error.message}`);
       return null;
@@ -628,7 +628,9 @@ class EndpointTester {
       const timestamp = new Date().toISOString();
 
       // Save response body if enabled
-      const responseBodyFile = this.saveResponseBody(testConfig.test_name, response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
+      const responseBodyFile = this.saveResponseBody(testConfig.provider_id, testConfig.test_name, 
+        response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows
+      );
 
       // Extract additional endpoint-specific information
       const additionalInfo = this.extractAdditionalInfo(testConfig, response);
@@ -686,7 +688,10 @@ class EndpointTester {
       let responseBodyFile = null;
       let additionalInfo = null;
       if (error.response) {
-        responseBodyFile = this.saveResponseBody(testConfig.test_name, error.response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
+        responseBodyFile = this.saveResponseBody(testConfig.provider_id, testConfig.test_name, 
+          error.response, timestamp, testConfig.source_file, testConfig.row_number, 
+          testConfig.total_rows
+        );
         // Try to extract additional info from error response
         additionalInfo = this.extractAdditionalInfo(testConfig, error.response);
       }
@@ -1101,7 +1106,7 @@ class EndpointTester {
         .pass { color: green; }
         .fail { color: red; }
         .error { color: orange; }
-        .slow { color: blue; }
+        .slow { color: #FBFDAE; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -1246,14 +1251,72 @@ class EndpointTester {
     <div id="jsonPopup" class="json-popup" onclick="closeJsonPopup(event)">
         <div class="json-popup-content" onclick="event.stopPropagation()">
             <div class="json-popup-header">
-                <h3>Query Parameter JSON</h3>
+                <h3>Search Criteria</h3>&nbsp;
                 <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
             </div>
             <div id="jsonContent" class="json-content"></div>
         </div>
     </div>
 
+    <!-- Response Body Popup Modal -->
+    <div id="responsePopup" class="json-popup" onclick="closeResponsePopup(event)">
+        <div class="json-popup-content" onclick="event.stopPropagation()">
+            <div class="json-popup-header">
+                <h3>Response Body</h3>
+                <button class="json-popup-close" onclick="closeResponsePopup()">Close</button>
+            </div>
+            <div id="responseContent" class="json-content"></div>
+        </div>
+    </div>
+
     <script>
+        // Compression/decompression utilities
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function arrayBufferToString(buffer) {
+            const decoder = new TextDecoder('utf-8');
+            return decoder.decode(buffer);
+        }
+
+        async function decompressGzip(compressedData) {
+            const arrayBuffer = base64ToArrayBuffer(compressedData);
+            const decompressedStream = new DecompressionStream('gzip');
+            const writer = decompressedStream.writable.getWriter();
+            const reader = decompressedStream.readable.getReader();
+            
+            // Write the compressed data
+            await writer.write(new Uint8Array(arrayBuffer));
+            await writer.close();
+            
+            // Read the decompressed result
+            const chunks = [];
+            let done = false;
+            while (!done) {
+                const { value, done: streamDone } = await reader.read();
+                done = streamDone;
+                if (value) chunks.push(value);
+            }
+            
+            // Combine chunks and convert to string
+            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            const combined = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const chunk of chunks) {
+                combined.set(chunk, offset);
+                offset += chunk.length;
+            }
+            
+            return arrayBufferToString(combined.buffer);
+        }
+
         function showJsonPopup(jsonString) {
             try {
                 const parsed = JSON.parse(decodeURIComponent(jsonString));
@@ -1272,10 +1335,172 @@ class EndpointTester {
             }
         }
 
+        async function showCompressedResponseContent(base64CompressedContent) {
+            try {
+                document.getElementById('responsePopup').style.display = 'block';
+                document.getElementById('responseContent').innerHTML = '<div style="text-align: center; padding: 20px;">Decompressing content...</div>';
+                
+                // Check if DecompressionStream is supported
+                if (typeof DecompressionStream === 'undefined') {
+                    console.warn('DecompressionStream not supported, trying alternative decompression...');
+                    // Try to decode as regular base64 (maybe it wasn't actually compressed)
+                    const arrayBuffer = base64ToArrayBuffer(base64CompressedContent);
+                    const decoded = arrayBufferToString(arrayBuffer);
+                    throw new Error('DecompressionStream not supported');
+                }
+                
+                const decompressedContent = await decompressGzip(base64CompressedContent);
+                
+                try {
+                    // Try to parse and format as JSON
+                    const parsed = JSON.parse(decompressedContent);
+                    const formatted = JSON.stringify(parsed, null, 2);
+                    document.getElementById('responseContent').innerHTML = '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                } catch (jsonError) {
+                    // If it's not valid JSON, display as plain text
+                    document.getElementById('responseContent').innerHTML = '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + decompressedContent + '</pre>';
+                }
+            } catch (e) {
+                console.warn('Decompression failed, trying alternative approach:', e.message);
+                // Fallback: try to decode as regular base64 content
+                try {
+                    const arrayBuffer = base64ToArrayBuffer(base64CompressedContent);
+                    const decoded = arrayBufferToString(arrayBuffer);
+                    
+                    try {
+                        const parsed = JSON.parse(decoded);
+                        const formatted = JSON.stringify(parsed, null, 2);
+                        document.getElementById('responseContent').innerHTML = '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                    } catch (jsonError) {
+                        document.getElementById('responseContent').innerHTML = '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + decoded + '</pre>';
+                    }
+                } catch (fallbackError) {
+                    document.getElementById('responseContent').innerHTML = '<div style="color: red; padding: 20px;">Error displaying content. This may occur in older browsers.<br><br>Error: ' + e.message + '</div>';
+                }
+            }
+        }
+
+        function showResponseContent(encodedContent, encodedPath, encodedLinkLabel) {
+            try {
+                const content = decodeURIComponent(encodedContent);
+                const filePath = decodeURIComponent(encodedPath);
+                const linkLabel = decodeURIComponent(encodedLinkLabel);
+                
+                // Show popup immediately
+                document.getElementById('responsePopup').style.display = 'block';
+                
+                // Create file URL for the hyperlink
+                const fileUrl = 'file:///' + filePath.replace(/\\\\/g, '/');
+                
+                // Create hyperlink HTML
+                const hyperlinkHtml = '<div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #0066cc; border-radius: 4px;"><a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold;">🔗 ' + linkLabel + '</a></div>';
+                
+                try {
+                    // Try to parse and format as JSON
+                    const parsed = JSON.parse(content);
+                    const formatted = JSON.stringify(parsed, null, 2);
+                    document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                } catch (jsonError) {
+                    // If it's not valid JSON, display as plain text
+                    document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + content + '</pre>';
+                }
+            } catch (e) {
+                document.getElementById('responseContent').textContent = 'Error displaying content: ' + e.message;
+                document.getElementById('responsePopup').style.display = 'block';
+            }
+        }
+
+        function showResponsePopup(filePath, encodedLinkLabel) {
+            try {
+                const decodedPath = decodeURIComponent(filePath);
+                const linkLabel = decodeURIComponent(encodedLinkLabel);
+                
+                // Show loading message first
+                document.getElementById('responseContent').innerHTML = '<div style="text-align: center; padding: 20px;">Loading JSON file...</div>';
+                document.getElementById('responsePopup').style.display = 'block';
+                
+                // Create a file URL and try to fetch the content immediately
+                const fileUrl = 'file:///' + decodedPath.replace(/\\\\/g, '/');
+                
+                // Create hyperlink HTML that will be prepended to content
+                const hyperlinkHtml = '<div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #0066cc; border-radius: 4px;"><a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold;">🔗 ' + linkLabel + '</a></div>';
+                
+                fetch(fileUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Could not load file');
+                        }
+                        return response.text();
+                    })
+                    .then(text => {
+                        try {
+                            // Try to parse and format as JSON
+                            const parsed = JSON.parse(text);
+                            const formatted = JSON.stringify(parsed, null, 2);
+                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                        } catch (jsonError) {
+                            // If it's not valid JSON, display as plain text
+                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + text + '</pre>';
+                        }
+                    })
+                    .catch(error => {
+                        // If fetch fails, try to read the file directly using FileReader approach
+                        // First, let's try a different approach - create a hidden iframe
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = fileUrl;
+                        
+                        iframe.onload = function() {
+                            try {
+                                const content = iframe.contentDocument.body.innerText || iframe.contentDocument.body.textContent;
+                                if (content) {
+                                    try {
+                                        const parsed = JSON.parse(content);
+                                        const formatted = JSON.stringify(parsed, null, 2);
+                                        document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                                    } catch (jsonError) {
+                                        document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + content + '</pre>';
+                                    }
+                                } else {
+                                    throw new Error('No content found');
+                                }
+                            } catch (iframeError) {
+                                // Final fallback - show error and open in new tab link
+                                const message = 'Could not load file directly. File path: ' + decodedPath + '\\n\\nClick the link below to open the file in a new tab:';
+                                const linkHtml = '<a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold; padding: 10px; background-color: #f0f8ff; border: 2px solid #0066cc; border-radius: 5px; display: inline-block; margin-top: 10px;">📄 Display Response</a>';
+                                document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin-bottom: 15px;">' + message + '</pre>' + linkHtml;
+                            }
+                            document.body.removeChild(iframe);
+                        };
+                        
+                        iframe.onerror = function() {
+                            // Final fallback - show error and open in new tab link
+                            const message = 'Could not load file directly. File path: ' + decodedPath + '\\n\\nClick the link below to open the file in a new tab:';
+                            const linkHtml = '<a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold; padding: 10px; background-color: #f0f8ff; border: 2px solid #0066cc; border-radius: 5px; display: inline-block; margin-top: 10px;">📄 Display Response</a>';
+                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin-bottom: 15px;">' + message + '</pre>' + linkHtml;
+                            document.body.removeChild(iframe);
+                        };
+                        
+                        document.body.appendChild(iframe);
+                    });
+                    
+            } catch (e) {
+                document.getElementById('responseContent').textContent = 'Error: ' + decodeURIComponent(filePath);
+                document.getElementById('responsePopup').style.display = 'block';
+            }
+        }
+
+        function closeResponsePopup(event) {
+            if (!event || event.target === document.getElementById('responsePopup')) {
+                document.getElementById('responsePopup').style.display = 'none';
+            }
+        }
+
         // Close popup with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeJsonPopup();
+                closeResponsePopup();
             }
         });
     </script>
@@ -1366,7 +1591,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                     <th>Duration (ms)</th>
                     <th>${columnHeader}</th>
                     <th>URL</th>
-                    <th>Response File</th>
+                    <th>Response Body</th>
                 </tr>
             </thead>
             <tbody>
@@ -1381,7 +1606,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                         <td>${result.duration_ms || 'N/A'}</td>
                         <td>${isDefined(result.additional_info) ? result.additional_info : 'N/A'}</td>
                         <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
-                        <td>${result.response_body_file || 'N/A'}</td>
+                        <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
                     </tr>
                 `
                   )
@@ -1391,6 +1616,48 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
       `;
       })
       .join('');
+  }
+
+  /**
+   * Format response body file path for HTML display with JSON popup
+   */
+  formatResponseBodyFileForHtml(responseBodyFile) {
+    if (!responseBodyFile || responseBodyFile === 'N/A') {
+      return 'N/A';
+    }
+
+    try {
+      // Create absolute file path
+      const absolutePath = path.resolve(responseBodyFile);
+      
+      // Extract last directory name plus filename for the hyperlink label
+      const pathParts = absolutePath.split(path.sep);
+      const lastDirAndFile = pathParts.slice(-2).join(path.sep);
+      const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
+      
+      // Read the file content immediately (server-side)
+      let fileContent = null;
+      try {
+        fileContent = fs.readFileSync(absolutePath, 'utf8');
+      } catch (readError) {
+        console.warn(`Could not read response file ${absolutePath}: ${readError.message}`);
+      }
+      
+      if (fileContent) {
+        // Use uncompressed approach for maximum compatibility
+        // Compression can be added later with a more robust implementation
+        const encodedContent = encodeURIComponent(fileContent);
+        const encodedPath = encodeURIComponent(absolutePath);
+        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+      } else {
+        // Fallback to file path approach if content can't be read
+        const encodedPath = encodeURIComponent(absolutePath);
+        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+      }
+    } catch (error) {
+      // If path processing fails, return the original path as text
+      return responseBodyFile;
+    }
   }
 
   /**
@@ -1447,7 +1714,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
       
       // Add JSON popup trigger if applicable
       if (hasJsonQuery) {
-        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view formatted JSON query">📄 JSON</span>`;
+        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Display Criteria</span>`;
       }
       
       return result;
