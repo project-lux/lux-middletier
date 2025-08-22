@@ -97,7 +97,7 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName === 'delay_after_ms') {
             return 1000;
           } else if (columnName === 'tags') {
-            return `google-sheets,search`;
+            return `advanced-search-queries,search`;
           } else if (columnName.startsWith('param:')) {
             // Extract parameter from URL query string
             const paramName = columnName.replace('param:', '');

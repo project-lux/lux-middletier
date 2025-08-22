@@ -678,45 +678,17 @@ class EndpointTester {
    * Get available test data providers (both IDs and class names)
    */
   async getAvailableProviders() {
-    try {
-      // Import the test data providers index to ensure all providers are registered
-      await import('./test-data-providers/index.js');
-      
-      const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
-      const providers = {
-        classes: [],
-        ids: [],
-        mappings: {} // Maps both class names and IDs to their respective provider classes
-      };
+    // Import the test data providers index to ensure all providers are registered
+    await import('./test-data-providers/index.js');
+    
+    const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
+    const providers = [];
 
-      for (const ProviderClass of registeredProviders) {
-        const className = ProviderClass.name;
-        providers.classes.push(className);
-        
-        // Create a temporary instance to get the provider ID
-        try {
-          const instance = new ProviderClass();
-          const providerId = instance.getProviderId();
-          providers.ids.push(providerId);
-          
-          // Map both class name and ID to the class
-          providers.mappings[className] = ProviderClass;
-          providers.mappings[providerId] = ProviderClass;
-        } catch (error) {
-          console.warn(`Warning: Could not instantiate provider ${className}: ${error.message}`);
-        }
-      }
-
-      return providers;
-    } catch (error) {
-      console.warn(`Warning: Could not load test data providers: ${error.message}`);
-      // Fallback to basic provider list
-      return {
-        classes: ['CsvTestDataProvider', 'SampleTestDataProvider', 'AdvancedSearchQueriesTestDataProvider'],
-        ids: ['csv-provider', 'sample-provider', 'google-sheets-search-queries'],
-        mappings: {}
-      };
+    for (const ProviderClass of registeredProviders) {
+      providers.push(ProviderClass.name);
     }
+
+    return providers.sort();
   }
 
   /**
@@ -728,7 +700,7 @@ class EndpointTester {
       .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
       .filter((file) => !file.startsWith('~'));
 
-    return files.map(file => this.extractEndpointType(file));
+    return files.map(file => this.extractEndpointType(file)).sort();
   }
 
   shouldRunTest(testConfig) {
@@ -759,8 +731,7 @@ class EndpointTester {
 
     console.log('Filtering options:');
     const availableProviders = await this.getAvailableProviders();
-    this.logValues('  Available provider class names', availableProviders.classes);
-    this.logValues('  Available provider IDs', availableProviders.ids);
+    this.logValues('  Available providers', availableProviders);
     const availableEndpoints = this.getAvailableEndpoints();
     this.logValues('  Available endpoints', availableEndpoints);
     console.log('');
@@ -947,7 +918,7 @@ class EndpointTester {
     if (!this.providerFilter || this.providerFilter.length === 0) {
       return ['All'];
     }
-    return this.providerFilter;
+    return this.providerFilter.sort();
   }
 
   /**
@@ -957,7 +928,7 @@ class EndpointTester {
     if (!this.endpointFilter || this.endpointFilter.length === 0) {
       return ['All'];
     }
-    return this.endpointFilter;
+    return this.endpointFilter.sort();
   }
 
   /**
@@ -1376,7 +1347,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log('  --save-responses, -r          Save response bodies to disk');
       console.log('  --dry-run, -d                 Helpful to see resolved configuration and available filtering options');
       console.log('  --providers, -p <providers>   Comma-separated list of test data providers to use');
-      console.log('                                (accepts either class names or provider IDs)');
       console.log('                                Examples: CsvTestDataProvider, SampleTestDataProvider');
       console.log('  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test');
       console.log('                                Available: search, auto-complete, facets, translate, etc.');
@@ -1388,7 +1358,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log('  node run-tests.js --save-responses');
       console.log('  node run-tests.js --dry-run');
       console.log('  node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider');
-      console.log('  node run-tests.js --providers csv-provider,sample-provider');
       console.log('  node run-tests.js --endpoints search,auto-complete');
       console.log('  node run-tests.js --dry-run --providers csv-provider --endpoints search');
       process.exit(0);

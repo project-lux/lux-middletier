@@ -40,7 +40,7 @@ node run-tests.js [configDir] [reportsDir] [options]
 ### Options
 - `--save-responses, -r`: Save response bodies to disk
 - `--dry-run, -d`: Helpful to see resolved configuration **and available filtering options**
-- `--providers, -p <providers>`: Comma-separated list of test data providers to use (accepts either class names or provider IDs)
+- `--providers, -p <providers>`: Comma-separated list of test data providers to use
 - `--endpoints, -e <endpoints>`: Comma-separated list of endpoint types to test
 - `--help, -h`: Show help message
 
@@ -106,7 +106,7 @@ Reports directory: ./reports
 DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
 
 Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-08-21_15-38-44
+Test execution directory: reports\test-run-2025-08-22_17-38-11
 
 Resolved:
   Requested providers:
@@ -115,14 +115,11 @@ Resolved:
         get-search
 
 Filtering options:
-  Available provider class names:
+  Available providers:
+        AdvancedSearchQueriesTestDataProvider
         CsvTestDataProvider
         SampleTestDataProvider
-        AdvancedSearchQueriesTestDataProvider
-  Available provider IDs:
-        csv-provider:endpoint-tests.csv
-        sample-provider
-        google-sheets-search-queries:data.tsv
+        UpdatedAdvancedSearchQueriesTestDataProvider
   Available endpoints:
         delete-data
         get-advanced-search-config
@@ -133,9 +130,9 @@ Filtering options:
         get-info
         get-related-list
         get-resolve
+        get-search
         get-search-estimate
         get-search-info
-        get-search
         get-search-will-match
         get-stats
         get-tenant-status
@@ -144,16 +141,16 @@ Filtering options:
         post-data
         put-data
 
-Found 24 test configurations across 1 files
+Found 72 test configurations across 1 files
 
 Test distribution by endpoint type:
-  get-search: 24 tests
+  get-search: 72 tests
 
 === DRY RUN SUMMARY ===
-Total tests found: 24
-Tests that would be executed: 24
-Tests that would be skipped (disabled): 0
-Estimated execution time: 48s - 240s (rough estimate)
+Total tests found: 72
+Tests that would be executed: 22
+Tests that would be skipped (filtered out or disabled): 50
+Estimated execution time: 44s - 220s (rough estimate)
 
 No actual HTTP requests were made.
 To execute these tests, run the same command without --dry-run
@@ -286,11 +283,6 @@ node run-tests.js ./configs ./reports --save-responses
 **With provider filtering (using class names):**
 ```bash
 node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider
-```
-
-**With provider filtering (using provider IDs):**
-```bash
-node run-tests.js --providers csv-provider,sample-provider
 ```
 
 **With endpoint filtering (run tests for specific endpoint types):**
