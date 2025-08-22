@@ -1332,7 +1332,7 @@ class EndpointTester {
     });
 
     const getTestNameTooltip = (result) => `
-Provider ID: ${result.provider_id || 'Not specified'}
+Provider: ${result.provider_id || 'Not specified'}
 &#10;
 Description: ${this.wrapText(result.description || 'Not specified')}
 &#10;
@@ -1359,7 +1359,6 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
         <table>
             <thead>
                 <tr>
-                    <th>Provider</th>
                     <th>Test Name</th>
                     <th>Status</th>
                     <th>Expected</th>
@@ -1375,7 +1374,6 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                   .map(
                     (result) => `
                     <tr class="status-${result.status}">
-                        <td>${result.provider_id.replace(/TestDataProvider$/, "-<br/>TestDataProvider")}</td>
                         <td><span title="${getTestNameTooltip(result)}">${result.test_name} <span class="info-icon">ℹ️</span></span></td>
                         <td>${result.status}</td>
                         <td>${result.expected_status}</td>
