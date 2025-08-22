@@ -10,104 +10,50 @@ import { ENDPOINT_KEYS } from './constants.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-class EndpointTester {
-  constructor(configDir, reportsDir = './reports', options = {}) {
+// Configuration constants
+const DEFAULT_CONFIG = {
+  baseUrl: 'https://lux-middle-dev.collections.yale.edu',
+  timeout: 10000,
+  maxResponseTime: 5000,
+  expectedStatus: 200,
+  method: 'GET',
+  delayAfterMs: 0,
+};
+
+const PARAMETER_CONFIG = {
+  pathParams: ['scope'],
+  bodyParams: {
+    json: ['q', 'scope', 'page', 'pageLength', 'sort', 'facets'],
+    formData: ['doc', 'unitName', 'lang', 'uri'],
+  },
+};
+
+/**
+ * Handles configuration file loading and parsing
+ */
+class ConfigurationLoader {
+  constructor(configDir, endpointsSpec = null) {
     this.configDir = configDir;
-    this.reportsDir = reportsDir;
-    this.results = [];
-    this.baseUrl = process.env.BASE_URL || 'https://lux-middle-dev.collections.yale.edu';
-    
-    // Create a timestamped subdirectory for this test run
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
-    this.executionDir = path.join(this.reportsDir, `test-run-${timestamp}`);
-    
-    // Response body saving configuration
-    this.saveResponseBodies = options.saveResponseBodies || false;
-    this.responsesDir = path.join(this.executionDir, 'responses');
-
-    // Filtering configuration
-    this.providerFilter = options.providers || null; // null means all providers
-    this.endpointFilter = options.endpoints || null; // null means all endpoints
-    this.dryRun = options.dryRun || false; // dry-run mode
-
-    // Authentication configuration
-    this.authType = process.env.AUTH_TYPE || 'none'; // 'digest', 'oauth', or 'none'
-    this.authUsername = process.env.AUTH_USERNAME || null;
-    this.authPassword = process.env.AUTH_PASSWORD || null;
-
-    // Validate authentication configuration
-    if (this.authType === 'digest') {
-      if (!this.authUsername || !this.authPassword) {
-        throw new Error(
-          'Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables to be set'
-        );
-      }
-    }
-
-    // Load endpoints specification once during construction
-    this.endpointsSpec = this.loadEndpointsSpec();
-
-    if (!this.dryRun) {
-      // Ensure base reports directory exists
-      if (!fs.existsSync(reportsDir)) {
-        fs.mkdirSync(reportsDir, { recursive: true });
-      }
-      
-      // Ensure execution directory exists
-      if (!fs.existsSync(this.executionDir)) {
-        fs.mkdirSync(this.executionDir, { recursive: true });
-      }
-      
-      // Ensure responses directory exists if saving response bodies
-      if (this.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
-        fs.mkdirSync(this.responsesDir, { recursive: true });
-      }
-    }
-  }
-
-  logValues(label, values, defaultValue = 'None') {
-    const formattedValues = values && values.length > 0 ? values.join('\n\t') : defaultValue;
-    console.log(`${label}:\n\t${formattedValues}`);
+    this.endpointsSpec = endpointsSpec;
   }
 
   /**
-   * Load endpoints specification from endpoints-spec.json once during initialization
+   * Load and parse all configuration files with filtering
    */
-  loadEndpointsSpec() {
-    try {
-      const endpointsSpecPath = path.join(__dirname, 'endpoints-spec.json');
-      if (fs.existsSync(endpointsSpecPath)) {
-        const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, 'utf8'));
-        console.log(`Loaded ${spec.endpoints?.length || 0} endpoint specifications`);
-        return spec;
-      }
-    } catch (error) {
-      console.warn(`Warning: Could not load endpoints-spec.json: ${error.message}`);
-    }
-    return null;
-  }
-
-  /**
-   * Discover and load all endpoint configuration files, filtering when applicable.
-   */
-  loadFilteredEndpointConfigs() {
+  loadConfigs(endpointFilter = null) {
     const configs = [];
-    const files = fs
-      .readdirSync(this.configDir)
-      .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
-      .filter((file) => !file.startsWith('~')); // Skip temp files
+    const files = this.getValidConfigFiles();
 
     for (const file of files) {
       const filePath = path.join(this.configDir, file);
       const endpointType = this.extractEndpointType(file);
 
-      // Apply endpoint filtering if specified
-      if (this.endpointFilter && !this.endpointFilter.includes(endpointType)) {
+      if (endpointFilter && !endpointFilter.includes(endpointType)) {
         continue;
       }
 
       try {
-        const testConfigs = this.loadTestConfig(filePath, endpointType);
+        const testConfigs = this.loadSingleConfig(filePath, endpointType);
         configs.push(...testConfigs);
       } catch (error) {
         console.error(`Error loading ${file}: ${error.message}`);
@@ -118,10 +64,19 @@ class EndpointTester {
   }
 
   /**
+   * Get valid configuration files (xlsx/csv, not temp files)
+   */
+  getValidConfigFiles() {
+    return fs
+      .readdirSync(this.configDir)
+      .filter(file => file.endsWith('.xlsx') || file.endsWith('.csv'))
+      .filter(file => !file.startsWith('~'));
+  }
+
+  /**
    * Extract endpoint type from filename
    */
   extractEndpointType(filename) {
-    // Extract endpoint type from filename like "search-tests.xlsx" -> "search"
     const baseName = path.basename(filename, path.extname(filename));
     return baseName.replace(/-tests?$/, '').replace(/_tests?$/, '');
   }
@@ -129,120 +84,120 @@ class EndpointTester {
   /**
    * Load test configuration from Excel/CSV file
    */
-  loadTestConfig(filePath, endpointType) {
+  loadSingleConfig(filePath, endpointType) {
     let data;
 
     if (filePath.endsWith('.xlsx')) {
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      data = XLSX.utils.sheet_to_json(worksheet);
+      data = this.parseExcelFile(filePath);
     } else {
-      // CSV handling
-      const csvContent = fs.readFileSync(filePath, 'utf8');
-      data = this.parseCSV(csvContent);
+      data = this.parseCSVFile(filePath);
     }
 
-    // Transform data into standardized test configurations
     return data.map((row, index) =>
-      this.transformRowToTestConfig(row, endpointType, filePath, index, data.length)
+      this.transformRowToConfig(row, endpointType, filePath, index, data.length)
     );
   }
 
   /**
-   * Transform a spreadsheet row into a standardized test configuration
+   * Parse Excel file to JSON
    */
-  transformRowToTestConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
-    // Extract base configuration
+  parseExcelFile(filePath) {
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(worksheet);
+  }
+
+  /**
+   * Parse CSV file to JSON
+   */
+  parseCSVFile(filePath) {
+    const csvContent = fs.readFileSync(filePath, 'utf8');
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim()) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || '';
+        });
+        data.push(row);
+      }
+    }
+
+    return data;
+  }
+
+  /**
+   * Transform spreadsheet row to standardized test configuration
+   */
+  transformRowToConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     const testConfig = {
       provider_id: row.provider_id || '',
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
       source_file: path.basename(sourceFile),
-      row_number: rowIndex + 2, // +2 because array is 0-based and we skip header row
-      total_rows: totalRows + 1, // +1 to account for header row
-      method: row.method || this.getDefaultMethod(endpointType),
-      base_endpoint: row.base_endpoint || this.getDefaultEndpoint(endpointType),
+      row_number: rowIndex + 2,
+      total_rows: totalRows + 1,
+      method: row.method || this.getEndpointMethod(endpointType) || DEFAULT_CONFIG.method,
+      base_endpoint: row.base_endpoint || this.getEndpointPath(endpointType) || '/',
       endpoint_tests: row.endpoint_tests || this.getEndpointTests(endpointType),
-      expected_status: parseInt(row.expected_status) || 200,
-      timeout_ms: parseInt(row.timeout_ms) || 10000,
-      max_response_time: parseInt(row.max_response_time) || 5000,
-      delay_after_ms: parseInt(row.delay_after_ms) || 0,
+      expected_status: parseInt(row.expected_status) || DEFAULT_CONFIG.expectedStatus,
+      timeout_ms: parseInt(row.timeout_ms) || DEFAULT_CONFIG.timeout,
+      max_response_time: parseInt(row.max_response_time) || DEFAULT_CONFIG.maxResponseTime,
+      delay_after_ms: parseInt(row.delay_after_ms) || DEFAULT_CONFIG.delayAfterMs,
       enabled: row.enabled === 'true' || row.enabled === true,
       description: row.description || '',
-      tags: row.tags ? row.tags.split(',').map((t) => t.trim()) : [],
-      parameters: {},
+      tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
+      parameters: this.extractParameters(row),
     };
-
-    // Extract all param: columns
-    Object.keys(row).forEach((key) => {
-      if (key.startsWith('param:')) {
-        const paramName = key.substring(6); // Remove 'param:' prefix
-        const paramValue = row[key];
-        if (
-          paramValue !== undefined &&
-          paramValue !== null &&
-          paramValue !== ''
-        ) {
-          testConfig.parameters[paramName] = paramValue;
-        }
-      }
-    });
 
     return testConfig;
   }
 
   /**
-   * Get default HTTP method for endpoint type
+   * Extract parameters from row (columns starting with 'param:')
    */
-  getDefaultMethod(endpointType) {
-    const methodMap = {
-      search: 'GET',
-      facets: 'GET',
-      'related-list': 'GET',
-      'search-estimate': 'GET',
-      'search-will-match': 'GET',
-      'advanced-search-config': 'GET',
-      'search-info': 'GET',
-      translate: 'POST',
-      'document-create': 'POST',
-      'document-read': 'GET',
-      'document-update': 'PUT',
-      'document-delete': 'DELETE',
-    };
-
-    return methodMap[endpointType] || 'GET';
+  extractParameters(row) {
+    const parameters = {};
+    Object.keys(row).forEach(key => {
+      if (key.startsWith('param:')) {
+        const paramName = key.substring(6);
+        const paramValue = row[key];
+        if (paramValue !== undefined && paramValue !== null && paramValue !== '') {
+          parameters[paramName] = paramValue;
+        }
+      }
+    });
+    return parameters;
   }
 
   /**
-   * Get default endpoint path for endpoint type
+   * Get endpoint method from spec
    */
-  getDefaultEndpoint(endpointType) {
-    const endpointMap = {
-      search: '/ds/lux/search.mjs',
-      facets: '/ds/lux/facets.mjs',
-      'related-list': '/ds/lux/related-list',
-      'search-estimate': '/ds/lux/searchEstimate.mjs',
-      'search-will-match': '/ds/lux/searchWillMatch.mjs',
-      'advanced-search-config': '/ds/lux/advancedSearchConfig.mjs',
-      'search-info': '/ds/lux/searchInfo.mjs',
-      translate: '/ds/lux/translate.mjs',
-      'document-create': '/ds/lux/document/create.mjs',
-      'document-read': '/ds/lux/document/read.mjs',
-      'document-update': '/ds/lux/document/update.mjs',
-      'document-delete': '/ds/lux/document/delete.mjs',
-    };
+  getEndpointMethod(endpointType) {
+    if (this.endpointsSpec?.endpoints) {
+      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+        const specKey = getEndpointKeyFromPath(ep.path, ep.method);
+        return specKey === endpointType;
+      });
+      
+      if (endpoint) {
+        return endpoint.method;
+      }
+    }
 
-    return endpointMap[endpointType] || '/';
+    return null; // Let caller handle fallback to DEFAULT_CONFIG.method
   }
 
   /**
-   * Get endpoint tests with path parameters for endpoint type
+   * Get endpoint path from spec
    */
-  getEndpointTests(endpointType) {
-    // Use cached endpoints specification
-    if (this.endpointsSpec && this.endpointsSpec.endpoints) {
-      // Find matching endpoint by comparing endpoint type with generated key
+  getEndpointPath(endpointType) {
+    if (this.endpointsSpec?.endpoints) {
       const endpoint = this.endpointsSpec.endpoints.find(ep => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
         return specKey === endpointType;
@@ -253,17 +208,64 @@ class EndpointTester {
       }
     }
 
-    // Fallback to default endpoint if spec is not available or endpoint not found
-    return this.getDefaultEndpoint(endpointType);
+    return null; // Let caller handle fallback to '/'
+  }
+
+  /**
+   * Get endpoint tests path with parameters
+   */
+  getEndpointTests(endpointType) {
+    if (this.endpointsSpec?.endpoints) {
+      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+        const specKey = getEndpointKeyFromPath(ep.path, ep.method);
+        return specKey === endpointType;
+      });
+      
+      if (endpoint) {
+        return endpoint.path;
+      }
+    }
+
+    return '/'; // Simple fallback - let the URL building handle the rest
+  }
+}
+
+/**
+ * Handles HTTP request building and execution
+ */
+class RequestHandler {
+  constructor(baseUrl, authConfig = {}) {
+    this.baseUrl = baseUrl;
+    this.authConfig = authConfig;
+  }
+
+  /**
+   * Build and execute HTTP request for test configuration
+   */
+  async executeRequest(testConfig) {
+    const url = this.buildUrl(testConfig);
+    const body = this.buildBody(testConfig);
+    const headers = this.buildHeaders(testConfig);
+    const auth = this.buildAuth();
+
+    const requestConfig = {
+      method: testConfig.method,
+      url,
+      headers,
+      timeout: testConfig.timeout_ms,
+      validateStatus: () => true, // Accept all status codes
+      ...(body && { data: body }),
+      ...(auth && { auth }),
+    };
+
+    return axios(requestConfig);
   }
 
   /**
    * Build complete URL from test configuration
    */
-  buildRequestUrl(testConfig) {
+  buildUrl(testConfig) {
     let url = this.baseUrl;
-    
-    // Use endpoint tests if available, otherwise fall back to base endpoint
     let pathTemplate = testConfig.endpoint_tests || testConfig.base_endpoint;
     
     // Substitute path parameters
@@ -281,19 +283,8 @@ class EndpointTester {
     
     url += finalPath;
 
-    // Build query parameters (exclude path parameters)
-    const queryParams = [];
-    Object.entries(testConfig.parameters).forEach(([key, value]) => {
-      // Skip parameters that are used in path or body
-      if (
-        this.isQueryParameter(key, testConfig.endpoint_type, testConfig.method, pathParams)
-      ) {
-        queryParams.push(
-          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
-        );
-      }
-    });
-
+    // Add query parameters
+    const queryParams = this.buildQueryParams(testConfig, pathParams);
     if (queryParams.length > 0) {
       url += '?' + queryParams.join('&');
     }
@@ -310,24 +301,32 @@ class EndpointTester {
   }
 
   /**
-   * Determine if a parameter should be included in query string
+   * Build query parameters array
    */
-  isQueryParameter(paramName, endpointType, method, pathParams = []) {
-    // Parameters that go in the path, not query
-    const staticPathParams = ['scope']; // Legacy hardcoded path params
-    const allPathParams = [...staticPathParams, ...pathParams];
+  buildQueryParams(testConfig, pathParams = []) {
+    const queryParams = [];
+    const allPathParams = [...PARAMETER_CONFIG.pathParams, ...pathParams];
 
-    // Parameters that go in the body for POST/PUT requests
-    const bodyParams = ['doc', 'unitName', 'lang', 'uri'];
+    Object.entries(testConfig.parameters).forEach(([key, value]) => {
+      if (this.isQueryParameter(key, testConfig, allPathParams)) {
+        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      }
+    });
 
-    if (allPathParams.includes(paramName)) {
+    return queryParams;
+  }
+
+  /**
+   * Determine if parameter should be in query string
+   */
+  isQueryParameter(paramName, testConfig, pathParams = []) {
+    if (pathParams.includes(paramName)) {
       return false;
     }
 
-    if (
-      (method === 'POST' || method === 'PUT') &&
-      bodyParams.includes(paramName)
-    ) {
+    const { method, endpoint_type } = testConfig;
+    if ((method === 'POST' || method === 'PUT') && 
+        PARAMETER_CONFIG.bodyParams.formData.includes(paramName)) {
       return false;
     }
 
@@ -335,23 +334,20 @@ class EndpointTester {
   }
 
   /**
-   * Build request body from test configuration
+   * Build request body
    */
-  buildRequestBody(testConfig) {
+  buildBody(testConfig) {
     if (testConfig.method === 'GET' || testConfig.method === 'DELETE') {
       return null;
     }
 
-    // Handle different endpoint types
     switch (testConfig.endpoint_type) {
       case 'translate':
       case 'search':
         return this.buildJSONBody(testConfig);
-
       case 'document-create':
       case 'document-update':
         return this.buildFormDataBody(testConfig);
-
       default:
         return this.buildJSONBody(testConfig);
     }
@@ -363,9 +359,8 @@ class EndpointTester {
   buildJSONBody(testConfig) {
     const body = {};
 
-    // Add relevant parameters to JSON body
     Object.entries(testConfig.parameters).forEach(([key, value]) => {
-      if (this.isBodyParameter(key, testConfig.endpoint_type, 'json')) {
+      if (PARAMETER_CONFIG.bodyParams.json.includes(key)) {
         body[key] = this.parseParameterValue(value);
       }
     });
@@ -380,7 +375,7 @@ class EndpointTester {
     const formData = new URLSearchParams();
 
     Object.entries(testConfig.parameters).forEach(([key, value]) => {
-      if (this.isBodyParameter(key, testConfig.endpoint_type, 'formdata')) {
+      if (PARAMETER_CONFIG.bodyParams.formData.includes(key)) {
         formData.append(key, value);
       }
     });
@@ -389,42 +384,16 @@ class EndpointTester {
   }
 
   /**
-   * Determine if parameter should be in request body
-   */
-  isBodyParameter(paramName, endpointType, bodyType) {
-    const jsonBodyParams = [
-      'q',
-      'scope',
-      'page',
-      'pageLength',
-      'sort',
-      'facets',
-    ];
-    const formDataBodyParams = ['doc', 'unitName', 'lang', 'uri'];
-
-    if (bodyType === 'json') {
-      return jsonBodyParams.includes(paramName);
-    } else if (bodyType === 'formdata') {
-      return formDataBodyParams.includes(paramName);
-    }
-
-    return false;
-  }
-
-  /**
-   * Parse parameter value (handle JSON strings, arrays, etc.)
+   * Parse parameter value (handle JSON, arrays, etc.)
    */
   parseParameterValue(value) {
     if (typeof value === 'string') {
-      // Try to parse as JSON if it looks like JSON
-      if (
-        (value.startsWith('{') && value.endsWith('}')) ||
-        (value.startsWith('[') && value.endsWith(']'))
-      ) {
+      // Try to parse as JSON
+      if ((value.startsWith('{') && value.endsWith('}')) ||
+          (value.startsWith('[') && value.endsWith(']'))) {
         try {
           return JSON.parse(value);
-        } catch (e) {
-          // If parsing fails, return as string
+        } catch {
           return value;
         }
       }
@@ -439,299 +408,13 @@ class EndpointTester {
   }
 
   /**
-   * Extract additional endpoint-specific information from the response
-   * Returns an object with { value, header } or null if no additional info available
-   */
-  extractAdditionalInfo(testConfig, response) {
-    if (!response || !response.data) {
-      return null;
-    }
-
-    const endpointType = testConfig.endpoint_type;
-    const data = response.data;
-
-    switch (endpointType) {
-      case ENDPOINT_KEYS.GET_SEARCH:
-        let value = 'N/A';
-        if (data.orderedItems && Array.isArray(data.orderedItems)) {
-          value = data.orderedItems.length;
-        } else if (data.totalItems !== undefined) {
-          value = data.totalItems;
-        } else if (data.results && Array.isArray(data.results)) {
-          value = data.results.length;
-        }
-        return { value, header: 'Results Count' };
-
-      // case ENDPOINT_KEYS.GET_FACETS:
-      //   // Extract facet information
-      //   if (data.facets && typeof data.facets === 'object') {
-      //     const facetCount = Object.keys(data.facets).length;
-      //     return { value: facetCount, header: 'Facet Count' };
-      //   }
-      //   break;
-
-      // case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
-      //   // Extract estimated count
-      //   if (data.totalItems !== undefined) {
-      //     return { value: data.totalItems, header: 'Estimated Count' };
-      //   } else if (data.estimate !== undefined) {
-      //     return { value: data.estimate, header: 'Estimated Count' };
-      //   }
-      //   break;
-
-      // case 'related-list':
-      //   // Extract related items count
-      //   if (data.orderedItems && Array.isArray(data.orderedItems)) {
-      //     return { value: `${data.orderedItems.length} related`, header: 'Related Items' };
-      //   } else if (data.items && Array.isArray(data.items)) {
-      //     return { value: `${data.items.length} related`, header: 'Related Items' };
-      //   }
-      //   break;
-
-      // case 'advanced-search-config':
-      //   // Extract config sections count
-      //   if (data.config && typeof data.config === 'object') {
-      //     const configKeys = Object.keys(data.config).length;
-      //     return { value: `${configKeys} config sections`, header: 'Config Sections' };
-      //   }
-      //   break;
-
-      // case 'translate':
-      //   // Extract translation information
-      //   if (data.translations && Array.isArray(data.translations)) {
-      //     return { value: `${data.translations.length} translations`, header: 'Translation Count' };
-      //   } else if (data.result) {
-      //     return { value: 'translation completed', header: 'Translation Status' };
-      //   }
-      //   break;
-
-      // case 'document-create':
-      // case 'document-update':
-      //   // Extract document operation result
-      //   if (data.success !== undefined) {
-      //     return { value: data.success ? 'success' : 'failed', header: 'Operation Status' };
-      //   } else if (data.id) {
-      //     return { value: `doc id: ${data.id}`, header: 'Document ID' };
-      //   }
-      //   break;
-
-      // case 'document-read':
-      //   // Extract document information
-      //   if (data.type) {
-      //     return { value: `type: ${data.type}`, header: 'Document Type' };
-      //   } else if (data.id) {
-      //     return { value: `doc id: ${data.id}`, header: 'Document ID' };
-      //   }
-      //   break;
-
-      // default:
-      //   // For unknown endpoint types, try to extract generic information
-      //   if (data.totalItems !== undefined) {
-      //     return { value: `${data.totalItems} items`, header: 'Item Count' };
-      //   } else if (data.count !== undefined) {
-      //     return { value: `count: ${data.count}`, header: 'Count' };
-      //   } else if (Array.isArray(data)) {
-      //     return { value: `${data.length} items`, header: 'Array Length' };
-      //   }
-      //   break;
-    }
-
-    return null;
-  }
-
-  /**
-   * Save response body to disk
-   */
-  saveResponseBody(provider, testName, response, timestamp, sourceFile, rowNumber, totalRows) {
-    if (!this.saveResponseBodies) return null;
-    
-    try {
-      // Create endpoint- and provider-specific subdirs
-      const endpointResponseDir = path.basename(sourceFile, path.extname(sourceFile));
-      const providerResponseDir = path.join(this.responsesDir, endpointResponseDir, provider);
-
-      // Ensure endpoint-specific directory exists
-      if (!fs.existsSync(providerResponseDir)) {
-        fs.mkdirSync(providerResponseDir, { recursive: true });
-      }
-      
-      // Calculate the number of digits needed for zero padding
-      const maxDigits = Math.max(totalRows.toString().length, 2); // At least 2 digits
-      const paddedRowNumber = rowNumber.toString().padStart(maxDigits, '0');
-      
-      // Create a safe filename from test name and timestamp
-      const safeTestName = testName
-        .replace(/[^a-zA-Z0-9 ]/g, ' ')
-        .split(' ') // start of camelCase conversion
-        .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join('');
-      const filename = `row_${paddedRowNumber}_${safeTestName}.json`;
-      const filePath = path.join(providerResponseDir, filename);
-      
-      // Save response data
-      const responseData = {
-        status: response.status,
-        statusText: response.statusText,
-        headers: response.headers,
-        data: response.data,
-        config: {
-          url: response.config?.url,
-          method: response.config?.method,
-          headers: response.config?.headers,
-        }
-      };
-      
-      fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
-      console.log(`  Response body saved to: ${providerResponseDir}/${filename}`);
-      
-      // Return relative path from responses directory for reporting
-      return `${providerResponseDir}/${filename}`;
-    } catch (error) {
-      console.warn(`  Failed to save response body: ${error.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Run a single test configuration
-   */
-  async runSingleTest(testConfig) {
-    const startTime = Date.now();
-
-    try {
-      // Build the HTTP request
-      const url = this.buildRequestUrl(testConfig);
-      const body = this.buildRequestBody(testConfig);
-      const headers = this.buildRequestHeaders(testConfig);
-      const auth = this.buildAuthConfig(testConfig);
-
-      const requestConfig = {
-        method: testConfig.method,
-        url: url,
-        headers: headers,
-        timeout: testConfig.timeout_ms,
-        // Don't throw errors for any HTTP status codes - we'll handle them manually
-        validateStatus: function () {
-          return true; // Accept all status codes
-        },
-        ...(body && { data: body }),
-        ...(auth && { auth }),
-      };
-
-      console.log(`Running test: ${testConfig.test_name}`);
-      console.log(`  URL: ${url}`);
-      console.log(`  Method: ${testConfig.method}`);
-
-      // Make the HTTP request
-      const response = await axios(requestConfig);
-      const duration = Date.now() - startTime;
-      const timestamp = new Date().toISOString();
-
-      // Save response body if enabled
-      const responseBodyFile = this.saveResponseBody(testConfig.provider_id, testConfig.test_name, 
-        response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows
-      );
-
-      // Extract additional endpoint-specific information
-      const additionalInfo = this.extractAdditionalInfo(testConfig, response);
-
-      // Determine if test passed based on expected vs actual status
-      const actualStatus = response.status;
-      const expectedStatus = testConfig.expected_status;
-      const statusMatches = actualStatus === expectedStatus;
-
-      const result = {
-        provider_id: testConfig.provider_id,
-        test_name: testConfig.test_name,
-        endpoint_type: testConfig.endpoint_type,
-        source_file: testConfig.source_file,
-        status: statusMatches ? 'PASS' : 'FAIL',
-        expected_status: expectedStatus,
-        actual_status: actualStatus,
-        duration_ms: duration,
-        response_time_ms: duration,
-        response_size_bytes: JSON.stringify(response.data).length,
-        url: url,
-        method: testConfig.method,
-        parameters: testConfig.parameters,
-        timestamp: timestamp,
-        description: testConfig.description,
-        tags: testConfig.tags,
-        ...(additionalInfo && { 
-          additional_info: additionalInfo.value,
-          additional_info_header: additionalInfo.header 
-        }),
-        ...(responseBodyFile && { response_body_file: responseBodyFile }),
-      };
-
-      // Add failure reason if status doesn't match
-      if (!statusMatches) {
-        result.error_message = `Expected status ${expectedStatus} but got ${actualStatus}`;
-      }
-
-      // Check if response time is acceptable (only for passing tests)
-      if (
-        statusMatches &&
-        testConfig.max_response_time &&
-        duration > testConfig.max_response_time
-      ) {
-        result.status = 'SLOW';
-        result.warning = `Response time ${duration}ms exceeded threshold ${testConfig.max_response_time}ms`;
-      }
-
-      return result;
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      const timestamp = new Date().toISOString();
-      
-      // Save error response body if available
-      let responseBodyFile = null;
-      let additionalInfo = null;
-      if (error.response) {
-        responseBodyFile = this.saveResponseBody(testConfig.provider_id, testConfig.test_name, 
-          error.response, timestamp, testConfig.source_file, testConfig.row_number, 
-          testConfig.total_rows
-        );
-        // Try to extract additional info from error response
-        additionalInfo = this.extractAdditionalInfo(testConfig, error.response);
-      }
-      
-      const result = {
-        test_name: testConfig.test_name,
-        provider_id: testConfig.provider_id,
-        endpoint_type: testConfig.endpoint_type,
-        source_file: testConfig.source_file,
-        status: 'FAIL',
-        expected_status: testConfig.expected_status,
-        actual_status: error.response?.status || 'ERROR',
-        duration_ms: duration,
-        error_message: error.message,
-        url: this.buildRequestUrl(testConfig),
-        method: testConfig.method,
-        parameters: testConfig.parameters,
-        timestamp: timestamp,
-        description: testConfig.description,
-        tags: testConfig.tags,
-        ...(additionalInfo && { 
-          additional_info: additionalInfo.value,
-          additional_info_header: additionalInfo.header 
-        }),
-        ...(responseBodyFile && { response_body_file: responseBodyFile }),
-      };
-
-      return result;
-    }
-  }
-
-  /**
    * Build request headers
    */
-  buildRequestHeaders(testConfig) {
+  buildHeaders(testConfig) {
     const headers = {
       'User-Agent': 'LUX-Endpoint-Tester/1.0',
     };
 
-    // Add content-type based on request body type
     if (testConfig.method === 'POST' || testConfig.method === 'PUT') {
       switch (testConfig.endpoint_type) {
         case 'document-create':
@@ -747,103 +430,256 @@ class EndpointTester {
   }
 
   /**
-   * Build authentication configuration for axios
+   * Build authentication configuration
    */
-  buildAuthConfig(testConfig) {
-    const authType = this.authType;
+  buildAuth() {
+    if (this.authConfig.type === 'digest' && 
+        this.authConfig.username && 
+        this.authConfig.password) {
+      return {
+        username: this.authConfig.username,
+        password: this.authConfig.password,
+      };
+    }
+    return null;
+  }
+}
 
-    if (authType === 'digest') {
-      const username = this.authUsername;
-      const password = this.authPassword;
-
-      if (username && password) {
-        return {
-          username: username,
-          password: password,
-        };
-      }
-    } else if (authType === 'oauth') {
-      // TODO: Implement OAuth support
-      console.warn('OAuth authentication not yet implemented');
+/**
+ * Handles response analysis and additional info extraction
+ */
+class ResponseAnalyzer {
+  /**
+   * Extract additional endpoint-specific information from response
+   */
+  extractAdditionalInfo(testConfig, response) {
+    if (!response?.data) {
       return null;
     }
 
-    // For no auth, return null
-    return null;
-  }
-  /**
-   * Parse CSV content (simple implementation)
-   */
-  parseCSV(csvContent) {
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
-    const data = [];
+    const { endpoint_type } = testConfig;
+    const { data } = response;
 
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim()) {
-        const values = lines[i]
-          .split(',')
-          .map((v) => v.trim().replace(/"/g, ''));
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
-        data.push(row);
+    switch (endpoint_type) {
+      case ENDPOINT_KEYS.GET_SEARCH:
+        return this.extractSearchInfo(data);
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Extract search-specific information
+   */
+  extractSearchInfo(data) {
+    let value = 'N/A';
+    
+    if (data.orderedItems && Array.isArray(data.orderedItems)) {
+      value = data.orderedItems.length;
+    } else if (data.totalItems !== undefined) {
+      value = data.totalItems;
+    } else if (data.results && Array.isArray(data.results)) {
+      value = data.results.length;
+    }
+    
+    return { value, header: 'Results Count' };
+  }
+}
+
+/**
+ * Handles response body file saving
+ */
+class ResponseSaver {
+  constructor(responsesDir, enabled = false) {
+    this.responsesDir = responsesDir;
+    this.enabled = enabled;
+  }
+
+  /**
+   * Save response body to disk if enabled
+   */
+  saveResponseBody(provider, testName, response, sourceFile, rowNumber, totalRows) {
+    if (!this.enabled) return null;
+    
+    try {
+      const providerDir = this.createProviderDirectory(sourceFile, provider);
+      const filename = this.createFilename(testName, rowNumber, totalRows);
+      const filePath = path.join(providerDir, filename);
+      
+      const responseData = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+        config: {
+          url: response.config?.url,
+          method: response.config?.method,
+          headers: response.config?.headers,
+        }
+      };
+      
+      fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
+      console.log(`  Response body saved to: ${providerDir}/${filename}`);
+      
+      return `${providerDir}/${filename}`;
+    } catch (error) {
+      console.warn(`  Failed to save response body: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Create provider-specific directory
+   */
+  createProviderDirectory(sourceFile, provider) {
+    const endpointDir = path.basename(sourceFile, path.extname(sourceFile));
+    const providerDir = path.join(this.responsesDir, endpointDir, provider);
+
+    if (!fs.existsSync(providerDir)) {
+      fs.mkdirSync(providerDir, { recursive: true });
+    }
+    
+    return providerDir;
+  }
+
+  /**
+   * Create safe filename for response
+   */
+  createFilename(testName, rowNumber, totalRows) {
+    const maxDigits = Math.max(totalRows.toString().length, 2);
+    const paddedRowNumber = rowNumber.toString().padStart(maxDigits, '0');
+    
+    const safeTestName = testName
+      .replace(/[^a-zA-Z0-9 ]/g, ' ')
+      .split(' ')
+      .map((word, index) => 
+        index === 0 ? word.toLowerCase() : 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+      
+    return `row_${paddedRowNumber}_${safeTestName}.json`;
+  }
+}
+
+/**
+ * Main endpoint testing class - refactored for maintainability
+ */
+class EndpointTester {
+  constructor(configDir, reportsDir = './reports', options = {}) {
+    this.configDir = configDir;
+    this.reportsDir = reportsDir;
+    this.results = [];
+    this.options = options;
+
+    // Initialize configuration
+    this.initializeDirectories();
+    this.initializeComponents();
+    this.loadEndpointsSpec();
+  }
+
+  /**
+   * Initialize directory structure
+   */
+  initializeDirectories() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    this.executionDir = path.join(this.reportsDir, `test-run-${timestamp}`);
+    this.responsesDir = path.join(this.executionDir, 'responses');
+
+    if (!this.options.dryRun) {
+      // Ensure directories exist
+      [this.reportsDir, this.executionDir].forEach(dir => {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+      });
+
+      if (this.options.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
+        fs.mkdirSync(this.responsesDir, { recursive: true });
       }
     }
-
-    return data;
   }
 
   /**
-   * Get available test data providers (both IDs and class names)
+   * Initialize helper components
    */
-  async getAvailableProviders() {
-    // Import the test data providers index to ensure all providers are registered
+  initializeComponents() {
+    // Base URL configuration
+    const baseUrl = process.env.BASE_URL || DEFAULT_CONFIG.baseUrl;
+
+    // Authentication configuration
+    const authConfig = {
+      type: process.env.AUTH_TYPE || 'none',
+      username: process.env.AUTH_USERNAME || null,
+      password: process.env.AUTH_PASSWORD || null,
+    };
+
+    // Validate authentication
+    if (authConfig.type === 'digest' && (!authConfig.username || !authConfig.password)) {
+      throw new Error('Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables');
+    }
+
+    // Initialize components
+    this.configLoader = new ConfigurationLoader(this.configDir);
+    this.requestHandler = new RequestHandler(baseUrl, authConfig);
+    this.responseAnalyzer = new ResponseAnalyzer();
+    this.responseSaver = new ResponseSaver(this.responsesDir, this.options.saveResponseBodies);
+    this.reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+  }
+
+  /**
+   * Initialize async dependencies
+   */
+  async initializeAsync() {
+    // Load test data providers
     await import('./test-data-providers/index.js');
-    
-    const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
-    const providers = [];
-
-    for (const ProviderClass of registeredProviders) {
-      providers.push(ProviderClass.name);
-    }
-
-    return providers.sort();
   }
 
   /**
-   * Get available endpoint types from config files
+   * Load endpoints specification
    */
-  getAvailableEndpoints() {
-    const files = fs
-      .readdirSync(this.configDir)
-      .filter((file) => file.endsWith('.xlsx') || file.endsWith('.csv'))
-      .filter((file) => !file.startsWith('~'));
-
-    return files.map(file => this.extractEndpointType(file)).sort();
-  }
-
-  shouldRunTest(testConfig) {
-    // Apply provider filter.
-    if (this.providerFilter && !this.providerFilter.includes(testConfig.provider_id)) {
-      // console.log(`Skipping test ${testConfig.id} - its provider, ${testConfig.provider_id}, is not included in the filter`);
-      return false;
+  loadEndpointsSpec() {
+    try {
+      const endpointsSpecPath = path.join(__dirname, 'endpoints-spec.json');
+      if (fs.existsSync(endpointsSpecPath)) {
+        const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, 'utf8'));
+        this.configLoader.endpointsSpec = spec;
+        console.log(`Loaded ${spec.endpoints?.length || 0} endpoint specifications`);
+      } else {
+        console.warn(`Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`);
+        console.warn(`Fallback: Using default HTTP method (${DEFAULT_CONFIG.method}) and root path (/) for undefined endpoints.`);
+      }
+    } catch (error) {
+      console.warn(`Warning: Could not load endpoints-spec.json: ${error.message}`);
+      console.warn(`Fallback: Using default HTTP method (${DEFAULT_CONFIG.method}) and root path (/) for undefined endpoints.`);
     }
-
-    // Support disabling specific tests.
-    if (!parseBoolean(testConfig.enabled)) {
-      // console.log(`Skipping test ${testConfig.test_name} - it is disabled in the configuration`);
-      return false;
-    }
-
-    return true;
   }
 
   /**
-   * Run all tests from all configuration files with filtering support
+   * Run all tests with filtering support
    */
   async runFilteredTests() {
+    // Initialize async dependencies first
+    await this.initializeAsync();
+    
+    this.displayConfiguration();
+    
+    const testConfigs = this.configLoader.loadConfigs(this.options.endpoints);
+    this.displayTestDistribution(testConfigs);
+
+    if (this.options.dryRun) {
+      this.displayDryRunSummary(testConfigs);
+      return;
+    }
+
+    console.log('\n=== EXECUTING TESTS ===');
+    await this.executeTests(testConfigs);
+    this.generateReports();
+  }
+
+  /**
+   * Display configuration information
+   */
+  displayConfiguration() {
     console.log('');
     console.log('Resolved:');
     this.logValues('  Requested providers', this.getProvidersIncluded());
@@ -851,169 +687,348 @@ class EndpointTester {
     console.log('');
 
     console.log('Filtering options:');
-    const availableProviders = await this.getAvailableProviders();
-    this.logValues('  Available providers', availableProviders);
-    const availableEndpoints = this.getAvailableEndpoints();
-    this.logValues('  Available endpoints', availableEndpoints);
+    this.logValues('  Available providers', this.getAvailableProviders());
+    this.logValues('  Available endpoints', this.getAvailableEndpoints());
     console.log('');
+  }
 
-    let testConfigs = this.loadFilteredEndpointConfigs();
-    
-    console.log(
-      `Found ${testConfigs.length} test configurations across ${
-        testConfigs.reduce((acc, t) => {
-          if (!acc.includes(t.source_file)) acc.push(t.source_file);
-          return acc;
-        }, []).length
-      } files`
-    );
+  /**
+   * Display test distribution by endpoint type
+   */
+  displayTestDistribution(testConfigs) {
+    console.log(`Found ${testConfigs.length} test configurations across ${
+      [...new Set(testConfigs.map(t => t.source_file))].length
+    } files`);
 
-    // Group tests by endpoint type for reporting
-    const testsByType = {};
-    testConfigs.forEach((config) => {
-      if (!testsByType[config.endpoint_type]) {
-        testsByType[config.endpoint_type] = [];
-      }
-      testsByType[config.endpoint_type].push(config);
-    });
-
+    const testsByType = this.groupTestsByType(testConfigs);
     console.log('\nTest distribution by endpoint type:');
     Object.entries(testsByType).forEach(([type, tests]) => {
       console.log(`  ${type}: ${tests.length} tests`);
     });
+  }
 
-    // If dry-run mode, show what would be executed and exit
-    if (this.dryRun) {
-      let enabledCount = 0;
-      let disabledCount = 0;
-      
-      for (const testConfig of testConfigs) {
-        if (this.shouldRunTest(testConfig)) {
-          enabledCount++;
-        } else {
-          disabledCount++;
-        }
-      }
+  /**
+   * Display dry run summary
+   */
+  displayDryRunSummary(testConfigs) {
+    const enabledCount = testConfigs.filter(config => this.shouldRunTest(config)).length;
+    const disabledCount = testConfigs.length - enabledCount;
 
-      console.log('');
-      console.log('=== DRY RUN SUMMARY ===');
-      console.log(`Total tests found: ${testConfigs.length}`);
-      console.log(`Tests that would be executed: ${enabledCount}`);
-      console.log(`Tests that would be skipped (filtered out or disabled): ${disabledCount}`);
-      console.log(`Estimated execution time: ${enabledCount * 2}s - ${enabledCount * 10}s (rough estimate)`);
-      console.log('\nNo actual HTTP requests were made.');
-      console.log('To execute these tests, run the same command without --dry-run');
-      
-      return; // Exit without running tests or generating reports
-    }
+    console.log('');
+    console.log('=== DRY RUN SUMMARY ===');
+    console.log(`Total tests found: ${testConfigs.length}`);
+    console.log(`Tests that would be executed: ${enabledCount}`);
+    console.log(`Tests that would be skipped: ${disabledCount}`);
+    console.log(`Estimated execution time: ${enabledCount * 2}s - ${enabledCount * 10}s (rough estimate)`);
+    console.log('\nNo actual HTTP requests were made.');
+    console.log('To execute these tests, run the same command without --dry-run');
+  }
 
-    // Run tests (only if not in dry-run mode)
-    console.log('\n=== EXECUTING TESTS ===');
+  /**
+   * Execute all valid tests
+   */
+  async executeTests(testConfigs) {
     for (const testConfig of testConfigs) {
       if (this.shouldRunTest(testConfig)) {
         const result = await this.runSingleTest(testConfig);
         this.results.push(result);
 
-        // Optional delay between tests
         if (testConfig.delay_after_ms > 0) {
           console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
-          await new Promise((resolve) =>
-            setTimeout(resolve, testConfig.delay_after_ms)
-          );
+          await this.delay(testConfig.delay_after_ms);
         }
       }
     }
-
-    this.generateReport();
   }
 
   /**
-   * Generate comprehensive test report
+   * Run a single test configuration
    */
-  generateReport() {
-    const reportFile = path.join(
-      this.executionDir,
-      `endpoint-test-report.json`
-    );
-    const csvFile = path.join(
-      this.executionDir,
-      `endpoint-test-report.csv`
-    );
-    const htmlFile = path.join(
-      this.executionDir,
-      `endpoint-test-report.html`
-    );
+  async runSingleTest(testConfig) {
+    const startTime = Date.now();
 
-    // JSON Report
-    const report = {
-      summary: {
-        total_tests: this.results.length,
-        passed: this.results.filter((r) => r.status === 'PASS').length,
-        failed: this.results.filter((r) => r.status === 'FAIL').length,
-        errors: this.results.filter((r) => r.status === 'ERROR').length,
-        slow: this.results.filter((r) => r.status === 'SLOW').length,
-        average_duration:
-          this.results.reduce((sum, r) => sum + (r.duration_ms || 0), 0) /
-          this.results.length,
-        total_duration: this.results.reduce(
-          (sum, r) => sum + (r.duration_ms || 0),
-          0
-        ),
-        tests_by_endpoint_type: this.getTestsByEndpointType(),
-        providers_included: this.getProvidersIncluded(),
-        endpoints_included: this.getEndpointsIncluded(),
-        timestamp: new Date().toISOString(),
-      },
-      results: this.results,
+    try {
+      console.log(`Running test: ${testConfig.test_name}`);
+      console.log(`  URL: ${this.requestHandler.buildUrl(testConfig)}`);
+      console.log(`  Method: ${testConfig.method}`);
+
+      const response = await this.requestHandler.executeRequest(testConfig);
+      const duration = Date.now() - startTime;
+      const timestamp = new Date().toISOString();
+
+      // Save response body if enabled
+      const responseBodyFile = this.responseSaver.saveResponseBody(
+        testConfig.provider_id, 
+        testConfig.test_name,
+        response, 
+        testConfig.source_file, 
+        testConfig.row_number, 
+        testConfig.total_rows
+      );
+
+      // Extract additional info
+      const additionalInfo = this.responseAnalyzer.extractAdditionalInfo(testConfig, response);
+
+      return this.createTestResult(testConfig, response, duration, timestamp, additionalInfo, responseBodyFile);
+    } catch (error) {
+      return this.createErrorResult(testConfig, error, Date.now() - startTime);
+    }
+  }
+
+  /**
+   * Create test result object
+   */
+  createTestResult(testConfig, response, duration, timestamp, additionalInfo, responseBodyFile) {
+    const statusMatches = response.status === testConfig.expected_status;
+    let status = statusMatches ? 'PASS' : 'FAIL';
+
+    // Check response time for passing tests
+    if (statusMatches && testConfig.max_response_time && duration > testConfig.max_response_time) {
+      status = 'SLOW';
+    }
+
+    const result = {
+      provider_id: testConfig.provider_id,
+      test_name: testConfig.test_name,
+      endpoint_type: testConfig.endpoint_type,
+      source_file: testConfig.source_file,
+      status,
+      expected_status: testConfig.expected_status,
+      actual_status: response.status,
+      duration_ms: duration,
+      response_time_ms: duration,
+      response_size_bytes: JSON.stringify(response.data).length,
+      url: this.requestHandler.buildUrl(testConfig),
+      method: testConfig.method,
+      parameters: testConfig.parameters,
+      timestamp,
+      description: testConfig.description,
+      tags: testConfig.tags,
     };
 
-    fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
-
-    // CSV Report
-    if (this.results.length > 0) {
-      const csvContent = this.convertToCSV(this.results);
-      fs.writeFileSync(csvFile, csvContent);
+    // Add additional info if available
+    if (additionalInfo) {
+      result.additional_info = additionalInfo.value;
+      result.additional_info_header = additionalInfo.header;
     }
 
-    // HTML Report
-    const htmlContent = this.generateHTMLReport(report);
-    fs.writeFileSync(htmlFile, htmlContent);
-
-    console.log('\n=== Test Summary ===');
-    console.log(`Providers Included: ${report.summary.providers_included.join(', ')}`);
-    console.log(`Endpoints Included: ${report.summary.endpoints_included.join(', ')}`);
-    console.log(`Total Tests: ${report.summary.total_tests}`);
-    console.log(`Passed: ${report.summary.passed}`);
-    console.log(`Failed: ${report.summary.failed}`);
-    console.log(`Errors: ${report.summary.errors}`);
-    console.log(`Slow: ${report.summary.slow}`);
-    console.log(
-      `Average Duration: ${Math.round(report.summary.average_duration)}ms`
-    );
-    console.log(
-      `Total Duration: ${Math.round(report.summary.total_duration)}ms`
-    );
-    console.log(`\nReports generated in: ${this.executionDir}`);
-    console.log(`- JSON: ${path.basename(reportFile)}`);
-    console.log(`- CSV: ${path.basename(csvFile)}`);
-    console.log(`- HTML: ${path.basename(htmlFile)}`);
-    if (this.saveResponseBodies) {
-      console.log(`- Response bodies: responses/ directory`);
+    // Add response body file if saved
+    if (responseBodyFile) {
+      result.response_body_file = responseBodyFile;
     }
+
+    // Add failure reason if needed
+    if (!statusMatches) {
+      result.error_message = `Expected status ${testConfig.expected_status} but got ${response.status}`;
+    } else if (status === 'SLOW') {
+      result.warning = `Response time ${duration}ms exceeded threshold ${testConfig.max_response_time}ms`;
+    }
+
+    return result;
   }
 
   /**
-   * Get test counts by endpoint type for summary
+   * Create error result object
    */
-  getTestsByEndpointType() {
+  createErrorResult(testConfig, error, duration) {
+    let responseBodyFile = null;
+    let additionalInfo = null;
+
+    if (error.response) {
+      responseBodyFile = this.responseSaver.saveResponseBody(
+        testConfig.provider_id,
+        testConfig.test_name,
+        error.response,
+        testConfig.source_file,
+        testConfig.row_number,
+        testConfig.total_rows
+      );
+      additionalInfo = this.responseAnalyzer.extractAdditionalInfo(testConfig, error.response);
+    }
+
+    const result = {
+      test_name: testConfig.test_name,
+      provider_id: testConfig.provider_id,
+      endpoint_type: testConfig.endpoint_type,
+      source_file: testConfig.source_file,
+      status: 'FAIL',
+      expected_status: testConfig.expected_status,
+      actual_status: error.response?.status || 'ERROR',
+      duration_ms: duration,
+      error_message: error.message,
+      url: this.requestHandler.buildUrl(testConfig),
+      method: testConfig.method,
+      parameters: testConfig.parameters,
+      timestamp: new Date().toISOString(),
+      description: testConfig.description,
+      tags: testConfig.tags,
+    };
+
+    if (additionalInfo) {
+      result.additional_info = additionalInfo.value;
+      result.additional_info_header = additionalInfo.header;
+    }
+
+    if (responseBodyFile) {
+      result.response_body_file = responseBodyFile;
+    }
+
+    return result;
+  }
+
+  /**
+   * Determine if test should be executed
+   */
+  shouldRunTest(testConfig) {
+    // Apply provider filter
+    if (this.options.providers && !this.options.providers.includes(testConfig.provider_id)) {
+      return false;
+    }
+
+    // Check if test is enabled
+    if (!parseBoolean(testConfig.enabled)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Generate all reports
+   */
+  generateReports() {
+    this.reportGenerator.generate(this.results, {
+      providersIncluded: this.getProvidersIncluded(),
+      endpointsIncluded: this.getEndpointsIncluded(),
+    });
+  }
+
+  // Utility methods
+  logValues(label, values, defaultValue = 'None') {
+    const formattedValues = values && values.length > 0 ? values.join('\n\t') : defaultValue;
+    console.log(`${label}:\n\t${formattedValues}`);
+  }
+
+  groupTestsByType(testConfigs) {
+    const testsByType = {};
+    testConfigs.forEach(config => {
+      if (!testsByType[config.endpoint_type]) {
+        testsByType[config.endpoint_type] = [];
+      }
+      testsByType[config.endpoint_type].push(config);
+    });
+    return testsByType;
+  }
+
+  getAvailableProviders() {
+    const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
+    return registeredProviders.map(ProviderClass => ProviderClass.name).sort();
+  }
+
+  getAvailableEndpoints() {
+    return this.configLoader.getValidConfigFiles()
+      .map(file => this.configLoader.extractEndpointType(file))
+      .sort();
+  }
+
+  getProvidersIncluded() {
+    return this.options.providers?.length ? this.options.providers.sort() : ['All'];
+  }
+
+  getEndpointsIncluded() {
+    return this.options.endpoints?.length ? this.options.endpoints.sort() : ['All'];
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+/**
+ * Handles report generation (JSON, CSV, HTML)
+ */
+class ReportGenerator {
+  constructor(executionDir, saveResponseBodies = false) {
+    this.executionDir = executionDir;
+    this.saveResponseBodies = saveResponseBodies;
+  }
+
+  /**
+   * Generate all reports
+   */
+  generate(results, options = {}) {
+    const { providersIncluded = ['All'], endpointsIncluded = ['All'] } = options;
+
+    const summary = this.createSummary(results, providersIncluded, endpointsIncluded);
+    const report = { summary, results };
+
+    // Generate all report formats
+    this.generateJSONReport(report);
+    this.generateCSVReport(results);
+    this.generateHTMLReport(report);
+
+    this.displaySummary(summary);
+  }
+
+  /**
+   * Create test summary
+   */
+  createSummary(results, providersIncluded, endpointsIncluded) {
+    const statusCounts = this.getStatusCounts(results);
+    
+    return {
+      total_tests: results.length,
+      ...statusCounts,
+      average_duration: this.calculateAverageDuration(results),
+      total_duration: this.calculateTotalDuration(results),
+      tests_by_endpoint_type: this.getTestsByEndpointType(results),
+      providers_included: providersIncluded,
+      endpoints_included: endpointsIncluded,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Get status counts
+   */
+  getStatusCounts(results) {
+    return {
+      passed: results.filter(r => r.status === 'PASS').length,
+      failed: results.filter(r => r.status === 'FAIL').length,
+      errors: results.filter(r => r.status === 'ERROR').length,
+      slow: results.filter(r => r.status === 'SLOW').length,
+    };
+  }
+
+  /**
+   * Calculate average duration
+   */
+  calculateAverageDuration(results) {
+    if (results.length === 0) return 0;
+    const totalDuration = results.reduce((sum, r) => sum + (r.duration_ms || 0), 0);
+    return totalDuration / results.length;
+  }
+
+  /**
+   * Calculate total duration
+   */
+  calculateTotalDuration(results) {
+    return results.reduce((sum, r) => sum + (r.duration_ms || 0), 0);
+  }
+
+  /**
+   * Get test counts by endpoint type
+   */
+  getTestsByEndpointType(results) {
     const summary = {};
-    this.results.forEach((result) => {
+    results.forEach(result => {
       const type = result.endpoint_type;
       if (!summary[type]) {
         summary[type] = { total: 0, passed: 0, failed: 0, errors: 0, slow: 0 };
       }
       summary[type].total++;
-
+      
+      // Map status to the correct counter property
       switch (result.status) {
         case 'PASS':
           summary[type].passed++;
@@ -1033,23 +1048,34 @@ class EndpointTester {
   }
 
   /**
-   * Get information about which providers were included in the test run
+   * Generate JSON report
    */
-  getProvidersIncluded() {
-    if (!this.providerFilter || this.providerFilter.length === 0) {
-      return ['All'];
-    }
-    return this.providerFilter.sort();
+  generateJSONReport(report) {
+    const reportFile = path.join(this.executionDir, 'endpoint-test-report.json');
+    fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
+    return reportFile;
   }
 
   /**
-   * Get information about which endpoints were included in the test run
+   * Generate CSV report
    */
-  getEndpointsIncluded() {
-    if (!this.endpointFilter || this.endpointFilter.length === 0) {
-      return ['All'];
-    }
-    return this.endpointFilter.sort();
+  generateCSVReport(results) {
+    if (results.length === 0) return null;
+    
+    const csvFile = path.join(this.executionDir, 'endpoint-test-report.csv');
+    const csvContent = this.convertToCSV(results);
+    fs.writeFileSync(csvFile, csvContent);
+    return csvFile;
+  }
+
+  /**
+   * Generate HTML report
+   */
+  generateHTMLReport(report) {
+    const htmlFile = path.join(this.executionDir, 'endpoint-test-report.html');
+    const htmlContent = this.createHTMLContent(report);
+    fs.writeFileSync(htmlFile, htmlContent);
+    return htmlFile;
   }
 
   /**
@@ -1059,9 +1085,9 @@ class EndpointTester {
     if (results.length === 0) return '';
 
     const headers = Object.keys(results[0]).join(',');
-    const rows = results.map((result) =>
+    const rows = results.map(result =>
       Object.values(result)
-        .map((value) => {
+        .map(value => {
           if (typeof value === 'object') {
             return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
           }
@@ -1076,15 +1102,12 @@ class EndpointTester {
   }
 
   /**
-   * Generate HTML report
+   * Create HTML content
    */
-  generateHTMLReport(report) {
-    const endpointTypeSummary = Object.entries(
-      report.summary.tests_by_endpoint_type
-    )
-      .map(
-        ([type, stats]) =>
-          `<tr>
+  createHTMLContent(report) {
+    const endpointTypeSummary = Object.entries(report.summary.tests_by_endpoint_type)
+      .map(([type, stats]) =>
+        `<tr>
           <td>${type}</td>
           <td>${stats.total}</td>
           <td class="pass">${stats.passed}</td>
@@ -1100,13 +1123,31 @@ class EndpointTester {
 <html>
 <head>
     <title>LUX Endpoint Test Report</title>
-    <style>
+    ${this.getHTMLStyles()}
+</head>
+<body>
+    <h1>LUX Endpoint Test Report</h1>
+    
+    ${this.createSummarySection(report.summary)}
+    ${this.createEndpointTypeSection(endpointTypeSummary)}
+    ${this.createTestResultsSection(report)}
+    ${this.createModalSections()}
+    ${this.getJavaScriptFunctions()}
+</body>
+</html>`;
+  }
+
+  /**
+   * Get HTML styles
+   */
+  getHTMLStyles() {
+    return `<style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .summary { background: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
         .pass { color: green; }
         .fail { color: red; }
         .error { color: orange; }
-        .slow { color: #FBFDAE; }
+        .slow { color: blue; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -1117,116 +1158,44 @@ class EndpointTester {
         .url-column { font-size: 0.9em; word-break: break-all; max-width: 300px; }
         .url-link { color: #0066cc; text-decoration: none; }
         .url-link:hover { text-decoration: underline; }
-        .info-icon { 
-            color: #0066cc; 
-            cursor: help; 
-            margin-left: 5px; 
-            font-size: 0.9em; 
-            opacity: 0.7; 
-        }
+        .info-icon { color: #0066cc; cursor: help; margin-left: 5px; font-size: 0.9em; opacity: 0.7; }
         .info-icon:hover { opacity: 1; }
-        .json-popup {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-        }
-        .json-popup-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-width: 80%;
-            max-height: 80%;
-            overflow: auto;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-        .json-popup-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-        }
-        .json-popup-close {
-            background: #f44336;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .json-popup-close:hover {
-            background: #d32f2f;
-        }
-        .json-content {
-            background-color: #f8f8f8;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            overflow-x: auto;
-        }
-        .json-link {
-            color: #0066cc;
-            text-decoration: none;
-            cursor: pointer;
-            margin-left: 8px;
-            font-size: 14px;
-            padding: 2px 6px;
-            background-color: #f0f8ff;
-            border: 1px solid #0066cc;
-            border-radius: 3px;
-            display: inline-block;
-            vertical-align: middle;
-        }
-        .json-link:hover {
-            background-color: #e6f3ff;
-            color: #0052a3;
-        }
-    </style>
-</head>
-<body>
-    <h1>LUX Endpoint Test Report</h1>
-    
+        .json-link { color: #0066cc; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 14px; padding: 2px 6px; background-color: #f0f8ff; border: 1px solid #0066cc; border-radius: 3px; display: inline-block; vertical-align: middle; }
+        .json-link:hover { background-color: #e6f3ff; color: #0052a3; }
+        .json-popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; }
+        .json-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+        .json-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .json-popup-close:hover { background: #d32f2f; }
+        .json-content { background-color: #f8f8f8; border: 1px solid #ddd; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; overflow-x: auto; }
+    </style>`;
+  }
+
+  /**
+   * Create summary section
+   */
+  createSummarySection(summary) {
+    return `
     <div class="summary">
         <h2>Summary</h2>
-        <p><strong>Generated:</strong> ${report.summary.timestamp}</p>
-        <p><strong>Providers Included:</strong> ${report.summary.providers_included.join(', ')}</p>
-        <p><strong>Endpoints Included:</strong> ${report.summary.endpoints_included.join(', ')}</p>
-        <p><strong>Total Tests:</strong> ${report.summary.total_tests}</p>
-        <p><strong>Passed:</strong> <span class="pass">${
-          report.summary.passed
-        }</span></p>
-        <p><strong>Failed:</strong> <span class="fail">${
-          report.summary.failed
-        }</span></p>
-        <p><strong>Errors:</strong> <span class="error">${
-          report.summary.errors
-        }</span></p>
-        <p><strong>Slow:</strong> <span class="slow">${
-          report.summary.slow
-        }</span></p>
-        <p><strong>Average Duration:</strong> ${Math.round(
-          report.summary.average_duration
-        )}ms</p>
-        <p><strong>Total Duration:</strong> ${Math.round(
-          report.summary.total_duration
-        )}ms</p>
-    </div>
+        <p><strong>Generated:</strong> ${summary.timestamp}</p>
+        <p><strong>Providers Included:</strong> ${summary.providers_included.join(', ')}</p>
+        <p><strong>Endpoints Included:</strong> ${summary.endpoints_included.join(', ')}</p>
+        <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
+        <p><strong>Passed:</strong> <span class="pass">${summary.passed}</span></p>
+        <p><strong>Failed:</strong> <span class="fail">${summary.failed}</span></p>
+        <p><strong>Errors:</strong> <span class="error">${summary.errors}</span></p>
+        <p><strong>Slow:</strong> <span class="slow">${summary.slow}</span></p>
+        <p><strong>Average Duration:</strong> ${Math.round(summary.average_duration)}ms</p>
+        <p><strong>Total Duration:</strong> ${Math.round(summary.total_duration)}ms</p>
+    </div>`;
+  }
 
+  /**
+   * Create endpoint type section
+   */
+  createEndpointTypeSection(endpointTypeSummary) {
+    return `
     <h2>Tests by Endpoint Type</h2>
     <table>
         <thead>
@@ -1242,16 +1211,28 @@ class EndpointTester {
         <tbody>
             ${endpointTypeSummary}
         </tbody>
-    </table>
+    </table>`;
+  }
 
+  /**
+   * Create test results section
+   */
+  createTestResultsSection(report) {
+    return `
     <h2>Individual Test Results</h2>
-    ${this.generateTestResultsByEndpointType(report)}
+    ${this.generateTestResultsByEndpointType(report)}`;
+  }
 
+  /**
+   * Create modal sections
+   */
+  createModalSections() {
+    return `
     <!-- JSON Popup Modal -->
     <div id="jsonPopup" class="json-popup" onclick="closeJsonPopup(event)">
         <div class="json-popup-content" onclick="event.stopPropagation()">
             <div class="json-popup-header">
-                <h3>Search Criteria</h3>&nbsp;
+                <h3>Search Criteria</h3>
                 <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
             </div>
             <div id="jsonContent" class="json-content"></div>
@@ -1267,9 +1248,207 @@ class EndpointTester {
             </div>
             <div id="responseContent" class="json-content"></div>
         </div>
-    </div>
+    </div>`;
+  }
 
-    <script>
+  /**
+   * Generate test results grouped by endpoint type
+   */
+  generateTestResultsByEndpointType(report) {
+    const resultsByType = {};
+    report.results.forEach(result => {
+      const type = result.endpoint_type;
+      if (!resultsByType[type]) {
+        resultsByType[type] = [];
+      }
+      resultsByType[type].push(result);
+    });
+
+    return Object.entries(resultsByType)
+      .map(([endpointType, results]) => {
+        const additionalInfoHeaders = results
+          .filter(result => result.additional_info_header)
+          .map(result => result.additional_info_header);
+        
+        const columnHeader = additionalInfoHeaders.length > 0 
+          ? additionalInfoHeaders.reduce((a, b, i, arr) =>
+              arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+            )
+          : 'Additional Info';
+
+        return `
+        <h3>${endpointType} (${results.length} tests)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>Status</th>
+                    <th>Expected</th>
+                    <th>Actual</th>
+                    <th>Duration (ms)</th>
+                    <th>${columnHeader}</th>
+                    <th>URL</th>
+                    <th>Response Body</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results
+                  .map(result => `
+                    <tr class="status-${result.status}">
+                        <td><span title="${this.getTestNameTooltip(result)}">${result.test_name} <span class="info-icon">ℹ️</span></span></td>
+                        <td>${result.status}</td>
+                        <td>${result.expected_status}</td>
+                        <td>${result.actual_status}</td>
+                        <td>${result.duration_ms || 'N/A'}</td>
+                        <td>${isDefined(result.additional_info) ? result.additional_info : 'N/A'}</td>
+                        <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
+                        <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
+                    </tr>
+                  `)
+                  .join('')}
+            </tbody>
+        </table>
+        `;
+      })
+      .join('');
+  }
+
+  /**
+   * Get test name tooltip
+   */
+  getTestNameTooltip(result) {
+    return `Provider: ${result.provider_id || 'Not specified'}&#10;Description: ${this.wrapText(result.description || 'Not specified')}&#10;Execution timestamp: ${result.timestamp || 'Unknown'}`;
+  }
+
+  /**
+   * Wrap text for tooltip display
+   */
+  wrapText(text, maxLength = 80) {
+    if (!text || text.length <= maxLength) {
+      return text;
+    }
+    
+    const words = text.split(' ');
+    let currentLine = '';
+    const lines = [];
+    
+    for (const word of words) {
+      if (currentLine.length + word.length + 1 > maxLength) {
+        if (currentLine.length > 0) {
+          lines.push(currentLine.trim());
+          currentLine = word;
+        } else {
+          lines.push(word);
+        }
+      } else {
+        currentLine += (currentLine.length > 0 ? ' ' : '') + word;
+      }
+    }
+    
+    if (currentLine.length > 0) {
+      lines.push(currentLine.trim());
+    }
+    
+    return lines.join('&#10;');
+  }
+
+  /**
+   * Format response body file for HTML
+   */
+  formatResponseBodyFileForHtml(responseBodyFile) {
+    if (!responseBodyFile || responseBodyFile === 'N/A') {
+      return 'N/A';
+    }
+
+    try {
+      const absolutePath = path.resolve(responseBodyFile);
+      const pathParts = absolutePath.split(path.sep);
+      const lastDirAndFile = pathParts.slice(-2).join(path.sep);
+      const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
+      
+      let fileContent = null;
+      try {
+        fileContent = fs.readFileSync(absolutePath, 'utf8');
+      } catch (readError) {
+        console.warn(`Could not read response file ${absolutePath}: ${readError.message}`);
+      }
+      
+      if (fileContent) {
+        const encodedContent = encodeURIComponent(fileContent);
+        const encodedPath = encodeURIComponent(absolutePath);
+        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+      } else {
+        const encodedPath = encodeURIComponent(absolutePath);
+        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+      }
+    } catch (error) {
+      return responseBodyFile;
+    }
+  }
+
+  /**
+   * Format URL for HTML display
+   */
+  formatUrlForHtml(url) {
+    if (!url) {
+      return 'N/A';
+    }
+
+    try {
+      const urlObj = new URL(url);
+      let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+      
+      const isSearchEndpoint = urlObj.pathname.includes('/api/search');
+      const qParam = urlObj.searchParams.get('q');
+      let hasJsonQuery = false;
+      let encodedQParam = '';
+      
+      if (isSearchEndpoint && qParam) {
+        try {
+          JSON.parse(decodeURIComponent(qParam));
+          hasJsonQuery = true;
+          encodedQParam = encodeURIComponent(qParam);
+        } catch (e) {
+          // Not valid JSON
+        }
+      }
+      
+      const encodedParams = [];
+      const decodedParams = [];
+      for (const [key, value] of urlObj.searchParams.entries()) {
+        const encodedKey = encodeURIComponent(key);
+        const encodedValue = encodeURIComponent(value);
+        encodedParams.push(`${encodedKey}=${encodedValue}`);
+        decodedParams.push(`${key}=${value}`);
+      }
+      
+      let fullEncodedUrl = baseUrl;
+      if (encodedParams.length > 0) {
+        fullEncodedUrl += '?' + encodedParams.join('&');
+      }
+      
+      let fullDecodedUrl = baseUrl;
+      if (decodedParams.length > 0) {
+        fullDecodedUrl += '?' + decodedParams.join('&');
+      }
+      
+      let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
+      
+      if (hasJsonQuery) {
+        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Display Criteria</span>`;
+      }
+      
+      return result;
+    } catch (error) {
+      return url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+  }
+
+  /**
+   * Get JavaScript functions for popups
+   */
+  getJavaScriptFunctions() {
+    return `<script>
         function showJsonPopup(jsonString) {
             try {
                 const parsed = JSON.parse(decodeURIComponent(jsonString));
@@ -1294,22 +1473,16 @@ class EndpointTester {
                 const filePath = decodeURIComponent(encodedPath);
                 const linkLabel = decodeURIComponent(encodedLinkLabel);
                 
-                // Show popup immediately
                 document.getElementById('responsePopup').style.display = 'block';
                 
-                // Create file URL for the hyperlink
-                const fileUrl = 'file:///' + filePath.replace(/\\\\/g, '/');
-                
-                // Create hyperlink HTML
+                const fileUrl = 'file:///' + filePath.replace(/\\\\\\\\/g, '/');
                 const hyperlinkHtml = '<div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #0066cc; border-radius: 4px;"><a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold;">🔗 ' + linkLabel + '</a></div>';
                 
                 try {
-                    // Try to parse and format as JSON
                     const parsed = JSON.parse(content);
                     const formatted = JSON.stringify(parsed, null, 2);
                     document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
                 } catch (jsonError) {
-                    // If it's not valid JSON, display as plain text
                     document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + content + '</pre>';
                 }
             } catch (e) {
@@ -1319,83 +1492,12 @@ class EndpointTester {
         }
 
         function showResponsePopup(filePath, encodedLinkLabel) {
-            try {
-                const decodedPath = decodeURIComponent(filePath);
-                const linkLabel = decodeURIComponent(encodedLinkLabel);
-                
-                // Show loading message first
-                document.getElementById('responseContent').innerHTML = '<div style="text-align: center; padding: 20px;">Loading JSON file...</div>';
-                document.getElementById('responsePopup').style.display = 'block';
-                
-                // Create a file URL and try to fetch the content immediately
-                const fileUrl = 'file:///' + decodedPath.replace(/\\\\/g, '/');
-                
-                // Create hyperlink HTML that will be prepended to content
-                const hyperlinkHtml = '<div style="margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-left: 4px solid #0066cc; border-radius: 4px;"><a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold;">🔗 ' + linkLabel + '</a></div>';
-                
-                fetch(fileUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Could not load file');
-                        }
-                        return response.text();
-                    })
-                    .then(text => {
-                        try {
-                            // Try to parse and format as JSON
-                            const parsed = JSON.parse(text);
-                            const formatted = JSON.stringify(parsed, null, 2);
-                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
-                        } catch (jsonError) {
-                            // If it's not valid JSON, display as plain text
-                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + text + '</pre>';
-                        }
-                    })
-                    .catch(error => {
-                        // If fetch fails, try to read the file directly using FileReader approach
-                        // First, let's try a different approach - create a hidden iframe
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = fileUrl;
-                        
-                        iframe.onload = function() {
-                            try {
-                                const content = iframe.contentDocument.body.innerText || iframe.contentDocument.body.textContent;
-                                if (content) {
-                                    try {
-                                        const parsed = JSON.parse(content);
-                                        const formatted = JSON.stringify(parsed, null, 2);
-                                        document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
-                                    } catch (jsonError) {
-                                        document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + content + '</pre>';
-                                    }
-                                } else {
-                                    throw new Error('No content found');
-                                }
-                            } catch (iframeError) {
-                                // Final fallback - show error and open in new tab link
-                                const message = 'Could not load file directly. File path: ' + decodedPath + '\\n\\nClick the link below to open the file in a new tab:';
-                                const linkHtml = '<a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold; padding: 10px; background-color: #f0f8ff; border: 2px solid #0066cc; border-radius: 5px; display: inline-block; margin-top: 10px;">📄 Display Response</a>';
-                                document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin-bottom: 15px;">' + message + '</pre>' + linkHtml;
-                            }
-                            document.body.removeChild(iframe);
-                        };
-                        
-                        iframe.onerror = function() {
-                            // Final fallback - show error and open in new tab link
-                            const message = 'Could not load file directly. File path: ' + decodedPath + '\\n\\nClick the link below to open the file in a new tab:';
-                            const linkHtml = '<a href="' + fileUrl + '" target="_blank" style="color: #0066cc; text-decoration: none; font-weight: bold; padding: 10px; background-color: #f0f8ff; border: 2px solid #0066cc; border-radius: 5px; display: inline-block; margin-top: 10px;">📄 Display Response</a>';
-                            document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin-bottom: 15px;">' + message + '</pre>' + linkHtml;
-                            document.body.removeChild(iframe);
-                        };
-                        
-                        document.body.appendChild(iframe);
-                    });
-                    
-            } catch (e) {
-                document.getElementById('responseContent').textContent = 'Error: ' + decodeURIComponent(filePath);
-                document.getElementById('responsePopup').style.display = 'block';
-            }
+            // Simplified version - just show the path for now
+            const decodedPath = decodeURIComponent(filePath);
+            const linkLabel = decodeURIComponent(encodedLinkLabel);
+            
+            document.getElementById('responseContent').innerHTML = '<div>Response file path: ' + decodedPath + '</div>';
+            document.getElementById('responsePopup').style.display = 'block';
         }
 
         function closeResponsePopup(event) {
@@ -1404,237 +1506,35 @@ class EndpointTester {
             }
         }
 
-        // Close popup with Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closeJsonPopup();
                 closeResponsePopup();
             }
         });
-    </script>
-</body>
-</html>`;
-  }
-
-  wrapText(text, maxLength = 80) {
-    if (!text || text.length <= maxLength) {
-      return text;
-    }
-    
-    const words = text.split(' ');
-    let currentLine = '';
-    const lines = [];
-    
-    for (const word of words) {
-      // Check if adding this word would exceed the limit
-      if (currentLine.length + word.length + 1 > maxLength) {
-        // If current line has content, push it and start a new line
-        if (currentLine.length > 0) {
-          lines.push(currentLine.trim());
-          currentLine = word;
-        } else {
-          // If the word itself is longer than maxLength, just add it
-          lines.push(word);
-        }
-      } else {
-        // Add word to current line
-        currentLine += (currentLine.length > 0 ? ' ' : '') + word;
-      }
-    }
-    
-    // Add the last line if it has content
-    if (currentLine.length > 0) {
-      lines.push(currentLine.trim());
-    }
-    
-    return lines.join('&#10;');
+    </script>`;
   }
 
   /**
-   * Generate test results grouped by endpoint type
+   * Display summary to console
    */
-  generateTestResultsByEndpointType(report) {
-    // Group results by endpoint type
-    const resultsByType = {};
-    report.results.forEach(result => {
-      const type = result.endpoint_type;
-      if (!resultsByType[type]) {
-        resultsByType[type] = [];
-      }
-      resultsByType[type].push(result);
-    });
-
-    const getTestNameTooltip = (result) => `
-Provider: ${result.provider_id || 'Not specified'}
-&#10;
-Description: ${this.wrapText(result.description || 'Not specified')}
-&#10;
-Execution timestamp: ${result.timestamp || 'Unknown'}
-    `;
-
-    // Generate HTML for each endpoint type
-    return Object.entries(resultsByType)
-      .map(([endpointType, results]) => {
-        // Determine the most appropriate column header for this endpoint type
-        const additionalInfoHeaders = results
-          .filter(result => result.additional_info_header)
-          .map(result => result.additional_info_header);
-        
-        // Use the most common header, or fall back to "Additional Info"
-        const columnHeader = additionalInfoHeaders.length > 0 
-          ? additionalInfoHeaders.reduce((a, b, i, arr) =>
-              arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-            )
-          : 'Additional Info';
-
-        return `
-        <h3>${endpointType} (${results.length} tests)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Test Name</th>
-                    <th>Status</th>
-                    <th>Expected</th>
-                    <th>Actual</th>
-                    <th>Duration (ms)</th>
-                    <th>${columnHeader}</th>
-                    <th>URL</th>
-                    <th>Response Body</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${results
-                  .map(
-                    (result) => `
-                    <tr class="status-${result.status}">
-                        <td><span title="${getTestNameTooltip(result)}">${result.test_name} <span class="info-icon">ℹ️</span></span></td>
-                        <td>${result.status}</td>
-                        <td>${result.expected_status}</td>
-                        <td>${result.actual_status}</td>
-                        <td>${result.duration_ms || 'N/A'}</td>
-                        <td>${isDefined(result.additional_info) ? result.additional_info : 'N/A'}</td>
-                        <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
-                        <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
-                    </tr>
-                `
-                  )
-                  .join('')}
-            </tbody>
-        </table>
-      `;
-      })
-      .join('');
-  }
-
-  /**
-   * Format response body file path for HTML display with JSON popup
-   */
-  formatResponseBodyFileForHtml(responseBodyFile) {
-    if (!responseBodyFile || responseBodyFile === 'N/A') {
-      return 'N/A';
-    }
-
-    try {
-      // Create absolute file path
-      const absolutePath = path.resolve(responseBodyFile);
-      
-      // Extract last directory name plus filename for the hyperlink label
-      const pathParts = absolutePath.split(path.sep);
-      const lastDirAndFile = pathParts.slice(-2).join(path.sep);
-      const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
-      
-      // Read the file content immediately (server-side)
-      let fileContent = null;
-      try {
-        fileContent = fs.readFileSync(absolutePath, 'utf8');
-      } catch (readError) {
-        console.warn(`Could not read response file ${absolutePath}: ${readError.message}`);
-      }
-      
-      if (fileContent) {
-        // Use uncompressed approach for maximum compatibility
-        // Compression can be added later with a more robust implementation
-        const encodedContent = encodeURIComponent(fileContent);
-        const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
-      } else {
-        // Fallback to file path approach if content can't be read
-        const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
-      }
-    } catch (error) {
-      // If path processing fails, return the original path as text
-      return responseBodyFile;
-    }
-  }
-
-  /**
-   * Format URL for HTML display with proper encoding and hyperlink
-   */
-  formatUrlForHtml(url) {
-    if (!url) {
-      return 'N/A';
-    }
-
-    try {
-      // Parse the URL to separate base URL and query parameters
-      const urlObj = new URL(url);
-      let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
-      
-      // Check if this is a search endpoint and if q parameter contains JSON
-      const isSearchEndpoint = urlObj.pathname.includes('/api/search');
-      const qParam = urlObj.searchParams.get('q');
-      let hasJsonQuery = false;
-      let encodedQParam = '';
-      
-      if (isSearchEndpoint && qParam) {
-        try {
-          JSON.parse(decodeURIComponent(qParam));
-          hasJsonQuery = true;
-          encodedQParam = encodeURIComponent(qParam);
-        } catch (e) {
-          // Not valid JSON, continue with normal processing
-        }
-      }
-      
-      // Build query string with properly encoded parameters
-      const encodedParams = [];
-      const decodedParams = [];
-      for (const [key, value] of urlObj.searchParams.entries()) {
-        const encodedKey = encodeURIComponent(key);
-        const encodedValue = encodeURIComponent(value);
-        encodedParams.push(`${encodedKey}=${encodedValue}`);
-        decodedParams.push(`${key}=${value}`);
-      }
-      
-      let fullEncodedUrl = baseUrl;
-      if (encodedParams.length > 0) {
-        fullEncodedUrl += '?' + encodedParams.join('&');
-      }
-      
-      let fullDecodedUrl = baseUrl;
-      if (decodedParams.length > 0) {
-        fullDecodedUrl += '?' + decodedParams.join('&');
-      }
-      
-      // Create the main URL link
-      let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
-      
-      // Add JSON popup trigger if applicable
-      if (hasJsonQuery) {
-        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Display Criteria</span>`;
-      }
-      
-      return result;
-    } catch (error) {
-      // If URL parsing fails, return the original URL as text
-      const escapedUrl = url
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-      return escapedUrl;
+  displaySummary(summary) {
+    console.log('\n=== Test Summary ===');
+    console.log(`Providers Included: ${summary.providers_included.join(', ')}`);
+    console.log(`Endpoints Included: ${summary.endpoints_included.join(', ')}`);
+    console.log(`Total Tests: ${summary.total_tests}`);
+    console.log(`Passed: ${summary.passed}`);
+    console.log(`Failed: ${summary.failed}`);
+    console.log(`Errors: ${summary.errors}`);
+    console.log(`Slow: ${summary.slow}`);
+    console.log(`Average Duration: ${Math.round(summary.average_duration)}ms`);
+    console.log(`Total Duration: ${Math.round(summary.total_duration)}ms`);
+    console.log(`\nReports generated in: ${this.executionDir}`);
+    console.log(`- JSON: endpoint-test-report.json`);
+    console.log(`- CSV: endpoint-test-report.csv`);
+    console.log(`- HTML: endpoint-test-report.html`);
+    if (this.saveResponseBodies) {
+      console.log(`- Response bodies: responses/ directory`);
     }
   }
 }
