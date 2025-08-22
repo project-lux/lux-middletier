@@ -540,6 +540,16 @@ The HTML report includes a "Response File" column showing the filename for easy 
 **CSV Report:**
 The CSV includes the response file name for programmatic processing.
 
+## Constants and Type Safety
+
+The testing framework includes a comprehensive definition of constants in [./constants.js](./constants.js) yet its `ENDPOINT_KEYS` may be the only used constant/enum used at this time.  And should the endpoint specification be updated, this constant may need to be updated.
+
+Other constants include:
+
+* HTTP status codes
+* Spreadsheet column names
+* Search scope names
+
 ## Configuration
 
 ### Environment Variables
