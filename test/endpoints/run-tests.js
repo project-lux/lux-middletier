@@ -3,7 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getEndpointKeyFromPath } from './utils.js';
+import { getEndpointKeyFromPath, parseBoolean } from './utils.js';
 import { TestDataProviderFactory } from './test-data-providers/interface.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -734,11 +734,13 @@ class EndpointTester {
   shouldRunTest(testConfig) {
     // Apply provider filter.
     if (this.providerFilter && !this.providerFilter.includes(testConfig.provider_id)) {
+      // console.log(`Skipping test ${testConfig.id} - its provider, ${testConfig.provider_id}, is not included in the filter`);
       return false;
     }
 
     // Support disabling specific tests.
-    if (!testConfig.enabled) {
+    if (!parseBoolean(testConfig.enabled)) {
+      // console.log(`Skipping test ${testConfig.test_name} - it is disabled in the configuration`);
       return false;
     }
 
