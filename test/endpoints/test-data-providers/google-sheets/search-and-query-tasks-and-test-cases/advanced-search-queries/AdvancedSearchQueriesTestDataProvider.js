@@ -3,6 +3,8 @@ import path from 'path';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
 import { TestDataProvider } from '../../../interface.js';
+import { ENDPOINT_KEYS } from '../../../../constants.js';
+import { parseUrlQueryString, isValidSearchUrl } from '../../../../utils.js';
 
 export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   /**
@@ -36,9 +38,8 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
-      // This provider only generates tests for get-search endpoint
-      if (endpointKey !== 'get-search') {
-        console.log(`Skipping ${endpointKey} - this provider only supports get-search tests`);
+      if (endpointKey !== ENDPOINT_KEYS.GET_SEARCH) {
+        console.log(`Skipping ${endpointKey} - this provider only supports ${ENDPOINT_KEYS.GET_SEARCH} tests`);
         return [];
       }
 
@@ -64,7 +65,7 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
         .filter(record => {
           // Get the Search column - column names may vary
           const searchUrl = this.getSearchUrlFromRecord(record);
-          return searchUrl && searchUrl.trim() && this.isValidSearchUrl(searchUrl);
+          return searchUrl && searchUrl.trim() && isValidSearchUrl(searchUrl);
         });
 
       if (searchTestRows.length === 0) {
@@ -75,7 +76,7 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
       // Convert TSV objects to row arrays matching the column structure
       const testRows = searchTestRows.map((record, index) => {
         const searchUrl = this.getSearchUrlFromRecord(record);
-        const queryParams = this.parseUrlQueryString(searchUrl);
+        const queryParams = parseUrlQueryString(searchUrl);
         
         const row = columns.map(columnName => {
           // Handle standard test columns
@@ -86,7 +87,7 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
                    this.getColumnValue(record, 'Draft query') || 
                    `Search test from source row ${record.originalIndex}`;
           } else if (columnName === 'enabled') {
-            return 'true';
+            return true;
           } else if (columnName === 'expected_status') {
             return 200;
           } else if (columnName === 'timeout_ms') {
@@ -168,7 +169,6 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
             if (hasExpectedColumns) {
               headers = rowValues.filter(val => val && val.trim()); // Remove empty headers
               this.headerRowIndex = rowIndex;
-              console.log(`Found headers in row ${rowIndex}:`, headers);
               return; // Skip this row as it's the header
             } else {
               // If no expected columns found and we've checked a few rows, use this as headers anyway
@@ -243,148 +243,6 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Check if a URL is a valid LUX search URL
-   * @param {string} url - URL to validate
-   * @returns {boolean} - True if valid search URL
-   */
-  isValidSearchUrl(url) {
-    if (!url || typeof url !== 'string') return false;
-    
-    // Check if it's a LUX search URL
-    return url.includes('lux') && 
-           url.includes('results') && 
-           (url.includes('?q=') || url.includes('&q='));
-  }
-
-  /**
-   * Parse URL query string and decode parameters
-   * @param {string} url - Full URL with query string
-   * @returns {Object} - Decoded query parameters
-   */
-  parseUrlQueryString(url) {
-    try {
-      const urlObj = new URL(url);
-      const params = {};
-      
-      // Extract scope from URL path (last part of the path)
-      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
-      if (pathParts.length > 0) {
-        const lastPathPart = pathParts[pathParts.length - 1];
-        // Map the extracted scope to supported values
-        params.scope = this.mapScopeValue(lastPathPart);
-      }
-      
-      // Iterate through all search parameters
-      for (const [key, value] of urlObj.searchParams.entries()) {
-        if (key === 'q') {
-          // Handle the main query parameter - it might be JSON
-          try {
-            // URL decode first
-            const decodedValue = decodeURIComponent(value);
-            // Try to parse as JSON
-            const queryObj = JSON.parse(decodedValue);
-            
-            // Extract common search parameters from the JSON structure
-            this.extractSearchParamsFromQueryJson(queryObj, params);
-            
-            // Also store the raw query
-            params.q = decodedValue;
-          } catch (jsonError) {
-            // If not JSON, just store the decoded value
-            params.q = decodeURIComponent(value);
-          }
-        } else {
-          // Decode other parameters
-          params[key] = decodeURIComponent(value);
-        }
-      }
-      
-      return params;
-    } catch (error) {
-      console.warn(`Failed to parse URL: ${url}`, error.message);
-      return {};
-    }
-  }
-
-  /**
-   * Map URL scope value to supported API scope values
-   * @param {string} urlScope - Scope extracted from URL path
-   * @returns {string} - Mapped scope value
-   */
-  mapScopeValue(urlScope) {
-    if (!urlScope || typeof urlScope !== 'string') {
-      return '';
-    }
-
-    const lowerScope = urlScope.toLowerCase();
-    
-    // Special mapping for "objects" -> "item"
-    if (lowerScope === 'objects' || lowerScope === 'object') {
-      return 'item';
-    }
-
-    if (lowerScope === 'collections' || lowerScope === 'collection') {
-      return 'set';
-    }
-
-    if (lowerScope === 'people') {
-      return 'agent'
-    }
-
-    // The plural form of all other support scopes simply end with a 's', and no
-    // singular form of a supported scope does.
-    if (lowerScope.endsWith('s')) {
-      return lowerScope.slice(0, -1);
-    }
-    
-    // Return as-is if no plural pattern matches (already singular or unknown pattern)
-    return lowerScope;
-  }
-
-  /**
-   * Extract search parameters from LUX query JSON structure
-   * @param {Object} queryObj - Parsed query JSON object
-   * @param {Object} params - Parameters object to populate
-   */
-  extractSearchParamsFromQueryJson(queryObj, params) {
-    if (!queryObj || typeof queryObj !== 'object') return;
-    
-    // Handle common LUX query patterns
-    if (queryObj.AND) {
-      queryObj.AND.forEach(condition => {
-        this.extractConditionParams(condition, params);
-      });
-    } else if (queryObj.OR) {
-      queryObj.OR.forEach(condition => {
-        this.extractConditionParams(condition, params);
-      });
-    } else {
-      this.extractConditionParams(queryObj, params);
-    }
-  }
-
-  /**
-   * Extract parameters from a query condition
-   * @param {Object} condition - Query condition object
-   * @param {Object} params - Parameters object to populate
-   */
-  extractConditionParams(condition, params) {
-    if (!condition || typeof condition !== 'object') return;
-    
-    // Handle different condition types
-    if (condition.text) {
-      params.text = condition.text;
-    }
-    if (condition.name) {
-      params.name = condition.name;
-    }
-    if (condition.classification && condition.classification.name) {
-      params.classification = condition.classification.name;
-    }
-    // Add more parameter extraction logic as needed based on LUX query structure
-  }
-
-  /**
    * Get value from TSV record, handling different column naming conventions
    * @param {Object} record - TSV record object
    * @param {string} columnName - Target column name
@@ -447,16 +305,10 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
     }
 
     // Convert string representation to appropriate type
-    if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase();
-      
+    if (typeof value === 'string') {      
       // Boolean values
       if (columnName === 'enabled') {
-        if (lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes') {
-          return 'true';
-        } else if (lowerValue === 'false' || lowerValue === '0' || lowerValue === 'no') {
-          return 'false';
-        }
+        return value;
       }
       
       // Numeric values

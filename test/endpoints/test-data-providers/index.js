@@ -9,12 +9,15 @@ import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './
 import { CsvTestDataProvider, CsvProviderDefaults } from './csv-provider.js';
 import { SampleTestDataProvider } from './sample-provider.js';
 import { AdvancedSearchQueriesTestDataProvider } from 
-  './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/provider.js';
+  './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/AdvancedSearchQueriesTestDataProvider.js';
+import { UpdatedAdvancedSearchQueriesTestDataProvider } from 
+  './google-sheets/search-and-query-tasks-and-test-cases/updated-advanced-search-queries/UpdatedAdvancedSearchQueriesTestDataProvider.js';
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(CsvTestDataProvider);
 TestDataProviderFactory.registerProvider(SampleTestDataProvider);
 TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
+TestDataProviderFactory.registerProvider(UpdatedAdvancedSearchQueriesTestDataProvider);
 
 /**
  * Convenience function to create test data for an endpoint
@@ -56,31 +59,9 @@ export async function generateTestData(dataSource, apiDef, endpointKey, columns,
   }
 }
 
-/**
- * Get list of supported file extensions
- * @returns {Array<string>} - Array of supported file extensions
- */
-export function getSupportedExtensions() {
-  const extensions = [];
-  const providers = TestDataProviderFactory.getRegisteredProviders();
-  
-  providers.forEach(ProviderClass => {
-    // This is a simple check - in practice you might want providers to expose supported extensions
-    if (ProviderClass.name.includes('Csv')) extensions.push('.csv');
-    if (ProviderClass.name.includes('Json')) extensions.push('.json');
-    if (ProviderClass.name.includes('Excel')) extensions.push('.xlsx', '.xls');
-    if (ProviderClass.name.includes('Log')) extensions.push('.log', '.txt');
-  });
-  
-  return [...new Set(extensions)]; // Remove duplicates
-}
-
 // Export the main classes and interfaces
 export {
   TestDataProvider,
   TestDataProviderFactory,
-  TestCaseStructure,
-  CsvTestDataProvider,
-  CsvProviderDefaults,
-  SampleTestDataProvider
+  TestCaseStructure
 };

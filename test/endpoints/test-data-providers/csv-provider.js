@@ -181,16 +181,10 @@ export class CsvTestDataProvider extends TestDataProvider {
     }
 
     // Convert string representation to appropriate type
-    if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase();
-      
+    if (typeof value === 'string') {      
       // Boolean values
       if (columnName === 'enabled') {
-        if (lowerValue === 'true' || lowerValue === '1' || lowerValue === 'yes') {
-          return 'true';
-        } else if (lowerValue === 'false' || lowerValue === '0' || lowerValue === 'no') {
-          return 'false';
-        }
+        return value;
       }
       
       // Numeric values
