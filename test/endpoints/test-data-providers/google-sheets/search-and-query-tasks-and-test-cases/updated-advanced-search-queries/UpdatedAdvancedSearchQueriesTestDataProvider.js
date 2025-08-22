@@ -62,6 +62,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       // Process each record to find hyperlinked cells
       for (let index = 0; index < data.length; index++) {
         const record = data[index];
+        const originalRowNumber = record.sourceRowNumber || (index + 2); // Fallback to calculated row number
         
         // Check if this record has hyperlink information
         let hyperlinkUrl = record.__hyperlink_url;
@@ -73,7 +74,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
           if (firstColumnName) {
             const cellValue = record[firstColumnName];
             if (cellValue) {
-              hyperlinkUrl = this.extractHyperlinkFromCell(cellValue, index);
+              hyperlinkUrl = this.extractHyperlinkFromCell(cellValue, originalRowNumber);
               testDescription = this.extractTextFromCell(cellValue);
             }
           }
@@ -90,9 +91,9 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
         // Create a test row matching the column structure
         const row = columns.map(columnName => {
           if (columnName === 'test_name') {
-            return `Source row ${index + 2}`; // +2 because Excel is 1-based and header is row 1
+            return `Source row ${originalRowNumber}`;
           } else if (columnName === 'description') {
-            return testDescription || `Search test from source row ${index + 2}`;
+            return testDescription || `Search test from source row ${originalRowNumber}`;
           } else if (columnName === 'enabled') {
             return true;
           } else if (columnName === 'expected_status') {
@@ -210,6 +211,10 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       const record = jsonData[rowIndex];
       const enhancedRecord = { ...record };
       
+      // Store the original Excel row number (1-based, accounting for header row)
+      const excelRowNumber = rowIndex + 2; // +2 because Excel is 1-based and we skip header row
+      enhancedRecord.sourceRowNumber = excelRowNumber;
+      
       // Check first column for hyperlinks (column A)
       const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: 0 }); // +1 for header row
       const cell = worksheet[cellAddress];
@@ -221,7 +226,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       } else if (cell && cell.v) {
         // Check if the cell value itself contains a hyperlink pattern
         const cellValue = String(cell.v);
-        const extractedUrl = this.extractHyperlinkFromCell(cellValue, rowIndex);
+        const extractedUrl = this.extractHyperlinkFromCell(cellValue, excelRowNumber);
         if (extractedUrl) {
           enhancedRecord.__hyperlink_url = extractedUrl;
           enhancedRecord.__hyperlink_text = this.extractTextFromCell(cellValue);
