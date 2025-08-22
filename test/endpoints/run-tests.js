@@ -1031,6 +1031,77 @@ class EndpointTester {
             opacity: 0.7; 
         }
         .info-icon:hover { opacity: 1; }
+        .json-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .json-popup-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 80%;
+            max-height: 80%;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .json-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .json-popup-close {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .json-popup-close:hover {
+            background: #d32f2f;
+        }
+        .json-content {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+        .json-link {
+            color: #0066cc;
+            text-decoration: none;
+            cursor: pointer;
+            margin-left: 8px;
+            font-size: 14px;
+            padding: 2px 6px;
+            background-color: #f0f8ff;
+            border: 1px solid #0066cc;
+            border-radius: 3px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .json-link:hover {
+            background-color: #e6f3ff;
+            color: #0052a3;
+        }
     </style>
 </head>
 <body>
@@ -1081,6 +1152,44 @@ class EndpointTester {
 
     <h2>Individual Test Results</h2>
     ${this.generateTestResultsByEndpointType(report)}
+
+    <!-- JSON Popup Modal -->
+    <div id="jsonPopup" class="json-popup" onclick="closeJsonPopup(event)">
+        <div class="json-popup-content" onclick="event.stopPropagation()">
+            <div class="json-popup-header">
+                <h3>Query Parameter JSON</h3>
+                <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
+            </div>
+            <div id="jsonContent" class="json-content"></div>
+        </div>
+    </div>
+
+    <script>
+        function showJsonPopup(jsonString) {
+            try {
+                const parsed = JSON.parse(decodeURIComponent(jsonString));
+                const formatted = JSON.stringify(parsed, null, 2);
+                document.getElementById('jsonContent').textContent = formatted;
+                document.getElementById('jsonPopup').style.display = 'block';
+            } catch (e) {
+                document.getElementById('jsonContent').textContent = 'Invalid JSON: ' + decodeURIComponent(jsonString);
+                document.getElementById('jsonPopup').style.display = 'block';
+            }
+        }
+
+        function closeJsonPopup(event) {
+            if (!event || event.target === document.getElementById('jsonPopup')) {
+                document.getElementById('jsonPopup').style.display = 'none';
+            }
+        }
+
+        // Close popup with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeJsonPopup();
+            }
+        });
+    </script>
 </body>
 </html>`;
   }
@@ -1101,9 +1210,9 @@ class EndpointTester {
 
     const getTestNameTooltip = (result) => `
 Provider ID: ${result.provider_id || 'Not specified'}
-&#10;&#10;
+&#10;
 Description: ${result.description || 'Not specified'}
-&#10;&#10;
+&#10;
 Execution timestamp: ${result.timestamp || 'Unknown'}
     `;
 
@@ -1158,6 +1267,22 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
       const urlObj = new URL(url);
       let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
       
+      // Check if this is a search endpoint and if q parameter contains JSON
+      const isSearchEndpoint = urlObj.pathname.includes('/api/search');
+      const qParam = urlObj.searchParams.get('q');
+      let hasJsonQuery = false;
+      let encodedQParam = '';
+      
+      if (isSearchEndpoint && qParam) {
+        try {
+          JSON.parse(decodeURIComponent(qParam));
+          hasJsonQuery = true;
+          encodedQParam = encodeURIComponent(qParam);
+        } catch (e) {
+          // Not valid JSON, continue with normal processing
+        }
+      }
+      
       // Build query string with properly encoded parameters
       const encodedParams = [];
       const decodedParams = [];
@@ -1178,7 +1303,15 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
         fullDecodedUrl += '?' + decodedParams.join('&');
       }
       
-      return `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
+      // Create the main URL link
+      let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
+      
+      // Add JSON popup trigger if applicable
+      if (hasJsonQuery) {
+        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view formatted JSON query">📄 JSON</span>`;
+      }
+      
+      return result;
     } catch (error) {
       // If URL parsing fails, return the original URL as text
       const escapedUrl = url
