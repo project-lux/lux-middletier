@@ -3,7 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { getEndpointKeyFromPath, parseBoolean } from './utils.js';
+import { getEndpointKeyFromPath, isDefined, parseBoolean } from './utils.js';
 import { TestDataProviderFactory } from './test-data-providers/interface.js';
 import { ENDPOINT_KEYS } from './constants.js';
 
@@ -1379,7 +1379,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                         <td>${result.expected_status}</td>
                         <td>${result.actual_status}</td>
                         <td>${result.duration_ms || 'N/A'}</td>
-                        <td>${result.additional_info || 'N/A'}</td>
+                        <td>${isDefined(result.additional_info) ? result.additional_info : 'N/A'}</td>
                         <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
                         <td>${result.response_body_file || 'N/A'}</td>
                     </tr>
