@@ -943,7 +943,7 @@ class EndpointTester {
    */
   getProvidersIncluded() {
     if (!this.providerFilter || this.providerFilter.length === 0) {
-      return 'All';
+      return ['All'];
     }
     return this.providerFilter;
   }
@@ -953,7 +953,7 @@ class EndpointTester {
    */
   getEndpointsIncluded() {
     if (!this.endpointFilter || this.endpointFilter.length === 0) {
-      return 'All';
+      return ['All'];
     }
     return this.endpointFilter;
   }
