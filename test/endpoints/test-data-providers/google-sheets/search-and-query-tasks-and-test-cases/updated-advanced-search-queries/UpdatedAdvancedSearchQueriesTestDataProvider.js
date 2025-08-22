@@ -176,17 +176,23 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
 
         const worksheet = workbook.Sheets[sheetName];
 
-        // Convert worksheet to JSON with hyperlink preservation
+        // Get the actual range of data in the worksheet
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        console.log(`Worksheet range: ${worksheet['!ref']} (${range.e.r + 1} rows, ${range.e.c + 1} columns)`);
+
+        // Convert worksheet to JSON, including blank rows to ensure we get all data
         const jsonData = XLSX.utils.sheet_to_json(worksheet, {
           header: this.options.headers ? 1 : undefined,
           range: this.options.range,
           defval: this.options.defVal,
-          blankrows: false, // Skip blank rows
+          blankrows: true, // Include blank rows to capture all data
           raw: false // Get formatted values
         });
 
+        console.log(`Initial JSON conversion produced ${jsonData.length} rows from ${range.e.r + 1} total rows`);
+
         // Enhance data with hyperlink information
-        const enhancedData = this.enhanceDataWithHyperlinks(jsonData, worksheet);
+        const enhancedData = this.enhanceDataWithHyperlinks(jsonData, worksheet, range);
 
         console.log(`Parsed ${enhancedData.length} rows from XLSX file`);
         resolve(enhancedData);
@@ -201,14 +207,21 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
    * Enhance JSON data with hyperlink information from the worksheet
    * @param {Array<Object>} jsonData - Raw JSON data from XLSX
    * @param {Object} worksheet - XLSX worksheet object
+   * @param {Object} range - Decoded worksheet range
    * @returns {Array<Object>} - Enhanced data with hyperlink info
    */
-  enhanceDataWithHyperlinks(jsonData, worksheet) {
-    const range = XLSX.utils.decode_range(worksheet['!ref']);
+  enhanceDataWithHyperlinks(jsonData, worksheet, range) {
     const enhancedData = [];
+    
+    // Process based on the actual worksheet range to ensure we don't miss rows
+    const totalDataRows = range.e.r; // Last row index (0-based, excluding header)
 
-    for (let rowIndex = 0; rowIndex < jsonData.length; rowIndex++) {
-      const record = jsonData[rowIndex];
+    // If jsonData has fewer entries than expected, we need to fill in the gaps
+    const maxRows = Math.max(jsonData.length, totalDataRows);
+
+    for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+      // Get the record from jsonData or create an empty one if missing
+      const record = rowIndex < jsonData.length ? jsonData[rowIndex] : {};
       const enhancedRecord = { ...record };
       
       // Store the original Excel row number (1-based, accounting for header row)
@@ -223,6 +236,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
         // Cell has a hyperlink
         enhancedRecord.__hyperlink_url = cell.l.Target;
         enhancedRecord.__hyperlink_text = cell.v || cell.w || '';
+        console.log(`Found Excel hyperlink in row ${excelRowNumber}: ${cell.l.Target}`);
       } else if (cell && cell.v) {
         // Check if the cell value itself contains a hyperlink pattern
         const cellValue = String(cell.v);
@@ -230,12 +244,21 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
         if (extractedUrl) {
           enhancedRecord.__hyperlink_url = extractedUrl;
           enhancedRecord.__hyperlink_text = this.extractTextFromCell(cellValue);
+          console.log(`Found text-based hyperlink in row ${excelRowNumber}: ${extractedUrl}`);
         }
       }
       
-      enhancedData.push(enhancedRecord);
+      // Only add rows that have some data or hyperlinks
+      const hasContent = Object.keys(record).length > 0 || 
+                        enhancedRecord.__hyperlink_url || 
+                        (cell && cell.v);
+      
+      if (hasContent) {
+        enhancedData.push(enhancedRecord);
+      }
     }
 
+    console.log(`Enhanced ${enhancedData.length} rows with hyperlink information`);
     return enhancedData;
   }
 
