@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { getEndpointKeyFromPath, parseBoolean } from './utils.js';
 import { TestDataProviderFactory } from './test-data-providers/interface.js';
+import { ENDPOINT_KEYS } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -438,6 +439,107 @@ class EndpointTester {
   }
 
   /**
+   * Extract additional endpoint-specific information from the response
+   * Returns an object with { value, header } or null if no additional info available
+   */
+  extractAdditionalInfo(testConfig, response) {
+    if (!response || !response.data) {
+      return null;
+    }
+
+    const endpointType = testConfig.endpoint_type;
+    const data = response.data;
+
+    switch (endpointType) {
+      case ENDPOINT_KEYS.GET_SEARCH:
+        let value = 'N/A';
+        if (data.orderedItems && Array.isArray(data.orderedItems)) {
+          value = data.orderedItems.length;
+        } else if (data.totalItems !== undefined) {
+          value = data.totalItems;
+        } else if (data.results && Array.isArray(data.results)) {
+          value = data.results.length;
+        }
+        return { value, header: 'Results Count' };
+
+      // case ENDPOINT_KEYS.GET_FACETS:
+      //   // Extract facet information
+      //   if (data.facets && typeof data.facets === 'object') {
+      //     const facetCount = Object.keys(data.facets).length;
+      //     return { value: facetCount, header: 'Facet Count' };
+      //   }
+      //   break;
+
+      // case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
+      //   // Extract estimated count
+      //   if (data.totalItems !== undefined) {
+      //     return { value: data.totalItems, header: 'Estimated Count' };
+      //   } else if (data.estimate !== undefined) {
+      //     return { value: data.estimate, header: 'Estimated Count' };
+      //   }
+      //   break;
+
+      // case 'related-list':
+      //   // Extract related items count
+      //   if (data.orderedItems && Array.isArray(data.orderedItems)) {
+      //     return { value: `${data.orderedItems.length} related`, header: 'Related Items' };
+      //   } else if (data.items && Array.isArray(data.items)) {
+      //     return { value: `${data.items.length} related`, header: 'Related Items' };
+      //   }
+      //   break;
+
+      // case 'advanced-search-config':
+      //   // Extract config sections count
+      //   if (data.config && typeof data.config === 'object') {
+      //     const configKeys = Object.keys(data.config).length;
+      //     return { value: `${configKeys} config sections`, header: 'Config Sections' };
+      //   }
+      //   break;
+
+      // case 'translate':
+      //   // Extract translation information
+      //   if (data.translations && Array.isArray(data.translations)) {
+      //     return { value: `${data.translations.length} translations`, header: 'Translation Count' };
+      //   } else if (data.result) {
+      //     return { value: 'translation completed', header: 'Translation Status' };
+      //   }
+      //   break;
+
+      // case 'document-create':
+      // case 'document-update':
+      //   // Extract document operation result
+      //   if (data.success !== undefined) {
+      //     return { value: data.success ? 'success' : 'failed', header: 'Operation Status' };
+      //   } else if (data.id) {
+      //     return { value: `doc id: ${data.id}`, header: 'Document ID' };
+      //   }
+      //   break;
+
+      // case 'document-read':
+      //   // Extract document information
+      //   if (data.type) {
+      //     return { value: `type: ${data.type}`, header: 'Document Type' };
+      //   } else if (data.id) {
+      //     return { value: `doc id: ${data.id}`, header: 'Document ID' };
+      //   }
+      //   break;
+
+      // default:
+      //   // For unknown endpoint types, try to extract generic information
+      //   if (data.totalItems !== undefined) {
+      //     return { value: `${data.totalItems} items`, header: 'Item Count' };
+      //   } else if (data.count !== undefined) {
+      //     return { value: `count: ${data.count}`, header: 'Count' };
+      //   } else if (Array.isArray(data)) {
+      //     return { value: `${data.length} items`, header: 'Array Length' };
+      //   }
+      //   break;
+    }
+
+    return null;
+  }
+
+  /**
    * Save response body to disk
    */
   saveResponseBody(testName, response, timestamp, sourceFile, rowNumber, totalRows) {
@@ -528,6 +630,9 @@ class EndpointTester {
       // Save response body if enabled
       const responseBodyFile = this.saveResponseBody(testConfig.test_name, response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
 
+      // Extract additional endpoint-specific information
+      const additionalInfo = this.extractAdditionalInfo(testConfig, response);
+
       // Determine if test passed based on expected vs actual status
       const actualStatus = response.status;
       const expectedStatus = testConfig.expected_status;
@@ -550,6 +655,10 @@ class EndpointTester {
         timestamp: timestamp,
         description: testConfig.description,
         tags: testConfig.tags,
+        ...(additionalInfo && { 
+          additional_info: additionalInfo.value,
+          additional_info_header: additionalInfo.header 
+        }),
         ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
 
@@ -575,8 +684,11 @@ class EndpointTester {
       
       // Save error response body if available
       let responseBodyFile = null;
+      let additionalInfo = null;
       if (error.response) {
         responseBodyFile = this.saveResponseBody(testConfig.test_name, error.response, timestamp, testConfig.source_file, testConfig.row_number, testConfig.total_rows);
+        // Try to extract additional info from error response
+        additionalInfo = this.extractAdditionalInfo(testConfig, error.response);
       }
       
       const result = {
@@ -595,6 +707,10 @@ class EndpointTester {
         timestamp: timestamp,
         description: testConfig.description,
         tags: testConfig.tags,
+        ...(additionalInfo && { 
+          additional_info: additionalInfo.value,
+          additional_info_header: additionalInfo.header 
+        }),
         ...(responseBodyFile && { response_body_file: responseBodyFile }),
       };
 
@@ -1167,6 +1283,40 @@ class EndpointTester {
 </html>`;
   }
 
+  wrapText(text, maxLength = 80) {
+    if (!text || text.length <= maxLength) {
+      return text;
+    }
+    
+    const words = text.split(' ');
+    let currentLine = '';
+    const lines = [];
+    
+    for (const word of words) {
+      // Check if adding this word would exceed the limit
+      if (currentLine.length + word.length + 1 > maxLength) {
+        // If current line has content, push it and start a new line
+        if (currentLine.length > 0) {
+          lines.push(currentLine.trim());
+          currentLine = word;
+        } else {
+          // If the word itself is longer than maxLength, just add it
+          lines.push(word);
+        }
+      } else {
+        // Add word to current line
+        currentLine += (currentLine.length > 0 ? ' ' : '') + word;
+      }
+    }
+    
+    // Add the last line if it has content
+    if (currentLine.length > 0) {
+      lines.push(currentLine.trim());
+    }
+    
+    return lines.join('&#10;');
+  }
+
   /**
    * Generate test results grouped by endpoint type
    */
@@ -1184,14 +1334,27 @@ class EndpointTester {
     const getTestNameTooltip = (result) => `
 Provider ID: ${result.provider_id || 'Not specified'}
 &#10;
-Description: ${result.description || 'Not specified'}
+Description: ${this.wrapText(result.description || 'Not specified')}
 &#10;
 Execution timestamp: ${result.timestamp || 'Unknown'}
     `;
 
     // Generate HTML for each endpoint type
     return Object.entries(resultsByType)
-      .map(([endpointType, results]) => `
+      .map(([endpointType, results]) => {
+        // Determine the most appropriate column header for this endpoint type
+        const additionalInfoHeaders = results
+          .filter(result => result.additional_info_header)
+          .map(result => result.additional_info_header);
+        
+        // Use the most common header, or fall back to "Additional Info"
+        const columnHeader = additionalInfoHeaders.length > 0 
+          ? additionalInfoHeaders.reduce((a, b, i, arr) =>
+              arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
+            )
+          : 'Additional Info';
+
+        return `
         <h3>${endpointType} (${results.length} tests)</h3>
         <table>
             <thead>
@@ -1201,6 +1364,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                     <th>Expected</th>
                     <th>Actual</th>
                     <th>Duration (ms)</th>
+                    <th>${columnHeader}</th>
                     <th>URL</th>
                     <th>Response File</th>
                 </tr>
@@ -1215,6 +1379,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                         <td>${result.expected_status}</td>
                         <td>${result.actual_status}</td>
                         <td>${result.duration_ms || 'N/A'}</td>
+                        <td>${result.additional_info || 'N/A'}</td>
                         <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
                         <td>${result.response_body_file || 'N/A'}</td>
                     </tr>
@@ -1223,7 +1388,8 @@ Execution timestamp: ${result.timestamp || 'Unknown'}
                   .join('')}
             </tbody>
         </table>
-      `)
+      `;
+      })
       .join('');
   }
 
