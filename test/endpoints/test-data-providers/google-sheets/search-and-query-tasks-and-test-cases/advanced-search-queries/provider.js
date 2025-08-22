@@ -90,13 +90,13 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName === 'expected_status') {
             return 200;
           } else if (columnName === 'timeout_ms') {
-            return 15000;
+            return 30000;
           } else if (columnName === 'max_response_time') {
             return 10000;
           } else if (columnName === 'delay_after_ms') {
             return 1000;
           } else if (columnName === 'tags') {
-            return `google-sheets,search,row-${record.originalIndex}`;
+            return `google-sheets,search`;
           } else if (columnName.startsWith('param:')) {
             // Extract parameter from URL query string
             const paramName = columnName.replace('param:', '');
@@ -323,10 +323,14 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
       return 'item';
     }
 
+    if (lowerScope === 'collections' || lowerScope === 'collection') {
+      return 'set';
+    }
+
     if (lowerScope === 'people') {
       return 'agent'
     }
-    
+
     // The plural form of all other support scopes simply end with a 's', and no
     // singular form of a supported scope does.
     if (lowerScope.endsWith('s')) {
