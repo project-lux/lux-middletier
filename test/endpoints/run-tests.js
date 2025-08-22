@@ -1270,53 +1270,6 @@ class EndpointTester {
     </div>
 
     <script>
-        // Compression/decompression utilities
-        function base64ToArrayBuffer(base64) {
-            const binaryString = atob(base64);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
-        }
-
-        function arrayBufferToString(buffer) {
-            const decoder = new TextDecoder('utf-8');
-            return decoder.decode(buffer);
-        }
-
-        async function decompressGzip(compressedData) {
-            const arrayBuffer = base64ToArrayBuffer(compressedData);
-            const decompressedStream = new DecompressionStream('gzip');
-            const writer = decompressedStream.writable.getWriter();
-            const reader = decompressedStream.readable.getReader();
-            
-            // Write the compressed data
-            await writer.write(new Uint8Array(arrayBuffer));
-            await writer.close();
-            
-            // Read the decompressed result
-            const chunks = [];
-            let done = false;
-            while (!done) {
-                const { value, done: streamDone } = await reader.read();
-                done = streamDone;
-                if (value) chunks.push(value);
-            }
-            
-            // Combine chunks and convert to string
-            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-            const combined = new Uint8Array(totalLength);
-            let offset = 0;
-            for (const chunk of chunks) {
-                combined.set(chunk, offset);
-                offset += chunk.length;
-            }
-            
-            return arrayBufferToString(combined.buffer);
-        }
-
         function showJsonPopup(jsonString) {
             try {
                 const parsed = JSON.parse(decodeURIComponent(jsonString));
@@ -1332,51 +1285,6 @@ class EndpointTester {
         function closeJsonPopup(event) {
             if (!event || event.target === document.getElementById('jsonPopup')) {
                 document.getElementById('jsonPopup').style.display = 'none';
-            }
-        }
-
-        async function showCompressedResponseContent(base64CompressedContent) {
-            try {
-                document.getElementById('responsePopup').style.display = 'block';
-                document.getElementById('responseContent').innerHTML = '<div style="text-align: center; padding: 20px;">Decompressing content...</div>';
-                
-                // Check if DecompressionStream is supported
-                if (typeof DecompressionStream === 'undefined') {
-                    console.warn('DecompressionStream not supported, trying alternative decompression...');
-                    // Try to decode as regular base64 (maybe it wasn't actually compressed)
-                    const arrayBuffer = base64ToArrayBuffer(base64CompressedContent);
-                    const decoded = arrayBufferToString(arrayBuffer);
-                    throw new Error('DecompressionStream not supported');
-                }
-                
-                const decompressedContent = await decompressGzip(base64CompressedContent);
-                
-                try {
-                    // Try to parse and format as JSON
-                    const parsed = JSON.parse(decompressedContent);
-                    const formatted = JSON.stringify(parsed, null, 2);
-                    document.getElementById('responseContent').innerHTML = '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
-                } catch (jsonError) {
-                    // If it's not valid JSON, display as plain text
-                    document.getElementById('responseContent').innerHTML = '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + decompressedContent + '</pre>';
-                }
-            } catch (e) {
-                console.warn('Decompression failed, trying alternative approach:', e.message);
-                // Fallback: try to decode as regular base64 content
-                try {
-                    const arrayBuffer = base64ToArrayBuffer(base64CompressedContent);
-                    const decoded = arrayBufferToString(arrayBuffer);
-                    
-                    try {
-                        const parsed = JSON.parse(decoded);
-                        const formatted = JSON.stringify(parsed, null, 2);
-                        document.getElementById('responseContent').innerHTML = '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
-                    } catch (jsonError) {
-                        document.getElementById('responseContent').innerHTML = '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + decoded + '</pre>';
-                    }
-                } catch (fallbackError) {
-                    document.getElementById('responseContent').innerHTML = '<div style="color: red; padding: 20px;">Error displaying content. This may occur in older browsers.<br><br>Error: ' + e.message + '</div>';
-                }
             }
         }
 
