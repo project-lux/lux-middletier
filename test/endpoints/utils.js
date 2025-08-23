@@ -272,3 +272,41 @@ export function parseBoolean(value) {
   // For other types, use JavaScript's truthiness
   return Boolean(value);
 }
+
+/**
+ * Extract type and uuid from LUX data URLs
+ * @param {string} url - LUX data URL (e.g., "https://lux.collections.yale.edu/view/item/12345678-1234-1234-1234-123456789012")
+ * @returns {Object} - Object containing type and uuid parameters
+ */
+export function extractDataParamsFromUrl(url) {
+  const params = {};
+  
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+    
+    // Look for patterns like /view/item/uuid or /data/item/uuid
+    const viewIndex = pathParts.findIndex(part => part === 'view' || part === 'data');
+    
+    if (viewIndex >= 0 && viewIndex + 2 < pathParts.length) {
+      // Found view/data, next should be type, then uuid
+      params.type = pathParts[viewIndex + 1];
+      params.uuid = pathParts[viewIndex + 2];
+    } else {
+      // Try to find type/uuid pattern directly in path
+      const typeIndex = pathParts.findIndex(part => 
+        ['item', 'set', 'agent', 'place', 'concept', 'work', 'event'].includes(part)
+      );
+      
+      if (typeIndex >= 0 && typeIndex + 1 < pathParts.length) {
+        params.type = pathParts[typeIndex];
+        params.uuid = pathParts[typeIndex + 1];
+      }
+    }
+    
+    return params;
+  } catch (error) {
+    console.warn(`Failed to parse data URL: ${url}`, error.message);
+    return params;
+  }
+}
