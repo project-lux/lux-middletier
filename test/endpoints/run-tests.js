@@ -701,8 +701,17 @@ class EndpointTester {
     const testsByType = this.groupTestsByType(testConfigs);
     console.log('\nTest distribution by endpoint type:');
     Object.entries(testsByType).forEach(([type, tests]) => {
-      console.log(`  ${type}: ${tests.length} tests`);
+      const enabledCount = tests.filter(config => this.shouldRunTest(config)).length;
+      const disabledCount = tests.length - enabledCount;
+      console.log(`  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`);
     });
+
+    // Overall summary
+    const totalEnabled = testConfigs.filter(config => this.shouldRunTest(config)).length;
+    const totalDisabled = testConfigs.length - totalEnabled;
+    if (totalDisabled > 0) {
+      console.log(`\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`);
+    }
   }
 
   /**
