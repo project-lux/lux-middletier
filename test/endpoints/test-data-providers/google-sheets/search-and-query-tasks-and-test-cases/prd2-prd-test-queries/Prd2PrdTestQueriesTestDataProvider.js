@@ -56,7 +56,8 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
       const relevantRows = tsvData
         .map((record, index) => ({ 
           ...record, 
-          originalIndex: index + 1 + this.headerRowIndex // +1 to make it 1-based
+          // Use the original row number that was stored during parsing
+          originalIndex: record.sourceRowNumber || (index + this.headerRowIndex + 1)
         }))
         .filter(record => {
           const url = this.getUrlFromSecondColumn(record);
@@ -174,30 +175,21 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
           
           // If we don't have headers yet, try to detect the header row
           if (!headers) {
-            // Look for a row that contains expected column names
-            const expectedColumns = ['Research Topic (Graph Query)', 'Draft query', 'Search'];
+            // For this specific TSV file, look for the first row that looks like headers
+            // The file starts with "Name\tTST\t\t\tNotes" structure
             const rowValues = Object.values(data).map(val => val ? val.trim() : '');
             
-            // Check if this row contains any of our expected column names
-            const hasExpectedColumns = expectedColumns.some(col => 
-              rowValues.some(val => val && val.includes(col))
-            );
-            
-            if (hasExpectedColumns) {
+            // Check if this looks like the header row (has "Name" and "TST" in first two columns)
+            if (rowValues.length >= 2 && rowValues[0] === 'Name' && rowValues[1] === 'TST') {
               headers = rowValues.filter(val => val && val.trim()); // Remove empty headers
               this.headerRowIndex = rowIndex;
               return; // Skip this row as it's the header
-            } else {
-              // If no expected columns found and we've checked a few rows, use this as headers anyway
-              if (rowIndex <= 3) {
-                return; // Skip rows that might be metadata or empty
-              } else if (rowIndex === 4) {
-                // Fallback: use this row as headers if we haven't found them by row 4
-                headers = rowValues.filter(val => val && val.trim());
-                this.headerRowIndex = rowIndex; // Store as member variable
-                console.log(`Using fallback headers from row ${rowIndex}:`, headers);
-                return;
-              }
+            } else if (rowIndex === 1) {
+              // If the first row doesn't match expected headers, use it anyway
+              headers = rowValues.filter(val => val && val.trim());
+              this.headerRowIndex = rowIndex;
+              console.log(`Using first row as headers:`, headers);
+              return;
             }
           }
           
@@ -217,6 +209,8 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
             // Only add rows that have some data
             const hasData = Object.values(cleanData).some(val => val && val.trim());
             if (hasData) {
+              // Store the original row number with the data
+              cleanData.sourceRowNumber = rowIndex;
               results.push(cleanData);
             }
           }
