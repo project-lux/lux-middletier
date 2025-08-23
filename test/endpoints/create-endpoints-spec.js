@@ -66,7 +66,7 @@ async function analyzeAppJs() {
     
     const result = { endpoints };
     
-    const outputPath = path.join(__dirname, 'endpoints-definition.json');
+    const outputPath = path.join(__dirname, 'endpoints-spec.json');
     await fs.writeFile(outputPath, JSON.stringify(result, null, 2), 'utf-8');
     console.log(`Endpoints specification: ${outputPath}`);
     
@@ -115,25 +115,39 @@ function analyzeHandler(content, handlerName) {
     requiredPathParams: [],
     requiredQueryParams: []
   };
-  
-  // Find the handler method
-  const handlerRegex = new RegExp(`async\\s+${handlerName}\\s*\\([^{]*\\{([^}]|\\{[^}]*\\})*`, 'gs');
-  const handlerMatch = handlerRegex.exec(content);
-  
-  if (!handlerMatch) {
+
+  // Find the handler method - extract full method body
+  const handlerStart = content.indexOf(`async ${handlerName}(`);
+  if (handlerStart === -1) {
     // Try static handler
-    const staticHandlerRegex = new RegExp(`static\\s+${handlerName}\\s*=\\s*\\([^{]*\\{([^}]|\\{[^}]*\\})*`, 'gs');
-    const staticMatch = staticHandlerRegex.exec(content);
-    if (staticMatch) {
+    const staticStart = content.indexOf(`static ${handlerName} =`);
+    if (staticStart !== -1) {
       handlerInfo.description = getDescriptionForHandler(handlerName);
       return handlerInfo;
     }
     return handlerInfo;
   }
+
+  // Find the method body by counting braces
+  let braceCount = 0;
+  let inMethodBody = false;
+  let methodEnd = handlerStart;
   
-  const handlerCode = handlerMatch[0];
+  for (let i = handlerStart; i < content.length; i++) {
+    const char = content[i];
+    if (char === '{') {
+      braceCount++;
+      inMethodBody = true;
+    } else if (char === '}') {
+      braceCount--;
+      if (inMethodBody && braceCount === 0) {
+        methodEnd = i + 1;
+        break;
+      }
+    }
+  }
   
-  // Extract path parameters
+  const handlerCode = content.substring(handlerStart, methodEnd);  // Extract path parameters
   const pathParamMatches = handlerCode.match(/const\s*{\s*([^}]+)\s*}\s*=\s*req\.params/);
   if (pathParamMatches) {
     const pathParamNames = pathParamMatches[1]
@@ -156,12 +170,35 @@ function analyzeHandler(content, handlerName) {
       handlerInfo.pathParams.push(param);
       handlerInfo.requiredPathParams.push(paramName);
     });
+  } else {
+    // Also check for direct property access: const paramName = req.params.paramName
+    const directParamRegex = /const\s+(\w+)\s*=\s*req\.params\.(\w+)/g;
+    let directMatch;
+    while ((directMatch = directParamRegex.exec(handlerCode)) !== null) {
+      const [, varName, paramName] = directMatch;
+      
+      const param = { name: paramName, type: 'string' };
+      
+      // Add validation info for specific endpoints
+      if (handlerName === 'handleResolve') {
+        if (paramName === 'scope') {
+          param.validValues = ['objects', 'works'];
+        } else if (paramName === 'unit') {
+          param.validValues = ['lml', 'pmc', 'ycba', 'ypm', 'yuag', 'yul'];
+        }
+      }
+      
+      handlerInfo.pathParams.push(param);
+      handlerInfo.requiredPathParams.push(paramName);
+    }
   }
   
   // Extract query parameters
   const queryPatterns = [
     /const\s+(\w+)\s*=\s*req\.query\.(\w+)(?:\s*\|\|\s*['"]([^'"]*)['"]\s*|\s*\|\|\s*(\d+)\s*|\s*\|\|\s*(true|false|null))?/g,
-    /const\s*{\s*([^}]+)\s*}\s*=\s*req\.query/g
+    /const\s*{\s*([^}]+)\s*}\s*=\s*req\.query/g,
+    // Also handle decodeURIComponent calls
+    /const\s+(\w+)\s*=\s*decodeURIComponent\s*\(\s*req\.query\.(\w+)\s*\)/g
   ];
   
   queryPatterns.forEach(pattern => {
@@ -179,6 +216,13 @@ function analyzeHandler(content, handlerName) {
             name: paramName,
             type: 'string'
           });
+        });
+      } else if (pattern.source.includes('decodeURIComponent')) {
+        // decodeURIComponent pattern
+        const [, varName, paramName] = match;
+        handlerInfo.queryParams.push({
+          name: paramName,
+          type: 'string'
         });
       } else {
         // Individual assignment pattern
@@ -249,8 +293,44 @@ function analyzeComplexQueryParams(handlerCode, handlerInfo) {
     handlerInfo.queryParams = autoCompleteParams;
   }
   
-  // Search handler parameters
-  if (handlerCode.includes('handleSearch')) {
+  // Facets handler parameters
+  else if (handlerCode.includes('handleFacets')) {
+    const facetsParams = [
+      { name: 'name', type: 'string' },
+      { name: 'q', type: 'string' },
+      { name: 'page', type: 'string' },
+      { name: 'pageLength', type: 'string' },
+      { name: 'sort', type: 'string' }
+    ];
+    
+    handlerInfo.queryParams = facetsParams;
+  }
+  
+  // Search estimate handler parameters
+  else if (handlerCode.includes('handleSearchEstimate')) {
+    const searchEstimateParams = [
+      { name: 'q', type: 'string' }
+    ];
+    
+    handlerInfo.queryParams = searchEstimateParams;
+  }
+  
+  // Search will match handler parameters  
+  else if (handlerCode.includes('handleSearchWillMatch')) {
+    const searchWillMatchParams = [
+      { name: 'q', type: 'string' }
+    ];
+    
+    handlerInfo.queryParams = searchWillMatchParams;
+  }
+  
+  // Search info handler - no query parameters
+  else if (handlerCode.includes('handleSearchInfo')) {
+    handlerInfo.queryParams = [];
+  }
+  
+  // Main Search handler parameters (must come after other search handlers)
+  else if (handlerCode.includes('handleSearch')) {
     const searchParams = [
       { name: 'q', type: 'string' },
       { name: 'mayChangeScope', type: 'boolean', default: false },

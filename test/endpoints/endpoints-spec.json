@@ -84,12 +84,40 @@
       "method": "GET",
       "description": "Get faceted search results for a given scope",
       "parameters": {
-        "path": [],
-        "query": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "q",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "type": "string"
+          },
+          {
+            "name": "pageLength",
+            "type": "string"
+          },
+          {
+            "name": "sort",
+            "type": "string"
+          }
+        ],
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope"
+        ],
         "query": []
       }
     },
@@ -98,7 +126,12 @@
       "method": "GET",
       "description": "Get related items for a given scope and entity",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
         "query": [
           {
             "name": "name",
@@ -134,7 +167,9 @@
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope"
+        ],
         "query": []
       }
     },
@@ -143,12 +178,41 @@
       "method": "GET",
       "description": "Resolve an identifier within a scope and unit to a resource URL",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string",
+            "validValues": [
+              "objects",
+              "works"
+            ]
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "validValues": [
+              "lml",
+              "pmc",
+              "ycba",
+              "ypm",
+              "yuag",
+              "yul"
+            ]
+          },
+          {
+            "name": "identifier",
+            "type": "string"
+          }
+        ],
         "query": [],
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope",
+          "unit",
+          "identifier"
+        ],
         "query": []
       }
     },
@@ -157,7 +221,12 @@
       "method": "GET",
       "description": "Perform search within a given scope",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
         "query": [
           {
             "name": "q",
@@ -207,7 +276,9 @@
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope"
+        ],
         "query": []
       }
     },
@@ -216,57 +287,24 @@
       "method": "GET",
       "description": "Get estimated count of search results for a given scope",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
         "query": [
           {
             "name": "q",
             "type": "string"
-          },
-          {
-            "name": "mayChangeScope",
-            "type": "boolean",
-            "default": false
-          },
-          {
-            "name": "page",
-            "type": "integer",
-            "default": 1
-          },
-          {
-            "name": "pageLength",
-            "type": "integer",
-            "default": 20
-          },
-          {
-            "name": "pageWith",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "sort",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "filterResults",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "facetsSoon",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "synonymsEnabled",
-            "type": "boolean",
-            "default": true
           }
         ],
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope"
+        ],
         "query": []
       }
     },
@@ -276,52 +314,7 @@
       "description": "Get search configuration information",
       "parameters": {
         "path": [],
-        "query": [
-          {
-            "name": "q",
-            "type": "string"
-          },
-          {
-            "name": "mayChangeScope",
-            "type": "boolean",
-            "default": false
-          },
-          {
-            "name": "page",
-            "type": "integer",
-            "default": 1
-          },
-          {
-            "name": "pageLength",
-            "type": "integer",
-            "default": 20
-          },
-          {
-            "name": "pageWith",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "sort",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "filterResults",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "facetsSoon",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "synonymsEnabled",
-            "type": "boolean",
-            "default": true
-          }
-        ],
+        "query": [],
         "body": null
       },
       "required": {
@@ -339,46 +332,6 @@
           {
             "name": "q",
             "type": "string"
-          },
-          {
-            "name": "mayChangeScope",
-            "type": "boolean",
-            "default": false
-          },
-          {
-            "name": "page",
-            "type": "integer",
-            "default": 1
-          },
-          {
-            "name": "pageLength",
-            "type": "integer",
-            "default": 20
-          },
-          {
-            "name": "pageWith",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "sort",
-            "type": "string",
-            "default": ""
-          },
-          {
-            "name": "filterResults",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "facetsSoon",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "synonymsEnabled",
-            "type": "boolean",
-            "default": true
           }
         ],
         "body": null
@@ -421,12 +374,24 @@
       "method": "GET",
       "description": "Translate natural language queries or redirect to AI service for 'I want' queries",
       "parameters": {
-        "path": [],
-        "query": [],
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          }
+        ],
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "scope"
+        ],
         "query": [
           "q"
         ]
@@ -451,7 +416,16 @@
       "method": "GET",
       "description": "Retrieve a specific document by type and UUID",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
         "query": [
           {
             "name": "profile",
@@ -465,7 +439,10 @@
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "type",
+          "uuid"
+        ],
         "query": []
       }
     },
@@ -476,11 +453,15 @@
       "parameters": {
         "path": [],
         "query": [],
-        "body": null
+        "body": {
+          "type": "object",
+          "description": "Document data in JSON format"
+        }
       },
       "required": {
         "path": [],
-        "query": []
+        "query": [],
+        "body": true
       }
     },
     {
@@ -488,13 +469,29 @@
       "method": "PUT",
       "description": "Update an existing document by type and UUID",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
         "query": [],
-        "body": null
+        "body": {
+          "type": "object",
+          "description": "Updated document data in JSON format"
+        }
       },
       "required": {
-        "path": [],
-        "query": []
+        "path": [
+          "type",
+          "uuid"
+        ],
+        "query": [],
+        "body": true
       }
     },
     {
@@ -502,12 +499,24 @@
       "method": "DELETE",
       "description": "Delete a document by type and UUID",
       "parameters": {
-        "path": [],
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
         "query": [],
         "body": null
       },
       "required": {
-        "path": [],
+        "path": [
+          "type",
+          "uuid"
+        ],
         "query": []
       }
     },
