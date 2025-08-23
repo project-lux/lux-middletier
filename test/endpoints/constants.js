@@ -1,6 +1,6 @@
 /**
  * Endpoint Testing Constants
- * 
+ *
  * This file defines constants used throughout the endpoint testing framework.
  * It provides a centralized location for endpoint keys, HTTP methods, status codes,
  * and other test-related constants.
@@ -14,41 +14,29 @@
  * Endpoint keys used as identifiers throughout the testing framework.
  * These keys are generated from API paths and HTTP methods using the pattern:
  * {method}-{path-segments-without-parameters}
- * 
+ *
  * Example: GET /api/search/:scope becomes "get-search"
  */
 export const ENDPOINT_KEYS = {
-  // Search and Query Endpoints
-  GET_SEARCH: 'get-search',
-  GET_FACETS: 'get-facets',
-  GET_AUTO_COMPLETE: 'get-auto-complete',
-  GET_ADVANCED_SEARCH_CONFIG: 'get-advanced-search-config',
-  GET_RELATED_LIST: 'get-related-list',
-  
-  // Data Retrieval Endpoints
-  GET_DATA: 'get-data',
-  GET_ITEM: 'get-item',
-  GET_SET: 'get-set',
-  GET_WORK: 'get-work',
-  GET_AGENT: 'get-agent',
-  GET_PLACE: 'get-place',
-  GET_CONCEPT: 'get-concept',
-  GET_EVENT: 'get-event',
-  
-  // Statistics and Analytics
-  GET_STATS: 'get-stats',
-  GET_TIMELINE: 'get-timeline',
-  GET_HIERARCHY: 'get-hierarchy',
-  
-  // Configuration and System
-  GET_CONFIG: 'get-config',
-  GET_HEALTH: 'get-health',
-  GET_INFO: 'get-info',
-  
-  // Write Operations (if applicable)
-  POST_DATA: 'post-data',
-  PUT_DATA: 'put-data',
-  DELETE_DATA: 'delete-data'
+  DELETE_DATA: "delete-data",
+  GET_ADVANCED_SEARCH_CONFIG: "get-advanced-search-config",
+  GET_AUTO_COMPLETE: "get-auto-complete",
+  GET_DATA: "get-data",
+  GET_FACETS: "get-facets",
+  GET_HEALTH: "get-health",
+  GET_INFO: "get-info",
+  GET_RELATED_LIST: "get-related-list",
+  GET_RESOLVE: "get-resolve",
+  GET_SEARCH: "get-search",
+  GET_SEARCH_ESTIMATE: "get-search-estimate",
+  GET_SEARCH_INFO: "get-search-info",
+  GET_SEARCH_WILL_MATCH: "get-search-will-match",
+  GET_STATS: "get-stats",
+  GET_TENANT_STATUS: "get-tenant-status",
+  GET_TRANSLATE: "get-translate",
+  GET_VERSION_INFO: "get-version-info",
+  POST_DATA: "post-data",
+  PUT_DATA: "put-data",
 };
 
 // Reverse lookup for endpoint keys (useful for debugging and error messages)
@@ -61,13 +49,13 @@ export const ENDPOINT_KEY_NAMES = Object.fromEntries(
 // ==============================================================================
 
 export const HTTP_METHODS = {
-  GET: 'GET',
-  POST: 'POST',
-  PUT: 'PUT',
-  DELETE: 'DELETE',
-  PATCH: 'PATCH',
-  HEAD: 'HEAD',
-  OPTIONS: 'OPTIONS'
+  GET: "GET",
+  POST: "POST",
+  PUT: "PUT",
+  DELETE: "DELETE",
+  PATCH: "PATCH",
+  HEAD: "HEAD",
+  OPTIONS: "OPTIONS",
 };
 
 // ==============================================================================
@@ -80,12 +68,12 @@ export const HTTP_STATUS = {
   CREATED: 201,
   ACCEPTED: 202,
   NO_CONTENT: 204,
-  
+
   // Redirection codes
   MOVED_PERMANENTLY: 301,
   FOUND: 302,
   NOT_MODIFIED: 304,
-  
+
   // Client error codes
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
@@ -98,13 +86,13 @@ export const HTTP_STATUS = {
   GONE: 410,
   UNPROCESSABLE_ENTITY: 422,
   TOO_MANY_REQUESTS: 429,
-  
+
   // Server error codes
   INTERNAL_SERVER_ERROR: 500,
   NOT_IMPLEMENTED: 501,
   BAD_GATEWAY: 502,
   SERVICE_UNAVAILABLE: 503,
-  GATEWAY_TIMEOUT: 504
+  GATEWAY_TIMEOUT: 504,
 };
 
 // Status code categories for easier testing
@@ -112,7 +100,7 @@ export const HTTP_STATUS_CATEGORIES = {
   SUCCESS: [200, 201, 202, 204],
   REDIRECT: [301, 302, 304],
   CLIENT_ERROR: [400, 401, 403, 404, 405, 406, 408, 409, 410, 422, 429],
-  SERVER_ERROR: [500, 501, 502, 503, 504]
+  SERVER_ERROR: [500, 501, 502, 503, 504],
 };
 
 // ==============================================================================
@@ -124,21 +112,21 @@ export const TEST_CONSTANTS = {
   DEFAULT_TIMEOUT: 10000,
   FAST_TIMEOUT: 5000,
   SLOW_TIMEOUT: 30000,
-  
+
   // Default response time limits (in milliseconds)
   FAST_RESPONSE_TIME: 1000,
   NORMAL_RESPONSE_TIME: 3000,
   SLOW_RESPONSE_TIME: 10000,
-  
+
   // Test data limits
   MAX_TEST_CASES_PER_ENDPOINT: 100,
   DEFAULT_TEST_CASE_COUNT: 10,
   MIN_TEST_CASE_COUNT: 1,
-  
+
   // Pagination defaults
   DEFAULT_PAGE_SIZE: 10,
   MAX_PAGE_SIZE: 100,
-  DEFAULT_PAGE: 1
+  DEFAULT_PAGE: 1,
 };
 
 // ==============================================================================
@@ -151,37 +139,51 @@ export const TEST_CONSTANTS = {
  */
 export const TEST_COLUMNS = {
   // Required columns
-  TEST_NAME: 'test_name',
-  ENABLED: 'enabled',
-  EXPECTED_STATUS: 'expected_status',
-  
+  TEST_NAME: "test_name",
+  ENABLED: "enabled",
+  EXPECTED_STATUS: "expected_status",
+
   // Optional metadata columns
-  DESCRIPTION: 'description',
-  TIMEOUT_MS: 'timeout_ms',
-  MAX_RESPONSE_TIME: 'max_response_time',
-  DELAY_AFTER_MS: 'delay_after_ms',
-  TAGS: 'tags',
-  
+  DESCRIPTION: "description",
+  TIMEOUT_MS: "timeout_ms",
+  MAX_RESPONSE_TIME: "max_response_time",
+  DELAY_AFTER_MS: "delay_after_ms",
+  TAGS: "tags",
+
   // Parameter column prefix
-  PARAM_PREFIX: 'param:',
-  
+  PARAM_PREFIX: "param:",
+
   // Common parameter columns
-  PARAM_SCOPE: 'param:scope',
-  PARAM_Q: 'param:q',
-  PARAM_PAGE: 'param:page',
-  PARAM_PAGE_LENGTH: 'param:pageLength',
-  PARAM_URI: 'param:uri',
-  PARAM_ID: 'param:id'
+  PARAM_SCOPE: "param:scope",
+  PARAM_Q: "param:q",
+  PARAM_PAGE: "param:page",
+  PARAM_PAGE_LENGTH: "param:pageLength",
+  PARAM_URI: "param:uri",
+  PARAM_ID: "param:id",
 };
 
 // Column variations and aliases
 export const TEST_COLUMN_ALIASES = {
-  [TEST_COLUMNS.TEST_NAME]: ['testName', 'testname', 'name', 'test-name'],
-  [TEST_COLUMNS.ENABLED]: ['enable', 'active', 'run'],
-  [TEST_COLUMNS.EXPECTED_STATUS]: ['expectedStatus', 'status', 'expectedStatusCode', 'statusCode'],
-  [TEST_COLUMNS.TIMEOUT_MS]: ['timeout', 'timeoutMs', 'timeoutMilliseconds'],
-  [TEST_COLUMNS.MAX_RESPONSE_TIME]: ['maxResponseTime', 'responseTime', 'maxTime'],
-  [TEST_COLUMNS.DELAY_AFTER_MS]: ['delay', 'delayAfter', 'delayAfterMs', 'waitTime']
+  [TEST_COLUMNS.TEST_NAME]: ["testName", "testname", "name", "test-name"],
+  [TEST_COLUMNS.ENABLED]: ["enable", "active", "run"],
+  [TEST_COLUMNS.EXPECTED_STATUS]: [
+    "expectedStatus",
+    "status",
+    "expectedStatusCode",
+    "statusCode",
+  ],
+  [TEST_COLUMNS.TIMEOUT_MS]: ["timeout", "timeoutMs", "timeoutMilliseconds"],
+  [TEST_COLUMNS.MAX_RESPONSE_TIME]: [
+    "maxResponseTime",
+    "responseTime",
+    "maxTime",
+  ],
+  [TEST_COLUMNS.DELAY_AFTER_MS]: [
+    "delay",
+    "delayAfter",
+    "delayAfterMs",
+    "waitTime",
+  ],
 };
 
 // ==============================================================================
@@ -193,13 +195,13 @@ export const TEST_COLUMN_ALIASES = {
  * These represent the different entity types in the LUX system
  */
 export const SCOPES = {
-  WORK: 'work',
-  ITEM: 'item',
-  SET: 'set',
-  AGENT: 'agent',
-  PLACE: 'place',
-  CONCEPT: 'concept',
-  EVENT: 'event'
+  WORK: "work",
+  ITEM: "item",
+  SET: "set",
+  AGENT: "agent",
+  PLACE: "place",
+  CONCEPT: "concept",
+  EVENT: "event",
 };
 
 // All valid scopes as array (useful for validation)
@@ -211,24 +213,24 @@ export const VALID_SCOPES = Object.values(SCOPES);
 
 export const ERROR_MESSAGES = {
   // Endpoint key errors
-  INVALID_ENDPOINT_KEY: 'Invalid endpoint key provided',
-  UNSUPPORTED_ENDPOINT: 'Endpoint not supported by this provider',
-  
+  INVALID_ENDPOINT_KEY: "Invalid endpoint key provided",
+  UNSUPPORTED_ENDPOINT: "Endpoint not supported by this provider",
+
   // Test data errors
-  NO_TEST_DATA_FOUND: 'No test data found for endpoint',
-  INVALID_TEST_DATA_FORMAT: 'Invalid test data format',
-  MISSING_REQUIRED_COLUMNS: 'Missing required columns in test data',
-  
+  NO_TEST_DATA_FOUND: "No test data found for endpoint",
+  INVALID_TEST_DATA_FORMAT: "Invalid test data format",
+  MISSING_REQUIRED_COLUMNS: "Missing required columns in test data",
+
   // HTTP errors
-  REQUEST_TIMEOUT: 'Request timed out',
-  UNEXPECTED_STATUS_CODE: 'Unexpected HTTP status code',
-  RESPONSE_TIME_EXCEEDED: 'Response time exceeded limit',
-  
+  REQUEST_TIMEOUT: "Request timed out",
+  UNEXPECTED_STATUS_CODE: "Unexpected HTTP status code",
+  RESPONSE_TIME_EXCEEDED: "Response time exceeded limit",
+
   // Provider errors
-  PROVIDER_NOT_FOUND: 'Test data provider not found',
-  PROVIDER_INITIALIZATION_FAILED: 'Failed to initialize test data provider',
-  FILE_NOT_FOUND: 'Test data file not found',
-  FILE_PARSE_ERROR: 'Failed to parse test data file'
+  PROVIDER_NOT_FOUND: "Test data provider not found",
+  PROVIDER_INITIALIZATION_FAILED: "Failed to initialize test data provider",
+  FILE_NOT_FOUND: "Test data file not found",
+  FILE_PARSE_ERROR: "Failed to parse test data file",
 };
 
 // ==============================================================================
@@ -309,7 +311,7 @@ export const CONSTANTS = {
   TEST_COLUMN_ALIASES,
   SCOPES,
   VALID_SCOPES,
-  ERROR_MESSAGES
+  ERROR_MESSAGES,
 };
 
 // Default export
