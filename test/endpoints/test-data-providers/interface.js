@@ -113,24 +113,3 @@ export class TestDataProviderFactory {
     return [...this.providers];
   }
 }
-
-/**
- * Test case structure interface
- * Defines the expected structure for test case objects
- */
-export const TestCaseStructure = {
-  // Required fields
-  name: 'string',           // Unique test name
-  enabled: 'boolean',       // Whether test is enabled
-  expected_status: 'number', // Expected HTTP status code
-  
-  // Optional fields
-  description: 'string',    // Test description
-  timeout_ms: 'number',     // Request timeout
-  max_response_time: 'number', // Max acceptable response time
-  delay_after_ms: 'number', // Delay after test
-  tags: 'string',          // Comma-separated tags
-  
-  // Dynamic parameter fields (param:*)
-  // These are generated based on the API endpoint definition
-};

@@ -4,7 +4,7 @@
  * Register your TestDataProvider here.
  */
 
-import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
+import { TestDataProvider, TestDataProviderFactory } from './interface.js';
 import { AdvancedSearchQueriesTestDataProvider } from 
   './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/AdvancedSearchQueriesTestDataProvider.js';
 import { BenchmarkQueriesTestDataProvider } from 
@@ -27,5 +27,4 @@ TestDataProviderFactory.registerProvider(UpdatedAdvancedSearchQueriesTestDataPro
 export {
   TestDataProvider,
   TestDataProviderFactory,
-  TestCaseStructure
 };
