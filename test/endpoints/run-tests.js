@@ -1374,7 +1374,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
       }
       
       if (fileContent) {
-        const encodedContent = encodeURIComponent(fileContent);
+        const encodedContent = encodeURIComponent(fileContent).replace(/'/g, '%27');
         const encodedPath = encodeURIComponent(absolutePath);
         return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
       } else {
