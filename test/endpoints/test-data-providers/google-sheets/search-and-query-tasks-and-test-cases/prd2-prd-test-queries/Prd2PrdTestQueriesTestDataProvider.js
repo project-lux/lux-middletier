@@ -234,20 +234,29 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
    * @returns {string} - URL from second column or empty string
    */
   getUrlFromSecondColumn(record) {
+    let potentialUrl = '';
+    
     // Try different possible column names for the second column (TST)
     const secondColumnNames = ['TST', 'tst', 'URL', 'url'];
     
     for (const colName of secondColumnNames) {
       if (record.hasOwnProperty(colName) && record[colName]) {
-        return record[colName].trim();
+        potentialUrl = record[colName].trim();
+        break;
       }
     }
     
     // If named columns don't work, try to get the second column by position
-    // This assumes the columns are in order as they appear in the TSV
-    const keys = Object.keys(record);
-    if (keys.length >= 2 && keys[1]) { // 1st index = 2nd column
-      return record[keys[1]]?.trim() || '';
+    if (!potentialUrl) {
+      const keys = Object.keys(record);
+      if (keys.length >= 2 && keys[1]) { // 1st index = 2nd column
+        potentialUrl = record[keys[1]]?.trim() || '';
+      }
+    }
+    
+    // Only return if it's a valid HTTP(S) URL
+    if (potentialUrl && (potentialUrl.startsWith('http://') || potentialUrl.startsWith('https://'))) {
+      return potentialUrl;
     }
     
     return '';
