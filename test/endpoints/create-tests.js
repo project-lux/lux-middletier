@@ -295,33 +295,6 @@ async function collectTestDataFromAllProviders(allProviders, apiDef, endpointKey
     }
   }
 
-  // If no data was collected from any provider, fall back to sample data
-  if (allTestData.length === 0) {
-    console.log(`  ! No data from any provider, falling back to sample data...`);
-    
-    // Try to find sample provider in the list
-    const sampleProvider = allProviders.find(p => p.constructor.name === 'SampleTestDataProvider');
-    if (sampleProvider) {
-      const fallbackData = await sampleProvider.extractTestData(apiDef, endpointKey, columns);
-      if (fallbackData && fallbackData.length > 0) {
-        // Add provider ID to fallback data
-        const providerId = sampleProvider.getProviderId();
-        const providerIdIndex = columns.indexOf('provider_id');
-        
-        const enrichedFallbackData = fallbackData.map(row => {
-          const enrichedRow = [...row];
-          if (providerIdIndex !== -1) {
-            enrichedRow[providerIdIndex] = providerId;
-          }
-          return enrichedRow;
-        });
-        
-        allTestData.push(...enrichedFallbackData);
-        console.log(`    ✓ Generated ${fallbackData.length} fallback test cases`);
-      }
-    }
-  }
-
   console.log(`Total test cases collected: ${allTestData.length}`);
   return allTestData;
 }
@@ -468,8 +441,6 @@ for (let i = 0; i < args.length; i++) {
     options.testCaseCount = parseInt(arg.split('=')[1]);
   } else if (arg.startsWith('--include-errors=')) {
     options.includeErrorCases = arg.split('=')[1].toLowerCase() === 'true';
-  } else if (arg.startsWith('--fallback=')) {
-    options.fallbackToSample = arg.split('=')[1].toLowerCase() === 'true';
   }
 }
 

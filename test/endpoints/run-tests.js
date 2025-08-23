@@ -190,7 +190,7 @@ class ConfigurationLoader {
       }
     }
 
-    return null; // Let caller handle fallback to DEFAULT_CONFIG.method
+    return null;
   }
 
   /**
@@ -208,7 +208,7 @@ class ConfigurationLoader {
       }
     }
 
-    return null; // Let caller handle fallback to '/'
+    return null;
   }
 
   /**
@@ -226,7 +226,7 @@ class ConfigurationLoader {
       }
     }
 
-    return '/'; // Simple fallback - let the URL building handle the rest
+    return '/';
   }
 }
 
@@ -557,7 +557,7 @@ class ResponseSaver {
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
       
-    return `row_${paddedRowNumber}_${safeTestName}.json`;
+    return `confRow${paddedRowNumber}_${safeTestName}.json`;
   }
 }
 
@@ -646,11 +646,9 @@ class EndpointTester {
         console.log(`Loaded ${spec.endpoints?.length || 0} endpoint specifications`);
       } else {
         console.warn(`Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`);
-        console.warn(`Fallback: Using default HTTP method (${DEFAULT_CONFIG.method}) and root path (/) for undefined endpoints.`);
       }
     } catch (error) {
       console.warn(`Warning: Could not load endpoints-spec.json: ${error.message}`);
-      console.warn(`Fallback: Using default HTTP method (${DEFAULT_CONFIG.method}) and root path (/) for undefined endpoints.`);
     }
   }
 
@@ -1590,7 +1588,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log('  --save-responses, -r          Save response bodies to disk');
       console.log('  --dry-run, -d                 Helpful to see resolved configuration and available filtering options');
       console.log('  --providers, -p <providers>   Comma-separated list of test data providers to use');
-      console.log('                                Examples: CsvTestDataProvider, SampleTestDataProvider');
+      console.log('                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider');
       console.log('  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test');
       console.log('                                Available: search, auto-complete, facets, translate, etc.');
       console.log('  --help, -h                    Show this help message');
@@ -1600,7 +1598,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log('  node run-tests.js ./configs ./reports');
       console.log('  node run-tests.js --save-responses');
       console.log('  node run-tests.js --dry-run');
-      console.log('  node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider');
+      console.log('  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider');
       console.log('  node run-tests.js --endpoints search,auto-complete');
       console.log('  node run-tests.js --dry-run --providers csv-provider --endpoints search');
       process.exit(0);

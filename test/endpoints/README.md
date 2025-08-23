@@ -58,12 +58,7 @@ node run-tests.js --dry-run
 
 **Run tests with specific providers (using class names):**
 ```bash
-node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider
-```
-
-**Run tests with specific providers (using provider IDs):**
-```bash
-node run-tests.js --providers csv-provider,sample-provider
+node run-tests.js --providers AdvancedSearchQueriesTestDataProvider
 ```
 
 **Run tests for specific endpoints:**
@@ -117,8 +112,6 @@ Resolved:
 Filtering options:
   Available providers:
         AdvancedSearchQueriesTestDataProvider
-        CsvTestDataProvider
-        SampleTestDataProvider
         UpdatedAdvancedSearchQueriesTestDataProvider
   Available endpoints:
         delete-data
@@ -282,7 +275,7 @@ node run-tests.js ./configs ./reports --save-responses
 
 **With provider filtering (using class names):**
 ```bash
-node run-tests.js --providers CsvTestDataProvider,SampleTestDataProvider
+node run-tests.js --providers AdvancedSearchQueriesTestDataProvider
 ```
 
 **With endpoint filtering (run tests for specific endpoint types):**
@@ -370,9 +363,8 @@ The framework includes a simplified test data provider system where each provide
 - Each provider implementation is specific to one data source
 
 **Available Providers:**
-- **SampleTestDataProvider** (`test-data-providers/sample-provider.js`): Generates synthetic test data with configurable options
-- **CsvTestDataProvider** (`test-data-providers/csv-provider.js`): Reads test data from `test-data/endpoint-tests.csv`
-- **Extensible**: New providers can be easily added for specific data sources (JSON files, databases, APIs, etc.)
+
+Run `node run-tests.js --dry-run` to see the list of available providers and endpoints.
 
 **Provider System:**
 1. Each provider is registered with the `TestDataProviderFactory`
@@ -438,7 +430,7 @@ node run-tests.js ./configs ./reports -r
 
 ### Response File Organization
 
-When response body saving is enabled, each test execution creates its own timestamped subdirectory with endpoint-specific subdirectories for response bodies:
+When response body saving is enabled, each test execution creates its own timestamped subdirectory with endpoint-specific subdirectories for response bodies, organized by provider within each endpoint:
 
 ```
 reports/
@@ -448,15 +440,24 @@ reports/
     ├── endpoint-test-report.html
     └── responses/                   # Only created when --save-responses is used
         ├── get-search/              # Subdirectory for get-search.xlsx tests
-        │   ├── row_001_basicSearch.json
-        │   ├── row_002_advancedSearch.json
-        │   └── ...
+        │   ├── AdvancedSearchQueriesTestDataProvider/
+        │   │   ├── row_001_basicSearch.json
+        │   │   ├── row_002_advancedSearch.json
+        │   │   └── ...
+        │   ├── UpdatedAdvancedSearchQueriesTestDataProvider/
+        │   │   ├── row_001_updatedSearch.json
+        │   │   └── ...
+        │   └── ...                  # One subdirectory per provider
         ├── get-facets/              # Subdirectory for get-facets.xlsx tests
-        │   ├── row_001_agentStartDate.json
-        │   └── ...
+        │   ├── AdvancedSearchQueriesTestDataProvider/
+        │   │   ├── row_001_agentStartDate.json
+        │   │   └── ...
+        │   └── ...                  # One subdirectory per provider
         ├── post-document-create/    # Subdirectory for post-document-create.xlsx tests
-        │   ├── row_001_create.json
-        │   └── ...
+        │   ├── SomeOtherProvider/
+        │   │   ├── row_001_create.json
+        │   │   └── ...
+        │   └── ...                  # One subdirectory per provider
         └── ...                      # One subdirectory per test configuration file
 └── test-run-2025-08-20_15-45-20/    # Next test execution
     ├── endpoint-test-report.json
@@ -464,6 +465,8 @@ reports/
     ├── endpoint-test-report.html
     └── responses/
         ├── get-search/
+        │   ├── AdvancedSearchQueriesTestDataProvider/
+        │   └── ...
         └── ...
 ```
 
@@ -589,7 +592,7 @@ The endpoint-specific configuration files are automatically generated based on t
 
 | Column | Description | Example | Required |
 |--------|-------------|---------|----------|
-| `provider_id` | Data source identifier | "sample-provider", "csv-provider:tests.csv" | Yes |
+| `provider_id` | Data source identifier | "AdvancedSearchQueriesTestDataProvider" | Yes |
 | `test_name` | Unique test identifier | "Search - Basic Query" | Yes |
 | `description` | Test description | "Basic search functionality" | No |
 | `enabled` | Whether to run this test | true, false | Yes |
@@ -630,33 +633,6 @@ Authentication is configured globally using environment variables and applies to
 $env:AUTH_TYPE = "digest"
 $env:AUTH_USERNAME = "your-username"
 $env:AUTH_PASSWORD = "your-password"
-```
-
-## Sample Test Configurations
-
-### Basic GET Request
-```csv
-test_name,method,endpoint,headers,expected_status,enabled
-"Health Check",GET,"/","Authorization: Basic bHV4LWVuZHBvaW50LWNvbnN1bWVyOmVuZHBvaW50",200,true
-```
-
-### POST Request with JSON Body
-```csv
-test_name,method,endpoint,headers,body,body_type,expected_status,enabled
-"Advanced Search",POST,"/ds/lux/search.mjs","Authorization: Basic xyz; Content-Type: application/json","{\"q\": \"mona lisa\", \"scope\": \"work\"}",raw,200,true
-```
-
-### Form Data POST
-```csv
-test_name,method,endpoint,headers,body,body_type,expected_status,enabled
-"Create Document",POST,"/ds/lux/document/create.mjs","Authorization: Basic xyz; Content-Type: multipart/form-data","unitName=ypm&doc={\"type\": \"Test\"}",formdata,200,true
-```
-
-### Negative Test Cases
-```csv
-test_name,method,endpoint,headers,expected_status,enabled
-"Unauthorized Test",GET,"/ds/lux/search.mjs","",401,true
-"Not Found Test",GET,"/ds/lux/nonexistent.mjs","Authorization: Basic xyz",404,true
 ```
 
 ## Reports
@@ -873,14 +849,12 @@ Add your new provider to `test-data-providers/index.js`:
 ```javascript
 // test-data-providers/index.js
 import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
-import { CsvTestDataProvider } from './csv-provider.js';
-import { SampleTestDataProvider } from './sample-provider.js';
-import { JsonTestDataProvider } from './json-provider.js';  // Add your new provider
+import { AdvancedSearchQueriesTestDataProvider } from './csv-provider.js';
+import { AdvancedSearchQueriesTestDataProvider } from 
+  './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/AdvancedSearchQueriesTestDataProvider.js';
 
 // Register all available providers
-TestDataProviderFactory.registerProvider(CsvTestDataProvider);
-TestDataProviderFactory.registerProvider(SampleTestDataProvider);
-TestDataProviderFactory.registerProvider(JsonTestDataProvider);  // Register your new provider
+TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
 
 // ... rest of the file
 ```
@@ -949,23 +923,23 @@ npm run create:tests
 Your new provider will be automatically discovered and used. You'll see output like:
 
 ```
-Creating all TestDataProvider instances...
-Created 3 provider instances:
-  - sample-provider
-  - csv-provider:endpoint-tests.csv
-  - json-provider:endpoint-tests.json
+$ node create-tests.js
+Analyzing endpoints-spec.json to create individual test files...
+Reading endpoints specification from: C:\workspaces\yale\clones\lux-middletier\test\endpoints\endpoints-spec.json
+Found 19 unique API endpoints
 
-Creating test file for get-search: get-search-tests.xlsx
-Collecting test data from 3 providers for get-search...
-  - Trying provider: SampleTestDataProvider
-    ✓ Got 2 test cases from SampleTestDataProvider
-  - Trying provider: CsvTestDataProvider
-    CSV file not found: .../test-data/endpoint-tests.csv - skipping CSV provider
-    - No data from CsvTestDataProvider
-  - Trying provider: JsonTestDataProvider
-    ✓ Got 2 test cases from JsonTestDataProvider
-Total test cases collected: 4
-✓ Created get-search-tests.xlsx with 4 test cases
+Creating all TestDataProvider instances...
+Created 2 provider instance(s):
+  - AdvancedSearchQueriesTestDataProvider
+  - UpdatedAdvancedSearchQueriesTestDataProvider
+...
+
+Test file generation complete!
+Next steps:
+1. Review generated test cases in the Excel files
+2. Add additional test configurations as needed
+3. Yellow highlighted columns contain required parameters
+4. Run tests with: npm test
 ```
 
 ### Provider Design Principles
@@ -1079,52 +1053,6 @@ npm test
 4. **Error Handling**: Include negative test cases to verify error responses
 5. **Performance Monitoring**: Set appropriate response time thresholds
 6. **Documentation**: Keep test descriptions up-to-date and meaningful
-
-## Sample Files
-
-The framework includes several key files:
-
-### Core Scripts
-- `create-endpoints-spec.js` - Analyzes Express.js app to discover endpoints and generate specifications
-- `create-tests.js` - Generates endpoint-specific Excel test files with automatic data provider discovery
-- `run-tests.js` - Main test execution engine
-- `compare-reports.js` - Interactive tool for comparing test reports between runs
-- `utils.js` - Shared utility functions for consistent endpoint key generation
-- `package.json` - Node.js dependencies and npm scripts
-
-### Data Provider System
-- `test-data-providers/interface.js` - Abstract base class and factory for all data providers
-- `test-data-providers/sample-provider.js` - Synthetic test data generation with configurable options
-- `test-data-providers/csv-provider.js` - CSV file reader with flexible column mapping and validation
-- `test-data-providers/index.js` - Central exports for all provider classes
-
-### Generated Files
-- `endpoints-spec.json` - Detailed endpoint specifications (generated by `create-endpoints-spec.js`)
-- `configs/*.xlsx` - Individual Excel test files for each discovered endpoint (generated by `create-tests.js`)
-- `test-data-providers/` - Modular data provider system for flexible test data sources
-
-### Configuration Structure
-```
-test/endpoints/
-├── create-endpoints-spec.js     # Endpoint discovery script
-├── create-tests.js             # Test file generator with auto-discovery
-├── run-tests.js                 # Test runner
-├── endpoints-spec.json          # Generated API specification
-├── test-data-providers/         # Test data provider system
-│   ├── interface.js            # Abstract base class and factory
-│   ├── sample-provider.js      # Synthetic test data generator
-│   ├── csv-provider.js         # CSV file data reader
-│   └── index.js               # Provider exports
-├── configs/                     # Generated Excel test files
-│   ├── get-search.xlsx         # Search endpoint test cases
-│   ├── get-facets.xlsx         # Facets endpoint test cases
-│   ├── post-document-create.xlsx # Document creation test cases
-│   └── ...                     # One file per discovered endpoint
-└── reports/                     # Generated test reports
-    ├── results.json
-    ├── results.csv
-    └── results.html
-```
 
 ## Dependencies
 

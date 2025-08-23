@@ -17,7 +17,6 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       headers: true,
       skipErrorLines: false,
       strictValidation: false,
-      fallbackToSample: true,
       sheetIndex: 0, // Use first sheet by default
       range: null, // Optional range specification (e.g., 'A1:Z100')
       defVal: '', // Default value for empty cells
@@ -62,7 +61,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       // Process each record to find hyperlinked cells
       for (let index = 0; index < data.length; index++) {
         const record = data[index];
-        const originalRowNumber = record.sourceRowNumber || (index + 2); // Fallback to calculated row number
+        const originalRowNumber = record.sourceRowNumber || (index + 2);
         
         // Check if this record has hyperlink information
         let hyperlinkUrl = record.__hyperlink_url;
@@ -131,11 +130,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
       return testRows;
 
     } catch (error) {
-      console.error(`Error reading XLSX file ${this.sourcePath}:`, error.message);
-      if (this.options.fallbackToSample) {
-        console.log('Falling back to sample data generation...');
-        return [];
-      }
+      console.error(`Error reading file ${this.sourcePath}:`, error.message);
       throw error;
     }
   }
@@ -236,7 +231,6 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
         // Cell has a hyperlink
         enhancedRecord.__hyperlink_url = cell.l.Target;
         enhancedRecord.__hyperlink_text = cell.v || cell.w || '';
-        console.log(`Found Excel hyperlink in row ${excelRowNumber}: ${cell.l.Target}`);
       } else if (cell && cell.v) {
         // Check if the cell value itself contains a hyperlink pattern
         const cellValue = String(cell.v);
@@ -244,7 +238,6 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
         if (extractedUrl) {
           enhancedRecord.__hyperlink_url = extractedUrl;
           enhancedRecord.__hyperlink_text = this.extractTextFromCell(cellValue);
-          console.log(`Found text-based hyperlink in row ${excelRowNumber}: ${extractedUrl}`);
         }
       }
       

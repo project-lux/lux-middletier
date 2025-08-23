@@ -18,7 +18,6 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
       headers: true,
       skipErrorLines: false,
       strictValidation: false,
-      fallbackToSample: true,
       ...options
     });
     
@@ -124,10 +123,6 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
 
     } catch (error) {
       console.error(`Error reading TSV file ${this.sourcePath}:`, error.message);
-      if (this.options.fallbackToSample) {
-        console.log('Falling back to sample data generation...');
-        return [];
-      }
       throw error;
     }
   }
@@ -352,5 +347,4 @@ export const TsvProviderDefaults = {
   headers: true,
   skipErrorLines: false,
   strictValidation: false,
-  fallbackToSample: true,
 };
