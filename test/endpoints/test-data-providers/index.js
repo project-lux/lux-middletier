@@ -7,6 +7,8 @@
 import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
 import { AdvancedSearchQueriesTestDataProvider } from 
   './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/AdvancedSearchQueriesTestDataProvider.js';
+import { BenchmarkQueriesTestDataProvider } from 
+  './google-sheets/search-and-query-tasks-and-test-cases/benchmark-queries/BenchmarkQueriesTestDataProvider.js';
 import { Prd2PrdTestQueriesTestDataProvider } from 
   './google-sheets/search-and-query-tasks-and-test-cases/prd2-prd-test-queries/Prd2PrdTestQueriesTestDataProvider.js';
 import { SpecificItemTestCasesTestDataProvider } from 
@@ -16,6 +18,7 @@ import { UpdatedAdvancedSearchQueriesTestDataProvider } from
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
+TestDataProviderFactory.registerProvider(BenchmarkQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(Prd2PrdTestQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(SpecificItemTestCasesTestDataProvider);
 TestDataProviderFactory.registerProvider(UpdatedAdvancedSearchQueriesTestDataProvider);
