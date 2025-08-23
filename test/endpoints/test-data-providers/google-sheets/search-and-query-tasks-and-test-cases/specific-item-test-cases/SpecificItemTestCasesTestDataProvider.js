@@ -4,7 +4,7 @@ import XLSX from 'xlsx';
 import { fileURLToPath } from 'url';
 import { TestDataProvider } from '../../../interface.js';
 import { ENDPOINT_KEYS } from '../../../../constants.js';
-import { parseUrlQueryString, extractDataParamsFromUrl } from '../../../../utils.js';
+import { parseUrlQueryString, extractDataParamsFromUrl, isValidSearchUrl } from '../../../../utils.js';
 
 export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
   /**
@@ -36,8 +36,8 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
-      if (endpointKey !== ENDPOINT_KEYS.GET_DATA) {
-        console.log(`Skipping ${endpointKey} - this provider only supports ${ENDPOINT_KEYS.GET_DATA} tests`);
+      if (endpointKey !== ENDPOINT_KEYS.GET_DATA && endpointKey !== ENDPOINT_KEYS.GET_SEARCH) {
+        console.log(`Skipping ${endpointKey} - this provider only supports ${ENDPOINT_KEYS.GET_DATA} and ${ENDPOINT_KEYS.GET_SEARCH} tests`);
         return [];
       }
 
@@ -55,7 +55,7 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
       }
 
       // Convert XLSX objects to row arrays matching the column structure
-      // Only process rows that have hyperlinks in column E (LUX link)
+      // Only process rows that have hyperlinks in column E (LUX link) matching the requested endpoint type
       const testRows = [];
       
       // Process each record to find hyperlinked cells in column E
@@ -67,8 +67,16 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
         const hyperlinkUrl = record.__hyperlink_url;
         const testDescription = record.__hyperlink_text;
         
-        // Skip records without valid hyperlinks (shouldn't happen due to filtering in enhanceDataWithHyperlinks)
-        if (!hyperlinkUrl || !this.isValidDataUrl(hyperlinkUrl)) {
+        // Skip records without valid hyperlinks
+        if (!hyperlinkUrl || !this.isValidUrl(hyperlinkUrl)) {
+          continue;
+        }
+
+        // Determine what type of endpoint this URL represents
+        const urlEndpointType = this.getEndpointTypeFromUrl(hyperlinkUrl);
+        
+        // Skip if this URL doesn't match the requested endpoint type
+        if (urlEndpointType !== endpointKey) {
           continue;
         }
 
@@ -76,7 +84,10 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
         const queryParams = parseUrlQueryString(hyperlinkUrl);
         
         // Extract type and uuid from the URL path for GET_DATA endpoints
-        const dataParams = extractDataParamsFromUrl(hyperlinkUrl);
+        let dataParams = {};
+        if (urlEndpointType === ENDPOINT_KEYS.GET_DATA) {
+          dataParams = extractDataParamsFromUrl(hyperlinkUrl);
+        }
         
         // Combine both sets of parameters
         const allParams = { ...queryParams, ...dataParams };
@@ -86,7 +97,8 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
           if (columnName === 'test_name') {
             return `Source row ${originalRowNumber}`;
           } else if (columnName === 'description') {
-            return testDescription || `GET_DATA test from LUX link in source row ${originalRowNumber}`;
+            const testType = urlEndpointType === ENDPOINT_KEYS.GET_DATA ? 'GET_DATA' : 'GET_SEARCH';
+            return testDescription || `${testType} test from LUX link in source row ${originalRowNumber}`;
           } else if (columnName === 'enabled') {
             return true;
           } else if (columnName === 'expected_status') {
@@ -98,7 +110,8 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
           } else if (columnName === 'delay_after_ms') {
             return 1000;
           } else if (columnName === 'tags') {
-            return `specific-item-test-cases,get-data`;
+            const endpointTag = urlEndpointType === ENDPOINT_KEYS.GET_DATA ? 'get-data' : 'search';
+            return `specific-item-test-cases,${endpointTag}`;
           } else if (columnName.startsWith('param:')) {
             // Extract parameter from URL query string or path
             const paramName = columnName.replace('param:', '');
@@ -120,7 +133,7 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
         }
       }
 
-      console.log(`✓ Loaded ${testRows.length} GET_DATA test cases from XLSX column E: ${path.basename(this.sourcePath)}`);
+      console.log(`✓ Loaded ${testRows.length} ${endpointKey} test cases from XLSX column E: ${path.basename(this.sourcePath)}`);
       return testRows;
 
     } catch (error) {
@@ -251,6 +264,32 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
   }
 
   /**
+   * Determine the endpoint type from a URL
+   * @param {string} url - URL to analyze
+   * @returns {string} - Either ENDPOINT_KEYS.GET_SEARCH or ENDPOINT_KEYS.GET_DATA
+   */
+  getEndpointTypeFromUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    
+    // Check if it's a search results URL
+    if (url.includes('/view/results/')) {
+      return ENDPOINT_KEYS.GET_SEARCH;
+    }
+    
+    // Otherwise assume it's a data URL
+    return ENDPOINT_KEYS.GET_DATA;
+  }
+
+  /**
+   * Check if a URL is valid for either search or data endpoints
+   * @param {string} url - URL to validate
+   * @returns {boolean} - True if valid URL
+   */
+  isValidUrl(url) {
+    return this.isValidDataUrl(url) || isValidSearchUrl(url);
+  }
+
+  /**
    * Check if a URL is a valid LUX data/item URL
    * @param {string} url - URL to validate
    * @returns {boolean} - True if valid data URL
@@ -322,7 +361,7 @@ export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
 
     // If it's just a URL, use a generic description
     if (cellValue.trim().startsWith('http://') || cellValue.trim().startsWith('https://')) {
-      return 'GET_DATA test from LUX link';
+      return cellValue.includes('/view/results/') ? 'GET_SEARCH test from LUX link' : 'GET_DATA test from LUX link';
     }
 
     // Return the text as-is (might contain URL and other text)
