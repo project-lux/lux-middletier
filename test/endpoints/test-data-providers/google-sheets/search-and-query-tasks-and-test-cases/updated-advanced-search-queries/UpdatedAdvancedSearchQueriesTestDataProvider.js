@@ -2,11 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import XLSX from 'xlsx';
 import { fileURLToPath } from 'url';
-import { TestDataProvider } from '../../../interface.js';
+import { SearchTestDataProvider } from '../../../SearchTestDataProvider.js';
 import { ENDPOINT_KEYS } from '../../../../constants.js';
 import { parseUrlQueryString, isValidSearchUrl } from '../../../../utils.js';
 
-export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvider {
+export class UpdatedAdvancedSearchQueriesTestDataProvider extends SearchTestDataProvider {
   /**
    * Constructor
    * @param {Object} options - Options for XLSX parsing

@@ -2,11 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { TestDataProvider } from '../../../interface.js';
+import { SearchTestDataProvider } from '../../../SearchTestDataProvider.js';
 import { ENDPOINT_KEYS } from '../../../../constants.js';
 import { parseUrlQueryString, extractDataParamsFromUrl, isValidSearchUrl } from '../../../../utils.js';
 
-export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
+export class BenchmarkQueriesTestDataProvider extends SearchTestDataProvider {
   /**
    * Constructor
    * @param {Object} options - Options for TSV parsing

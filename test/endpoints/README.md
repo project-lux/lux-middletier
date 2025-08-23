@@ -848,7 +848,7 @@ Add your new provider to `test-data-providers/index.js`:
 
 ```javascript
 // test-data-providers/index.js
-import { TestDataProvider, TestDataProviderFactory, TestCaseStructure } from './interface.js';
+import { TestDataProvider, TestDataProviderFactory } from './interface.js';
 import { AdvancedSearchQueriesTestDataProvider } from './csv-provider.js';
 import { AdvancedSearchQueriesTestDataProvider } from 
   './google-sheets/search-and-query-tasks-and-test-cases/advanced-search-queries/AdvancedSearchQueriesTestDataProvider.js';
