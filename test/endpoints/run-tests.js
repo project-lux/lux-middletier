@@ -1317,7 +1317,9 @@ class ReportGenerator {
    * Get test name tooltip
    */
   getTestNameTooltip(result) {
-    return `Provider: ${result.provider_id || 'Not specified'}&#10;Description: ${this.wrapText(result.description || 'Not specified')}&#10;Execution timestamp: ${result.timestamp || 'Unknown'}`;
+    return `Provider: ${result.provider_id || 'Not specified'}&#10;
+Description: ${this.wrapText(result.description || 'Not specified')}&#10;
+Execution timestamp: ${result.timestamp || 'Unknown'}`;
   }
 
   /**
@@ -1376,10 +1378,10 @@ class ReportGenerator {
       if (fileContent) {
         const encodedContent = encodeURIComponent(fileContent);
         const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
       } else {
         const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Display Response</span>`;
+        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
       }
     } catch (error) {
       return responseBodyFile;
@@ -1435,7 +1437,7 @@ class ReportGenerator {
       let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
       
       if (hasJsonQuery) {
-        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Display Criteria</span>`;
+        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Criteria</span>`;
       }
       
       return result;
