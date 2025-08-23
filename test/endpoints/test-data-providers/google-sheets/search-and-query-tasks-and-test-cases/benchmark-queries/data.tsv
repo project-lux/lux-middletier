@@ -37,7 +37,7 @@ ID	Type	Must Support?	Active LUX test	Query	SPARQL/github	Units	DEV URL	TEST URL
 22	hub page		yes	minimum viable hub page	https://git.yale.edu/LUX/tech-stack-evaluation/issues/16				
 	IIIF/YUL		no data yet	Musette Publishers, 1942-52, n.d.					New ASpace data will have link: https://archives.yale.edu/repositories/11/archival_objects/336001
 			yes	Work with multiple Items (ils:yul:1774359)			http://10.5.35.123:3000/view/text/63cd1a5e-f1d1-4575-bf95-9abb4c4f5055		
-			yes	First Folio/shakespeare  			https://lux-front-dev.collections.yale.edu/view/results/objects?objectsAq={%22AND%22:[{%22carries%22:{%22createdDate%22:%221623%22,%22_comp%22:%22=%22}},{%22carries%22:{%22createdBy%22:{%22name%22:%22shakespeare%22}}}]}		
+			yes	First Folio/shakespeare  			https://lux-front-dev.collections.yale.edu/view/results/objects?q={%22AND%22:[{%22carries%22:{%22createdDate%22:%221623%22,%22_comp%22:%22=%22}},{%22carries%22:{%22createdBy%22:{%22name%22:%22shakespeare%22}}}]}		
 	keyword		yes	Mang Wang (BC Dates)					
 			yes	Books about Amsterdam canals from the last decade					via LCSH and publication timeline
 			yes	Plant Specimens from Peru					
