@@ -461,10 +461,14 @@ class ResponseAnalyzer {
     const { data } = response;
 
     switch (endpoint_type) {
-      case ENDPOINT_KEYS.GET_SEARCH:
-        return this.extractOrderedItemsInfo('Results Count', data);
       case ENDPOINT_KEYS.GET_FACETS:
         return this.extractOrderedItemsInfo('Facet Values', data);
+      case ENDPOINT_KEYS.GET_SEARCH:
+        return this.extractOrderedItemsInfo('Results Count', data);
+      case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
+        return this.extractOrderedItemsInfo('Estimate', data);
+      case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
+        return this.extractWillMatchInfo('Will Match', data);
       default:
         return null;
     }
@@ -484,6 +488,35 @@ class ResponseAnalyzer {
       value = data.results.length;
     }
     
+    return { value, header };
+  }
+
+  /**
+   * Extract will match information from data properties
+   */
+  extractWillMatchInfo(header, data) {
+    if (!data || typeof data !== 'object') {
+      return { value: 'N/A', header };
+    }
+
+    const results = [];
+    Object.keys(data).forEach(propertyName => {
+      const propertyData = data[propertyName];
+      if (propertyData && typeof propertyData === 'object' && 
+          propertyData.hasOneOrMoreResult !== undefined) {
+        results.push({ name: propertyName, value: propertyData.hasOneOrMoreResult });
+      }
+    });
+
+    let value = 'N/A';
+    if (results.length === 1 && results[0].name === 'unnamed') {
+      // Special case: single unnamed result, return just the value
+      value = results[0].value;
+    } else if (results.length > 0) {
+      // Multiple results or named results, return formatted list
+      value = results.map(r => `${r.name}: ${r.value}`).join(' | ');
+    }
+
     return { value, header };
   }
 }
@@ -1180,6 +1213,45 @@ class ReportGenerator {
         .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-close:hover { background: #d32f2f; }
         .json-content { background-color: #f8f8f8; border: 1px solid #ddd; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; overflow-x: auto; }
+        .endpoint-section { margin-bottom: 30px; }
+        .endpoint-header { 
+            display: flex; 
+            align-items: center; 
+            cursor: pointer; 
+            padding: 10px; 
+            background-color: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            margin-bottom: 10px; 
+            transition: background-color 0.2s ease;
+        }
+        .endpoint-header:hover { 
+            background-color: #e9ecef; 
+        }
+        .endpoint-toggle { 
+            margin-right: 10px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            color: #495057;
+            transition: transform 0.2s ease;
+        }
+        .endpoint-toggle.collapsed { 
+            transform: rotate(-90deg); 
+        }
+        .endpoint-title { 
+            margin: 0; 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: #495057;
+        }
+        .endpoint-table { 
+            display: block; 
+            transition: all 0.3s ease; 
+            overflow: hidden; 
+        }
+        .endpoint-table.collapsed { 
+            display: none; 
+        }
     </style>`;
   }
 
@@ -1295,50 +1367,91 @@ class ReportGenerator {
             )
           : 'Additional Info';
 
+        const sectionId = `endpoint-${endpointType.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const tableId = `table-${sectionId}`;
+        const toggleId = `toggle-${sectionId}`;
+
         return `
-        <h3>${endpointType} (${results.length} tests)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Test Name</th>
-                    <th>Status</th>
-                    <th>Expected</th>
-                    <th>Actual</th>
-                    <th>Duration (ms)</th>
-                    <th>${columnHeader}</th>
-                    <th>URL</th>
-                    <th>Response Body</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${results
-                  .map(result => `
-                    <tr class="status-${result.status}">
-                        <td><span title="${this.getTestNameTooltip(result)}">${result.test_name} <span class="info-icon">ℹ️</span></span></td>
-                        <td>${result.status}</td>
-                        <td>${result.expected_status}</td>
-                        <td>${result.actual_status}</td>
-                        <td>${result.duration_ms || 'N/A'}</td>
-                        <td>${isDefined(result.additional_info) ? result.additional_info : 'N/A'}</td>
-                        <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
-                        <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
+        <div class="endpoint-section">
+          <div class="endpoint-header" onclick="toggleEndpointTable('${sectionId}')">
+            <span id="${toggleId}" class="endpoint-toggle">▼</span>
+            <h3 class="endpoint-title">${this.escapeHtmlContent(endpointType)} (${results.length} tests)</h3>
+          </div>
+          <div id="${tableId}" class="endpoint-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Name</th>
+                        <th>Status</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Duration (ms)</th>
+                        <th>${columnHeader}</th>
+                        <th>URL</th>
+                        <th>Response Body</th>
                     </tr>
-                  `)
-                  .join('')}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    ${results
+                      .map(result => `
+                        <tr class="status-${result.status}">
+                            <td><span title="${this.getTestNameTooltip(result)}">${this.escapeHtmlContent(result.test_name)} <span class="info-icon">ℹ️</span></span></td>
+                            <td>${this.escapeHtmlContent(result.status)}</td>
+                            <td>${result.expected_status}</td>
+                            <td>${result.actual_status}</td>
+                            <td>${result.duration_ms || 'N/A'}</td>
+                            <td>${result.additional_info !== undefined && result.additional_info !== null ? this.escapeHtmlContent(String(result.additional_info)) : 'N/A'}</td>
+                            <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
+                            <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
+                        </tr>
+                      `)
+                      .join('')}
+                </tbody>
+            </table>
+          </div>
+        </div>
         `;
       })
       .join('');
   }
 
   /**
+   * Escape HTML attribute values
+   */
+  escapeHtmlAttribute(text) {
+    if (!text) return text;
+    return text
+      .replace(/&/g, '&amp;')     // Must be first
+      .replace(/"/g, '&quot;')    // Double quotes
+      .replace(/'/g, '&#39;')     // Single quotes  
+      .replace(/</g, '&lt;')      // Less than
+      .replace(/>/g, '&gt;')      // Greater than
+      .replace(/\r?\n/g, '&#10;') // Line breaks to HTML entity
+      .replace(/\t/g, '&#9;');    // Tabs to HTML entity
+  }
+
+  /**
+   * Escape HTML content (for text nodes)
+   */
+  escapeHtmlContent(text) {
+    if (!text) return text;
+    return text
+      .replace(/&/g, '&amp;')     // Must be first
+      .replace(/</g, '&lt;')      // Less than
+      .replace(/>/g, '&gt;');     // Greater than
+  }
+
+  /**
    * Get test name tooltip
    */
   getTestNameTooltip(result) {
-    return `Provider: ${result.provider_id || 'Not specified'}&#10;
-Description: ${this.wrapText(result.description || 'Not specified')}&#10;
-Execution timestamp: ${result.timestamp || 'Unknown'}`;
+    const providerText = this.escapeHtmlAttribute(result.provider_id || 'Not specified');
+    const descriptionText = this.escapeHtmlAttribute(this.wrapText(result.description || 'Not specified'));
+    const timestampText = this.escapeHtmlAttribute(result.timestamp || 'Unknown');
+    
+    return `Provider: ${providerText}&#10;
+Description: ${descriptionText}&#10;
+Timestamp: ${timestampText}`;
   }
 
   /**
@@ -1370,7 +1483,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
       lines.push(currentLine.trim());
     }
     
-    return lines.join('&#10;');
+    return lines.join('\n');  // Use actual newlines, escaping will be handled later
   }
 
   /**
@@ -1469,6 +1582,25 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
    */
   getJavaScriptFunctions() {
     return `<script>
+        function toggleEndpointTable(sectionId) {
+            const tableId = 'table-' + sectionId;
+            const toggleId = 'toggle-' + sectionId;
+            const table = document.getElementById(tableId);
+            const toggle = document.getElementById(toggleId);
+            
+            if (table && toggle) {
+                if (table.classList.contains('collapsed')) {
+                    table.classList.remove('collapsed');
+                    toggle.textContent = '▼';
+                    toggle.classList.remove('collapsed');
+                } else {
+                    table.classList.add('collapsed');
+                    toggle.textContent = '▶';
+                    toggle.classList.add('collapsed');
+                }
+            }
+        }
+
         function showJsonPopup(jsonString) {
             try {
                 const parsed = JSON.parse(decodeURIComponent(jsonString));

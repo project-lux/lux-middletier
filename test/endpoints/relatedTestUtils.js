@@ -57,26 +57,39 @@ const createTestConfig = (columns, columnIndices, values) => {
 };
 
 /**
- * Convert query strings to JSON format with "text" property if needed
+ * Convert query strings to JSON format with "text" property if needed, optionally adding scope as _scope property
  * @param {string} query - The original query string
+ * @param {string} [scope] - Optional scope to add as _scope property
  * @returns {string} - The processed query (either original JSON or converted)
  */
-const convertQueryToJson = (query) => {
+const convertQueryToJson = (query, scope) => {
+  let jsonQuery;
+  
   if (query && typeof query === "string") {
     try {
       const parsed = JSON.parse(query);
       // If it parses to a simple string, convert it to {"text": string}
       if (typeof parsed === "string") {
-        return JSON.stringify({ "text": parsed });
+        jsonQuery = { "text": parsed };
+      } else {
+        // If it's already a complex object, use it as is
+        jsonQuery = parsed;
       }
-      // If it's already a complex object, return original
-      return query;
     } catch (e) {
       // Query is not valid JSON at all, wrap the raw string in a "text" property
-      return JSON.stringify({ "text": query });
+      jsonQuery = { "text": query };
     }
+  } else {
+    // Handle empty or non-string queries
+    jsonQuery = { "text": query || "" };
   }
-  return query;
+  
+  // Add scope if provided
+  if (scope) {
+    jsonQuery._scope = scope;
+  }
+  
+  return JSON.stringify(jsonQuery);
 };
 
 /**
@@ -263,15 +276,16 @@ const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
 
 const getSearchEstimateConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
   return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    transformQuery: convertQueryToJson,
-    
     generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      // Transform query to JSON format
+      const processedQuery = convertQueryToJson(query);
+      
       return [createTestConfig(endpointColumns, endpointColumnIndices, {
         [COLUMNS.PARAM_SCOPE]: scope,
-        [COLUMNS.PARAM_Q]: query,
+        [COLUMNS.PARAM_Q]: processedQuery,
         [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-        [COLUMNS.TEST_NAME]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
-        [COLUMNS.DESCRIPTION]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
+        [COLUMNS.TEST_NAME]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
+        [COLUMNS.DESCRIPTION]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
         [COLUMNS.ENABLED]: "true",
         [COLUMNS.EXPECTED_STATUS]: "200",
         [COLUMNS.TIMEOUT_MS]: "15000",
@@ -289,15 +303,16 @@ const getSearchEstimateConfigs = (endpointKey, endpointColumns, searchTestRows, 
 
 const getSearchWillMatchConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
   return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    transformQuery: convertQueryToJson,
-    
     generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      // Transform query to JSON and add scope as _scope property
+      const processedQuery = convertQueryToJson(query, scope);
+      
       return [createTestConfig(endpointColumns, endpointColumnIndices, {
         [COLUMNS.PARAM_SCOPE]: scope,
-        [COLUMNS.PARAM_Q]: query,
+        [COLUMNS.PARAM_Q]: processedQuery,
         [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-        [COLUMNS.TEST_NAME]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
-        [COLUMNS.DESCRIPTION]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
+        [COLUMNS.TEST_NAME]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
+        [COLUMNS.DESCRIPTION]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
         [COLUMNS.ENABLED]: "true",
         [COLUMNS.EXPECTED_STATUS]: "200",
         [COLUMNS.TIMEOUT_MS]: "10000",
