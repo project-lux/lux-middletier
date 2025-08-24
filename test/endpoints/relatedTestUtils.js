@@ -7,174 +7,53 @@
 import { FACETS_CONFIGS } from "./test-data-providers/facetsConfig.js";
 import { ENDPOINT_KEYS } from "./constants.js";
 
-/**
- * Provide related test configurations for each of the given search test configurations.
- * @param {Array<Object>} searchTestRows - Array of search test configuration objects
- * @returns {Object} - Object where keys are from ENDPOINT_KEYS and values are arrays of test configs
- */
-export const getSearchRelatedTestConfigs = (
-  endpointKey,
-  endpointColumns,
-  searchTestRows,
-  searchColumns
-) => {
-  if (Array.isArray(searchTestRows) && Array.isArray(searchColumns)) {
-    if (ENDPOINT_KEYS.GET_FACETS === endpointKey) {
-      return getFacetTestConfigs(
-        endpointKey,
-        endpointColumns,
-        searchTestRows,
-        searchColumns
-      );
-    }
-    if (ENDPOINT_KEYS.GET_SEARCH_ESTIMATE === endpointKey) {
-      return getSearchEstimateConfigs(
-        endpointKey,
-        endpointColumns,
-        searchTestRows,
-        searchColumns
-      );
-    }
-    if (ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH === endpointKey) {
-      return getSearchWillMatchConfigs(
-        endpointKey,
-        endpointColumns,
-        searchTestRows,
-        searchColumns
-      );
-    }
-  }
-  return [];
+// Common column names used across test configurations
+const COLUMNS = {
+  PROVIDER_ID: "provider_id",
+  TEST_NAME: "test_name",
+  DESCRIPTION: "description",
+  ENABLED: "enabled",
+  EXPECTED_STATUS: "expected_status",
+  TIMEOUT_MS: "timeout_ms",
+  MAX_RESPONSE_TIME: "max_response_time",
+  DELAY_AFTER_MS: "delay_after_ms",
+  TAGS: "tags",
+  PARAM_SCOPE: "param:scope",
+  PARAM_Q: "param:q",
+  PARAM_NAME: "param:name"
 };
 
-const getFacetTestConfigs = (
-  endpointKey,
-  endpointColumns,
-  searchTestRows,
-  searchColumns
-) => {
-  const facetTestConfigs = [];
-  const scopeCounts = {};
+/**
+ * Find column indices from an array of column names
+ * @param {Array} columns - Array of column names
+ * @param {Array} columnNames - Array of column names to find indices for
+ * @returns {Object} - Object mapping column names to their indices
+ */
+const findColumnIndices = (columns, columnNames) => {
+  return columnNames.reduce((indices, columnName) => {
+    indices[columnName] = columns.indexOf(columnName);
+    return indices;
+  }, {});
+};
 
-  // Find the column indices for scope and query parameters
-  const searchTestProviderIdColumnIndex = searchColumns.indexOf("provider_id");
-  const searchTestNameColumnIndex = searchColumns.indexOf("test_name");
-  const searchTestDescriptionColumnIndex = searchColumns.indexOf("description");
-  const scopeColumnIndex = searchColumns.indexOf("param:scope");
-  const queryColumnIndex = searchColumns.indexOf("param:q");
-
-  if (scopeColumnIndex === -1) {
-    console.warn("param:scope column not found in searchColumns");
-    return [];
-  }
-
-  // Process each search test row
-  searchTestRows.forEach((searchTestRow, rowIndex) => {
-    const scope = searchTestRow[scopeColumnIndex];
-    const query =
-      queryColumnIndex !== -1 ? searchTestRow[queryColumnIndex] : "";
-
-    if (!scope) {
-      console.warn(`No scope found for search test row ${rowIndex}`);
-      return;
+/**
+ * Create and populate a test configuration row
+ * @param {Array} columns - Array of all column names
+ * @param {Object} columnIndices - Object mapping column names to indices
+ * @param {Object} values - Object mapping column names to their values
+ * @returns {Array} - Populated test configuration row
+ */
+const createTestConfig = (columns, columnIndices, values) => {
+  const testConfig = new Array(columns.length).fill("");
+  
+  Object.entries(values).forEach(([columnName, value]) => {
+    const index = columnIndices[columnName];
+    if (index !== -1 && value !== undefined) {
+      testConfig[index] = value;
     }
-
-    // Get available facets for this scope
-    const availableFacets = FACETS_CONFIGS[scope];
-    if (!availableFacets || availableFacets.length === 0) {
-      console.warn(`No facets available for scope: ${scope}`);
-      return;
-    }
-
-    // Initialize scope count if not exists
-    if (!scopeCounts[scope]) {
-      scopeCounts[scope] = 0;
-    }
-
-    // Create a facet test configuration for each available facet
-    availableFacets.forEach((facetName) => {
-      // Find column indices for facet test configuration
-      const nameColumnIndex = endpointColumns.indexOf("param:name");
-      const facetScopeColumnIndex = endpointColumns.indexOf("param:scope");
-      const facetQueryColumnIndex = endpointColumns.indexOf("param:q");
-      const providerIdColumnIndex = endpointColumns.indexOf("provider_id");
-      const testNameColumnIndex = endpointColumns.indexOf("test_name");
-      const descriptionColumnIndex = endpointColumns.indexOf("description");
-      const enabledColumnIndex = endpointColumns.indexOf("enabled");
-      const expectedStatusColumnIndex =
-        endpointColumns.indexOf("expected_status");
-      const timeoutMsColumnIndex = endpointColumns.indexOf("timeout_ms");
-      const maxResponseTimeColumnIndex =
-        endpointColumns.indexOf("max_response_time");
-      const delayAfterMsColumnIndex = endpointColumns.indexOf("delay_after_ms");
-      const tagsColumnIndex = endpointColumns.indexOf("tags");
-
-      // Create new facet test configuration row
-      const facetTestConfig = new Array(endpointColumns.length).fill("");
-
-      // Set the facet-specific values
-      if (nameColumnIndex !== -1) {
-        facetTestConfig[nameColumnIndex] = facetName;
-      }
-      if (facetScopeColumnIndex !== -1) {
-        facetTestConfig[facetScopeColumnIndex] = scope;
-      }
-      if (facetQueryColumnIndex !== -1) {
-        facetTestConfig[facetQueryColumnIndex] = query;
-      }
-      if (providerIdColumnIndex !== -1) {
-        facetTestConfig[providerIdColumnIndex] =
-          searchTestRow[searchTestProviderIdColumnIndex];
-      }
-      if (testNameColumnIndex !== -1) {
-        facetTestConfig[
-          testNameColumnIndex
-        ] = `${facetName} facet for search "${searchTestRow[searchTestNameColumnIndex]}"`;
-      }
-      if (descriptionColumnIndex !== -1) {
-        facetTestConfig[
-          descriptionColumnIndex
-        ] = `${facetName} facet for search "${searchTestRow[searchTestDescriptionColumnIndex]}"`;
-      }
-      if (enabledColumnIndex !== -1) {
-        facetTestConfig[enabledColumnIndex] = "true";
-      }
-      if (expectedStatusColumnIndex !== -1) {
-        facetTestConfig[expectedStatusColumnIndex] = "200";
-      }
-      if (timeoutMsColumnIndex !== -1) {
-        facetTestConfig[timeoutMsColumnIndex] = "30000";
-      }
-      if (maxResponseTimeColumnIndex !== -1) {
-        facetTestConfig[maxResponseTimeColumnIndex] = "5000";
-      }
-      if (delayAfterMsColumnIndex !== -1) {
-        facetTestConfig[delayAfterMsColumnIndex] = "0";
-      }
-      if (tagsColumnIndex !== -1) {
-        facetTestConfig[tagsColumnIndex] = "facet,search-related";
-      }
-
-      facetTestConfigs.push(facetTestConfig);
-      scopeCounts[scope]++;
-    });
   });
-
-  // Report counts of facet test configs by search scope
-  const totalCount = Object.values(scopeCounts).reduce(
-    (sum, count) => sum + count,
-    0
-  );
-  console.log(
-    `${totalCount} facet tests generated from ${searchTestRows.length} search tests, by search scope:`
-  );
-  Object.entries(scopeCounts)
-    .sort()
-    .forEach(([scope, count]) => {
-      console.log(`  ${scope}: ${count}`);
-    });
-
-  return facetTestConfigs;
+  
+  return testConfig;
 };
 
 /**
@@ -201,133 +80,235 @@ const convertQueryToJson = (query) => {
 };
 
 /**
- * Create search-related test configurations (estimate or will-match)
- * @param {string} endpointKey - The endpoint key (get-search-estimate or get-search-will-match)
- * @param {Array} endpointColumns - Array of column names for the endpoint
+ * Process search test rows with common validation and setup
  * @param {Array} searchTestRows - Array of search test rows
  * @param {Array} searchColumns - Array of search column names
- * @param {Object} config - Configuration object with endpoint-specific settings
- * @returns {Array} - Array of test configurations
+ * @param {Function} processor - Function to process each valid search test row
+ * @returns {Array} - Array of processed results
  */
-const createSearchRelatedConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns, config) => {
-  const testConfigs = [];
+const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
+  const results = [];
   const scopeCounts = {};
+  
+  // Find column indices for search test data
+  const searchColumnIndices = findColumnIndices(searchColumns, [
+    COLUMNS.PROVIDER_ID,
+    COLUMNS.TEST_NAME,
+    COLUMNS.DESCRIPTION,
+    COLUMNS.PARAM_SCOPE,
+    COLUMNS.PARAM_Q
+  ]);
 
-  // Find the column indices for scope and query parameters in search columns
-  const searchTestProviderIdColumnIndex = searchColumns.indexOf("provider_id");
-  const searchTestNameColumnIndex = searchColumns.indexOf("test_name");
-  const searchTestDescriptionColumnIndex = searchColumns.indexOf("description");
-  const scopeColumnIndex = searchColumns.indexOf("param:scope");
-  const queryColumnIndex = searchColumns.indexOf("param:q");
-
-  if (scopeColumnIndex === -1) {
+  if (searchColumnIndices[COLUMNS.PARAM_SCOPE] === -1) {
     console.warn("param:scope column not found in searchColumns");
     return [];
   }
 
-  // Process each search test row to create a corresponding test
+  // Process each search test row
   searchTestRows.forEach((searchTestRow, rowIndex) => {
-    const scope = searchTestRow[scopeColumnIndex];
-    let query = queryColumnIndex !== -1 ? searchTestRow[queryColumnIndex] : "";
-
-    // Convert queries to JSON format if needed
-    query = convertQueryToJson(query);
+    const scope = searchTestRow[searchColumnIndices[COLUMNS.PARAM_SCOPE]];
+    const query = searchColumnIndices[COLUMNS.PARAM_Q] !== -1 
+      ? searchTestRow[searchColumnIndices[COLUMNS.PARAM_Q]] 
+      : "";
 
     if (!scope) {
       console.warn(`No scope found for search test row ${rowIndex}`);
       return;
     }
 
-    // Initialize scope count if not exists
+    // Initialize scope count
     if (!scopeCounts[scope]) {
       scopeCounts[scope] = 0;
     }
 
-    // Find column indices for test configuration
-    const testScopeColumnIndex = endpointColumns.indexOf("param:scope");
-    const testQueryColumnIndex = endpointColumns.indexOf("param:q");
-    const providerIdColumnIndex = endpointColumns.indexOf("provider_id");
-    const testNameColumnIndex = endpointColumns.indexOf("test_name");
-    const descriptionColumnIndex = endpointColumns.indexOf("description");
-    const enabledColumnIndex = endpointColumns.indexOf("enabled");
-    const expectedStatusColumnIndex = endpointColumns.indexOf("expected_status");
-    const timeoutMsColumnIndex = endpointColumns.indexOf("timeout_ms");
-    const maxResponseTimeColumnIndex = endpointColumns.indexOf("max_response_time");
-    const delayAfterMsColumnIndex = endpointColumns.indexOf("delay_after_ms");
-    const tagsColumnIndex = endpointColumns.indexOf("tags");
+    // Process this row
+    const processed = processor({
+      searchTestRow,
+      rowIndex,
+      scope,
+      query,
+      searchColumnIndices,
+      scopeCounts
+    });
 
-    // Create new test configuration row
-    const testConfig = new Array(endpointColumns.length).fill("");
-
-    // Set the test specific values
-    if (testScopeColumnIndex !== -1) {
-      testConfig[testScopeColumnIndex] = scope;
+    if (Array.isArray(processed)) {
+      results.push(...processed);
+      scopeCounts[scope] += processed.length;
+    } else if (processed) {
+      results.push(processed);
+      scopeCounts[scope]++;
     }
-    if (testQueryColumnIndex !== -1) {
-      testConfig[testQueryColumnIndex] = query;
-    }
-    if (providerIdColumnIndex !== -1) {
-      testConfig[providerIdColumnIndex] = searchTestRow[searchTestProviderIdColumnIndex];
-    }
-    if (testNameColumnIndex !== -1) {
-      testConfig[testNameColumnIndex] = `${config.namePrefix} for search "${searchTestRow[searchTestNameColumnIndex]}"`;
-    }
-    if (descriptionColumnIndex !== -1) {
-      testConfig[descriptionColumnIndex] = `${config.descriptionPrefix} for search "${searchTestRow[searchTestDescriptionColumnIndex]}"`;
-    }
-    if (enabledColumnIndex !== -1) {
-      testConfig[enabledColumnIndex] = "true";
-    }
-    if (expectedStatusColumnIndex !== -1) {
-      testConfig[expectedStatusColumnIndex] = "200";
-    }
-    if (timeoutMsColumnIndex !== -1) {
-      testConfig[timeoutMsColumnIndex] = config.timeoutMs;
-    }
-    if (maxResponseTimeColumnIndex !== -1) {
-      testConfig[maxResponseTimeColumnIndex] = config.maxResponseTime;
-    }
-    if (delayAfterMsColumnIndex !== -1) {
-      testConfig[delayAfterMsColumnIndex] = "0";
-    }
-    if (tagsColumnIndex !== -1) {
-      testConfig[tagsColumnIndex] = `${endpointKey},search-related`;
-    }
-
-    testConfigs.push(testConfig);
-    scopeCounts[scope]++;
   });
+
+  return { results, scopeCounts };
+};
+
+/**
+ * Generate test configurations based on a configuration template
+ * @param {string} endpointKey - The endpoint key
+ * @param {Array} endpointColumns - Array of endpoint column names
+ * @param {Array} searchTestRows - Array of search test rows
+ * @param {Array} searchColumns - Array of search column names
+ * @param {Object} config - Configuration object
+ * @returns {Array} - Array of test configurations
+ */
+const generateTestConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns, config) => {
+  const endpointColumnIndices = findColumnIndices(endpointColumns, [
+    COLUMNS.PROVIDER_ID,
+    COLUMNS.TEST_NAME,
+    COLUMNS.DESCRIPTION,
+    COLUMNS.ENABLED,
+    COLUMNS.EXPECTED_STATUS,
+    COLUMNS.TIMEOUT_MS,
+    COLUMNS.MAX_RESPONSE_TIME,
+    COLUMNS.DELAY_AFTER_MS,
+    COLUMNS.TAGS,
+    COLUMNS.PARAM_SCOPE,
+    COLUMNS.PARAM_Q,
+    ...(config.additionalColumns || [])
+  ]);
+
+  const processor = ({ searchTestRow, scope, query, searchColumnIndices }) => {
+    // Apply query transformation if configured
+    const processedQuery = config.transformQuery ? config.transformQuery(query) : query;
+    
+    // Generate test configs for this search test row
+    return config.generateConfigs({
+      searchTestRow,
+      scope,
+      query: processedQuery,
+      searchColumnIndices,
+      endpointColumns,
+      endpointColumnIndices,
+      endpointKey,
+      config
+    });
+  };
+
+  const { results, scopeCounts } = processSearchTestRows(searchTestRows, searchColumns, processor);
 
   // Report counts
-  console.log(`Generated ${testConfigs.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
+  config.reportResults?.(results, searchTestRows, scopeCounts, endpointKey);
 
-  return testConfigs;
+  return results;
 };
 
-const getSearchEstimateConfigs = (
+/**
+ * Provide related test configurations for each of the given search test configurations.
+ * @param {Array<Object>} searchTestRows - Array of search test configuration objects
+ * @returns {Object} - Object where keys are from ENDPOINT_KEYS and values are arrays of test configs
+ */
+export const getSearchRelatedTestConfigs = (
   endpointKey,
   endpointColumns,
   searchTestRows,
   searchColumns
 ) => {
-  return createSearchRelatedConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    namePrefix: "Search estimate",
-    descriptionPrefix: "Get search estimate",
-    timeoutMs: "15000",
-    maxResponseTime: "3000"
+  if (!Array.isArray(searchTestRows) || !Array.isArray(searchColumns)) {
+    return [];
+  }
+
+  const configMap = {
+    [ENDPOINT_KEYS.GET_FACETS]: getFacetTestConfigs,
+    [ENDPOINT_KEYS.GET_SEARCH_ESTIMATE]: getSearchEstimateConfigs,
+    [ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH]: getSearchWillMatchConfigs
+  };
+
+  const configFunction = configMap[endpointKey];
+  return configFunction ? configFunction(endpointKey, endpointColumns, searchTestRows, searchColumns) : [];
+};
+
+const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
+  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
+    additionalColumns: [COLUMNS.PARAM_NAME],
+    
+    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      // Get available facets for this scope
+      const availableFacets = FACETS_CONFIGS[scope];
+      if (!availableFacets || availableFacets.length === 0) {
+        console.warn(`No facets available for scope: ${scope}`);
+        return [];
+      }
+
+      // Create a facet test configuration for each available facet
+      return availableFacets.map(facetName => {
+        return createTestConfig(endpointColumns, endpointColumnIndices, {
+          [COLUMNS.PARAM_NAME]: facetName,
+          [COLUMNS.PARAM_SCOPE]: scope,
+          [COLUMNS.PARAM_Q]: query,
+          [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+          [COLUMNS.TEST_NAME]: `${facetName} facet for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
+          [COLUMNS.DESCRIPTION]: `${facetName} facet for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
+          [COLUMNS.ENABLED]: "true",
+          [COLUMNS.EXPECTED_STATUS]: "200",
+          [COLUMNS.TIMEOUT_MS]: "30000",
+          [COLUMNS.MAX_RESPONSE_TIME]: "5000",
+          [COLUMNS.DELAY_AFTER_MS]: "0",
+          [COLUMNS.TAGS]: `${endpointKey},search-related`
+        });
+      });
+    },
+
+    reportResults: (results, searchTestRows, scopeCounts) => {
+      const totalCount = results.length;
+      console.log(`Generated ${totalCount} ${endpointKey} from ${searchTestRows.length} search tests, by search scope:`);
+      Object.entries(scopeCounts)
+        .sort()
+        .forEach(([scope, count]) => {
+          console.log(`  ${scope}: ${count}`);
+        });
+    }
   });
 };
 
-const getSearchWillMatchConfigs = (
-  endpointKey,
-  endpointColumns,
-  searchTestRows,
-  searchColumns
-) => {
-  return createSearchRelatedConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    namePrefix: "Search will match",
-    descriptionPrefix: "Check if search will match",
-    timeoutMs: "10000",
-    maxResponseTime: "2000"
+const getSearchEstimateConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
+  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
+    transformQuery: convertQueryToJson,
+    
+    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      return [createTestConfig(endpointColumns, endpointColumnIndices, {
+        [COLUMNS.PARAM_SCOPE]: scope,
+        [COLUMNS.PARAM_Q]: query,
+        [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+        [COLUMNS.TEST_NAME]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
+        [COLUMNS.DESCRIPTION]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
+        [COLUMNS.ENABLED]: "true",
+        [COLUMNS.EXPECTED_STATUS]: "200",
+        [COLUMNS.TIMEOUT_MS]: "15000",
+        [COLUMNS.MAX_RESPONSE_TIME]: "3000",
+        [COLUMNS.DELAY_AFTER_MS]: "0",
+        [COLUMNS.TAGS]: `${endpointKey},search-related`
+      })];
+    },
+
+    reportResults: (results, searchTestRows, _, endpointKey) => {
+      console.log(`Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
+    }
+  });
+};
+
+const getSearchWillMatchConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
+  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
+    transformQuery: convertQueryToJson,
+    
+    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      return [createTestConfig(endpointColumns, endpointColumnIndices, {
+        [COLUMNS.PARAM_SCOPE]: scope,
+        [COLUMNS.PARAM_Q]: query,
+        [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+        [COLUMNS.TEST_NAME]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
+        [COLUMNS.DESCRIPTION]: `${endpointKey} for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
+        [COLUMNS.ENABLED]: "true",
+        [COLUMNS.EXPECTED_STATUS]: "200",
+        [COLUMNS.TIMEOUT_MS]: "10000",
+        [COLUMNS.MAX_RESPONSE_TIME]: "2000",
+        [COLUMNS.DELAY_AFTER_MS]: "0",
+        [COLUMNS.TAGS]: `${endpointKey},search-related`
+      })];
+    },
+
+    reportResults: (results, searchTestRows, _, endpointKey) => {
+      console.log(`Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
+    }
   });
 };
