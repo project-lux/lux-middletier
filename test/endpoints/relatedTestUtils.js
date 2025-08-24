@@ -177,13 +177,40 @@ const getFacetTestConfigs = (
   return facetTestConfigs;
 };
 
-const getSearchEstimateConfigs = (
-  endpointKey,
-  endpointColumns,
-  searchTestRows,
-  searchColumns
-) => {
-  const searchEstimateConfigs = [];
+/**
+ * Convert query strings to JSON format with "text" property if needed
+ * @param {string} query - The original query string
+ * @returns {string} - The processed query (either original JSON or converted)
+ */
+const convertQueryToJson = (query) => {
+  if (query && typeof query === "string") {
+    try {
+      const parsed = JSON.parse(query);
+      // If it parses to a simple string, convert it to {"text": string}
+      if (typeof parsed === "string") {
+        return JSON.stringify({ "text": parsed });
+      }
+      // If it's already a complex object, return original
+      return query;
+    } catch (e) {
+      // Query is not valid JSON at all, wrap the raw string in a "text" property
+      return JSON.stringify({ "text": query });
+    }
+  }
+  return query;
+};
+
+/**
+ * Create search-related test configurations (estimate or will-match)
+ * @param {string} endpointKey - The endpoint key (get-search-estimate or get-search-will-match)
+ * @param {Array} endpointColumns - Array of column names for the endpoint
+ * @param {Array} searchTestRows - Array of search test rows
+ * @param {Array} searchColumns - Array of search column names
+ * @param {Object} config - Configuration object with endpoint-specific settings
+ * @returns {Array} - Array of test configurations
+ */
+const createSearchRelatedConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns, config) => {
+  const testConfigs = [];
   const scopeCounts = {};
 
   // Find the column indices for scope and query parameters in search columns
@@ -198,27 +225,13 @@ const getSearchEstimateConfigs = (
     return [];
   }
 
-  // Process each search test row to create a corresponding search estimate test
+  // Process each search test row to create a corresponding test
   searchTestRows.forEach((searchTestRow, rowIndex) => {
     const scope = searchTestRow[scopeColumnIndex];
     let query = queryColumnIndex !== -1 ? searchTestRow[queryColumnIndex] : "";
 
-    // Convert non-JSON queries to JSON format with "text" property
-    if (query && typeof query === "string") {
-      // Check if query is already a complex JSON object
-      try {
-        const parsed = JSON.parse(query);
-        // If it parses to a simple string, convert it to {"text": string}
-        if (typeof parsed === "string") {
-          query = JSON.stringify({ "text": parsed });
-          console.log(`Converted string to JSON: ${query}`);
-        }
-        // If it's already a complex object, leave as-is
-      } catch (e) {
-        // Query is not valid JSON at all, wrap the raw string in a "text" property
-        query = JSON.stringify({ "text": query });
-      }
-    }
+    // Convert queries to JSON format if needed
+    query = convertQueryToJson(query);
 
     if (!scope) {
       console.warn(`No scope found for search test row ${rowIndex}`);
@@ -230,80 +243,79 @@ const getSearchEstimateConfigs = (
       scopeCounts[scope] = 0;
     }
 
-    // Find column indices for search estimate test configuration
-    const estimateScopeColumnIndex = endpointColumns.indexOf("param:scope");
-    const estimateQueryColumnIndex = endpointColumns.indexOf("param:q");
+    // Find column indices for test configuration
+    const testScopeColumnIndex = endpointColumns.indexOf("param:scope");
+    const testQueryColumnIndex = endpointColumns.indexOf("param:q");
     const providerIdColumnIndex = endpointColumns.indexOf("provider_id");
     const testNameColumnIndex = endpointColumns.indexOf("test_name");
     const descriptionColumnIndex = endpointColumns.indexOf("description");
     const enabledColumnIndex = endpointColumns.indexOf("enabled");
-    const expectedStatusColumnIndex =
-      endpointColumns.indexOf("expected_status");
+    const expectedStatusColumnIndex = endpointColumns.indexOf("expected_status");
     const timeoutMsColumnIndex = endpointColumns.indexOf("timeout_ms");
-    const maxResponseTimeColumnIndex =
-      endpointColumns.indexOf("max_response_time");
+    const maxResponseTimeColumnIndex = endpointColumns.indexOf("max_response_time");
     const delayAfterMsColumnIndex = endpointColumns.indexOf("delay_after_ms");
     const tagsColumnIndex = endpointColumns.indexOf("tags");
 
-    // Create new search estimate test configuration row
-    const searchEstimateConfig = new Array(endpointColumns.length).fill("");
+    // Create new test configuration row
+    const testConfig = new Array(endpointColumns.length).fill("");
 
-    // Set the search estimate specific values
-    if (estimateScopeColumnIndex !== -1) {
-      searchEstimateConfig[estimateScopeColumnIndex] = scope;
+    // Set the test specific values
+    if (testScopeColumnIndex !== -1) {
+      testConfig[testScopeColumnIndex] = scope;
     }
-    if (estimateQueryColumnIndex !== -1) {
-      searchEstimateConfig[estimateQueryColumnIndex] = query;
+    if (testQueryColumnIndex !== -1) {
+      testConfig[testQueryColumnIndex] = query;
     }
     if (providerIdColumnIndex !== -1) {
-      searchEstimateConfig[providerIdColumnIndex] =
-        searchTestRow[searchTestProviderIdColumnIndex];
+      testConfig[providerIdColumnIndex] = searchTestRow[searchTestProviderIdColumnIndex];
     }
     if (testNameColumnIndex !== -1) {
-      searchEstimateConfig[
-        testNameColumnIndex
-      ] = `Search estimate for search "${searchTestRow[searchTestNameColumnIndex]}"`;
+      testConfig[testNameColumnIndex] = `${config.namePrefix} for search "${searchTestRow[searchTestNameColumnIndex]}"`;
     }
     if (descriptionColumnIndex !== -1) {
-      searchEstimateConfig[
-        descriptionColumnIndex
-      ] = `Get search estimate for search "${searchTestRow[searchTestDescriptionColumnIndex]}"`;
+      testConfig[descriptionColumnIndex] = `${config.descriptionPrefix} for search "${searchTestRow[searchTestDescriptionColumnIndex]}"`;
     }
     if (enabledColumnIndex !== -1) {
-      searchEstimateConfig[enabledColumnIndex] = "true";
+      testConfig[enabledColumnIndex] = "true";
     }
     if (expectedStatusColumnIndex !== -1) {
-      searchEstimateConfig[expectedStatusColumnIndex] = "200";
+      testConfig[expectedStatusColumnIndex] = "200";
     }
     if (timeoutMsColumnIndex !== -1) {
-      searchEstimateConfig[timeoutMsColumnIndex] = "15000";
+      testConfig[timeoutMsColumnIndex] = config.timeoutMs;
     }
     if (maxResponseTimeColumnIndex !== -1) {
-      searchEstimateConfig[maxResponseTimeColumnIndex] = "3000";
+      testConfig[maxResponseTimeColumnIndex] = config.maxResponseTime;
     }
     if (delayAfterMsColumnIndex !== -1) {
-      searchEstimateConfig[delayAfterMsColumnIndex] = "0";
+      testConfig[delayAfterMsColumnIndex] = "0";
     }
     if (tagsColumnIndex !== -1) {
-      searchEstimateConfig[tagsColumnIndex] = "search-estimate,search-related";
+      testConfig[tagsColumnIndex] = `${endpointKey},search-related`;
     }
 
-    searchEstimateConfigs.push(searchEstimateConfig);
+    testConfigs.push(testConfig);
     scopeCounts[scope]++;
   });
 
-  // Report counts of search estimate test configs by search scope
-  console.log(
-    `Generated ${searchEstimateConfigs.length} search estimate requests from ${searchTestRows.length} search tests.`
-  );
+  // Report counts
+  console.log(`Generated ${testConfigs.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
 
-  const totalCount = Object.values(scopeCounts).reduce(
-    (sum, count) => sum + count,
-    0
-  );
-  console.log(`Total search estimate test configurations: ${totalCount}`);
+  return testConfigs;
+};
 
-  return searchEstimateConfigs;
+const getSearchEstimateConfigs = (
+  endpointKey,
+  endpointColumns,
+  searchTestRows,
+  searchColumns
+) => {
+  return createSearchRelatedConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
+    namePrefix: "Search estimate",
+    descriptionPrefix: "Get search estimate",
+    timeoutMs: "15000",
+    maxResponseTime: "3000"
+  });
 };
 
 const getSearchWillMatchConfigs = (
@@ -312,6 +324,10 @@ const getSearchWillMatchConfigs = (
   searchTestRows,
   searchColumns
 ) => {
-  // TODO
-  return [];
+  return createSearchRelatedConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
+    namePrefix: "Search will match",
+    descriptionPrefix: "Check if search will match",
+    timeoutMs: "10000",
+    maxResponseTime: "2000"
+  });
 };
