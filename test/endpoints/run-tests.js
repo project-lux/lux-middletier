@@ -788,16 +788,24 @@ class EndpointTester {
    * Execute all valid tests
    */
   async executeTests(testConfigs) {
-    for (const testConfig of testConfigs) {
-      if (this.shouldRunTest(testConfig)) {
-        const result = await this.runSingleTest(testConfig);
-        this.results.push(result);
+    const validTestConfigs = testConfigs.filter(config => this.shouldRunTest(config));
+    const totalTests = validTestConfigs.length;
+    
+    for (let testIndex = 0; testIndex < validTestConfigs.length; testIndex++) {
+      const testConfig = validTestConfigs[testIndex];
+      console.log(
+        `Running test ${testIndex + 1} of ${totalTests}: [${testConfig.test_name}] as ${
+          testConfig.method
+        } ${this.requestHandler.buildUrl(testConfig)}`
+      );
 
-        // if (testConfig.delay_after_ms > 0) {
-        //   console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
-        //   await this.delay(testConfig.delay_after_ms);
-        // }
-      }
+      const result = await this.runSingleTest(testConfig);
+      this.results.push(result);
+
+      // if (testConfig.delay_after_ms > 0) {
+      //   console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
+      //   await this.delay(testConfig.delay_after_ms);
+      // }
     }
   }
 
@@ -808,12 +816,6 @@ class EndpointTester {
     const startTime = Date.now();
 
     try {
-      console.log(
-        `Running test ${testConfig.test_name} as ${
-          testConfig.method
-        } ${this.requestHandler.buildUrl(testConfig)}`
-      );
-
       const response = await this.requestHandler.executeRequest(testConfig);
       const duration = Date.now() - startTime;
       const timestamp = new Date().toISOString();
@@ -1025,8 +1027,11 @@ class ReportGenerator {
     const report = { summary, results };
 
     // Generate all report formats
+    console.log('Generating the JSON report...');
     this.generateJSONReport(report);
+    console.log('Generating the CSV report...');
     this.generateCSVReport(results);
+    console.log('Generating the HTML report...');
     this.generateHTMLReport(report);
 
     this.displaySummary(summary);
