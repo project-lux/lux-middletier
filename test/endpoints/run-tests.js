@@ -1213,6 +1213,14 @@ class ReportGenerator {
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
+        .filter-container { margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #dee2e6; }
+        .filter-group { display: inline-block; margin-right: 20px; }
+        .filter-label { font-weight: bold; margin-right: 5px; }
+        .filter-select { padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; background-color: white; }
+        .filter-button { padding: 5px 10px; margin-left: 10px; border: 1px solid #ccc; border-radius: 3px; background-color: #f8f9fa; cursor: pointer; }
+        .filter-button:hover { background-color: #e9ecef; }
+        .hidden { display: none !important; }
+        .filter-info { font-size: 0.9em; color: #666; margin-top: 10px; }
         .status-PASS { background-color: #d4edda; }
         .status-FAIL { background-color: #f8d7da; }
         .status-ERROR { background-color: #fff3cd; }
@@ -1324,6 +1332,22 @@ class ReportGenerator {
   createTestResultsSection(report) {
     return `
     <h2>Individual Test Results</h2>
+    <div class="filter-container">
+        <div class="filter-group">
+            <span class="filter-label">Filter by Status:</span>
+            <select id="statusFilter" class="filter-select" onchange="filterByStatus()">
+                <option value="">All Statuses</option>
+                <option value="PASS">PASS</option>
+                <option value="FAIL">FAIL</option>
+                <option value="ERROR">ERROR</option>
+                <option value="SLOW">SLOW</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <button onclick="clearFilters()" class="filter-button">Clear Filters</button>
+        </div>
+        <div id="filterInfo" class="filter-info"></div>
+    </div>
     ${this.generateTestResultsByEndpointType(report)}`;
   }
 
@@ -1750,6 +1774,125 @@ Timestamp: ${timestampText}`;
                 closeResponsePopup();
             }
         });
+
+        // Store original endpoint type names when page loads
+        let originalEndpointTitles = {};
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeOriginalTitles();
+        });
+        
+        // If DOMContentLoaded has already fired, initialize immediately
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeOriginalTitles);
+        } else {
+            initializeOriginalTitles();
+        }
+        
+        function initializeOriginalTitles() {
+            const sections = document.querySelectorAll('.endpoint-section');
+            sections.forEach(section => {
+                const title = section.querySelector('.endpoint-title');
+                if (title) {
+                    const sectionId = section.querySelector('.endpoint-header').getAttribute('onclick').match(/'([^']+)'/)[1];
+                    // Extract just the endpoint type name (everything before the first parenthesis)
+                    const titleText = title.textContent;
+                    const endpointType = titleText.replace(/\\s*\\(.*$/, '').trim();
+                    originalEndpointTitles[sectionId] = endpointType;
+                }
+            });
+        }
+
+        // Filtering functionality
+        function filterByStatus() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const allTables = document.querySelectorAll('.endpoint-table table tbody tr');
+            let visibleCount = 0;
+            let totalCount = allTables.length;
+            
+            allTables.forEach(row => {
+                const statusCell = row.cells[1]; // Status is the 2nd column (index 1)
+                if (statusCell) {
+                    const statusValue = statusCell.textContent.trim();
+                    if (statusFilter === '' || statusValue === statusFilter) {
+                        row.classList.remove('hidden');
+                        visibleCount++;
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                }
+            });
+            
+            // Update section headers to show filtered counts
+            updateEndpointSectionCounts();
+            
+            // Update filter info
+            updateFilterInfo(statusFilter, visibleCount, totalCount);
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            const allRows = document.querySelectorAll('.endpoint-table table tbody tr');
+            const allSections = document.querySelectorAll('.endpoint-section');
+            
+            allRows.forEach(row => {
+                row.classList.remove('hidden');
+            });
+            
+            // Show all sections again
+            allSections.forEach(section => {
+                section.classList.remove('hidden');
+            });
+            
+            // Reset section headers to original counts
+            updateEndpointSectionCounts();
+            
+            // Clear filter info
+            document.getElementById('filterInfo').textContent = '';
+        }
+
+        function updateFilterInfo(statusFilter, visibleCount, totalCount) {
+            const filterInfo = document.getElementById('filterInfo');
+            if (statusFilter) {
+                filterInfo.textContent = 'Showing ' + visibleCount + ' of ' + totalCount + ' tests (filtered by Status: ' + statusFilter + ')';
+            } else {
+                filterInfo.textContent = '';
+            }
+        }
+
+        function updateEndpointSectionCounts() {
+            const sections = document.querySelectorAll('.endpoint-section');
+            sections.forEach(section => {
+                const title = section.querySelector('.endpoint-title');
+                const table = section.querySelector('.endpoint-table table tbody');
+                const header = section.querySelector('.endpoint-header');
+                
+                if (title && table && header) {
+                    const allRows = table.querySelectorAll('tr');
+                    const visibleRows = table.querySelectorAll('tr:not(.hidden)');
+                    const totalCount = allRows.length;
+                    const visibleCount = visibleRows.length;
+                    
+                    // Get the section ID to look up the original title
+                    const onclickValue = header.getAttribute('onclick');
+                    const sectionId = onclickValue ? onclickValue.match(/'([^']+)'/)[1] : null;
+                    const endpointType = sectionId && originalEndpointTitles[sectionId] ? originalEndpointTitles[sectionId] : 'Unknown';
+                    
+                    if (visibleCount < totalCount) {
+                        title.textContent = endpointType + ' (' + visibleCount + '/' + totalCount + ' tests)';
+                    } else {
+                        title.textContent = endpointType + ' (' + totalCount + ' tests)';
+                    }
+                    
+                    // Show/hide the entire section if no tests are visible
+                    if (visibleCount === 0) {
+                        section.classList.add('hidden');
+                    } else {
+                        section.classList.remove('hidden');
+                    }
+                }
+            });
+        }
     </script>`;
   }
 
