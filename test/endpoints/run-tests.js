@@ -694,6 +694,25 @@ class EndpointTester {
     // Initialize async dependencies first
     await this.initializeAsync();
     
+    // Validate providers and endpoints after async initialization
+    if (this.options.providers || this.options.endpoints) {
+      if (this.options.providers) {
+        const availableProviders = this.getAvailableProviders();
+        const invalidProviders = this.options.providers.filter(p => !availableProviders.includes(p));
+        if (invalidProviders.length > 0) {
+          throw new Error(`Unknown provider(s): ${invalidProviders.join(', ')}\nAvailable providers:\n\t${availableProviders.join('\n\t')}`);
+        }
+      }
+      
+      if (this.options.endpoints) {
+        const availableEndpoints = this.getAvailableEndpoints();
+        const invalidEndpoints = this.options.endpoints.filter(e => !availableEndpoints.includes(e));
+        if (invalidEndpoints.length > 0) {
+          throw new Error(`Unknown endpoint(s): ${invalidEndpoints.join(', ')}\nAvailable endpoints:\n\t${availableEndpoints.join('\n\t')}`);
+        }
+      }
+    }
+    
     this.displayConfiguration();
     
     const testConfigs = this.configLoader.loadConfigs(this.options.endpoints);
@@ -1860,7 +1879,13 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   
   console.log(`Test execution directory: ${tester.executionDir}`);
   
-  tester.runFilteredTests().catch((error) => {
+  // Validate providers and endpoints after async initialization
+  tester.runFilteredTests().catch(async (error) => {
+    // If the error is due to validation, we want to show it properly
+    if (error.message && error.message.includes('Unknown provider') || error.message.includes('Unknown endpoint')) {
+      console.error('Test execution failed:', error.message);
+      process.exit(1);
+    }
     console.error('Test execution failed:', error);
     process.exit(1);
   });
