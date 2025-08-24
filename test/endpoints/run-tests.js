@@ -492,6 +492,8 @@ class ResponseAnalyzer {
         return { header: "Profile", value };
       case ENDPOINT_KEYS.GET_FACETS:
         return this.extractOrderedItemsInfo("Facet Values", data);
+      case ENDPOINT_KEYS.GET_RELATED_LIST:
+        return this.extractOrderedItemsInfo("Related Entities", data);
       case ENDPOINT_KEYS.GET_SEARCH:
         return this.extractOrderedItemsInfo("Results Count", data);
       case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
