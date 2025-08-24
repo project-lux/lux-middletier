@@ -462,16 +462,18 @@ class ResponseAnalyzer {
 
     switch (endpoint_type) {
       case ENDPOINT_KEYS.GET_SEARCH:
-        return this.extractSearchInfo(data);
+        return this.extractOrderedItemsInfo('Results Count', data);
+      case ENDPOINT_KEYS.GET_FACETS:
+        return this.extractOrderedItemsInfo('Facet Values', data);
       default:
         return null;
     }
   }
 
   /**
-   * Extract search-specific information
+   * Extract ordered items information
    */
-  extractSearchInfo(data) {
+  extractOrderedItemsInfo(header, data) {
     let value = 'N/A';
     
     if (data.orderedItems && Array.isArray(data.orderedItems)) {
@@ -482,7 +484,7 @@ class ResponseAnalyzer {
       value = data.results.length;
     }
     
-    return { value, header: 'Results Count' };
+    return { value, header };
   }
 }
 
@@ -1407,12 +1409,11 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
       const urlObj = new URL(url);
       let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
       
-      const isSearchEndpoint = urlObj.pathname.includes('/api/search');
       const qParam = urlObj.searchParams.get('q');
       let hasJsonQuery = false;
       let encodedQParam = '';
-      
-      if (isSearchEndpoint && qParam) {
+
+      if (qParam) {
         try {
           JSON.parse(decodeURIComponent(qParam));
           hasJsonQuery = true;
@@ -1444,7 +1445,7 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
       let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
       
       if (hasJsonQuery) {
-        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the search criteria">📄 Criteria</span>`;
+        result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the criteria">📄 Criteria</span>`;
       }
       
       return result;

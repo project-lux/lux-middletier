@@ -2,11 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import XLSX from 'xlsx';
 import { fileURLToPath } from 'url';
-import { SearchTestDataProvider } from '../../../SearchTestDataProvider.js';
+import { TestDataProvider } from '../../../interface.js';
 import { ENDPOINT_KEYS } from '../../../../constants.js';
 import { parseUrlQueryString, extractDataParamsFromUrl, isValidSearchUrl } from '../../../../utils.js';
 
-export class SpecificItemTestCasesTestDataProvider extends SearchTestDataProvider {
+export class SpecificItemTestCasesTestDataProvider extends TestDataProvider {
   /**
    * Constructor
    * @param {Object} options - Options for XLSX parsing
@@ -36,24 +36,30 @@ export class SpecificItemTestCasesTestDataProvider extends SearchTestDataProvide
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
-      if (endpointKey !== ENDPOINT_KEYS.GET_DATA && endpointKey !== ENDPOINT_KEYS.GET_SEARCH) {
-        console.log(`Skipping ${endpointKey} - this provider only supports ${ENDPOINT_KEYS.GET_DATA} and ${ENDPOINT_KEYS.GET_SEARCH} tests`);
+      if (!this.isGetSearch(endpointKey) && !this.isGetData(endpointKey)) {
+        // console.log(
+        //   `Skipping: the ${endpointKey} endpoint is not applicable for this provider`
+        // );
         return [];
       }
 
       // Check if file exists
       if (!fs.existsSync(this.sourcePath)) {
-        console.warn(`Warning: data file not found: ${this.sourcePath}`);
+        console.warn(
+          `Warning: the provider's data file was not found (${this.sourcePath})`
+        );
         return [];
       }
 
       const data = await this.parseFile();
-      
+
       if (data.length === 0) {
-        console.warn(`Warning: No test data found in file: ${this.sourcePath}`);
+        console.warn(
+          `Warning: No data found in the provider's data file: ${this.sourcePath}`
+        );
         return [];
       }
-
+      
       // Convert XLSX objects to row arrays matching the column structure
       // Only process rows that have hyperlinks in column E (LUX link) matching the requested endpoint type
       const testRows = [];
@@ -133,7 +139,7 @@ export class SpecificItemTestCasesTestDataProvider extends SearchTestDataProvide
         }
       }
 
-      console.log(`✓ Loaded ${testRows.length} ${endpointKey} test cases from XLSX column E: ${path.basename(this.sourcePath)}`);
+      console.log(`✓ Loaded ${testRows.length} ${endpointKey} test cases`);
       return testRows;
 
     } catch (error) {

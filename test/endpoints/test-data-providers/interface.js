@@ -4,6 +4,7 @@
  * This interface defines the contract for test data providers that can import
  * test cases from various sources (CSV, JSON, logs, spreadsheets, etc.)
  */
+import { ENDPOINT_KEYS } from "../constants.js";
 
 /**
  * Abstract base class for test data providers
@@ -17,6 +18,14 @@ export class TestDataProvider {
    */
   constructor(options = {}) {
     this.options = options;
+  }
+
+  isGetSearch(endpointKey) {
+    return ENDPOINT_KEYS.GET_SEARCH === endpointKey;
+  }
+
+  isGetData(endpointKey) {
+    return ENDPOINT_KEYS.GET_DATA === endpointKey;
   }
 
   /**

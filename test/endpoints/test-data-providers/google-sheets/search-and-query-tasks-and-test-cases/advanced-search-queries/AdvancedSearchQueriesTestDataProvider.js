@@ -2,11 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { SearchTestDataProvider } from '../../../SearchTestDataProvider.js';
-import { ENDPOINT_KEYS } from '../../../../constants.js';
+import { TestDataProvider } from '../../../interface.js';
 import { parseUrlQueryString, isValidSearchUrl } from '../../../../utils.js';
 
-export class AdvancedSearchQueriesTestDataProvider extends SearchTestDataProvider {
+export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
   /**
    * Constructor
    * @param {Object} options - Options for TSV parsing
@@ -37,26 +36,32 @@ export class AdvancedSearchQueriesTestDataProvider extends SearchTestDataProvide
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
-      if (endpointKey !== ENDPOINT_KEYS.GET_SEARCH) {
-        console.log(`Skipping ${endpointKey} - this provider only supports ${ENDPOINT_KEYS.GET_SEARCH} tests`);
+      if (!this.isGetSearch(endpointKey)) {
+        // console.log(
+        //   `Skipping: the ${endpointKey} endpoint is not applicable for this provider`
+        // );
         return [];
       }
 
       // Check if file exists
       if (!fs.existsSync(this.sourcePath)) {
-        console.log(`TSV file not found: ${this.sourcePath} - skipping advanced search queries provider`);
+        console.warn(
+          `Warning: the provider's data file was not found (${this.sourcePath})`
+        );
         return [];
       }
 
       const tsvData = await this.parseTsvFile();
-      
+
       if (tsvData.length === 0) {
-        console.warn(`Warning: No test data found in TSV file: ${this.sourcePath}`);
+        console.warn(
+          `Warning: No data found in the provider's data file: ${this.sourcePath}`
+        );
         return [];
       }
 
       // Filter for rows that have a URL in the Search column and are for get-search-tests
-      const searchTestRows = tsvData
+      const rawDataRows = tsvData
         .map((record, index) => ({ 
           ...record, 
           originalIndex: index + 1 + this.headerRowIndex // +1 to make it 1-based
@@ -67,13 +72,13 @@ export class AdvancedSearchQueriesTestDataProvider extends SearchTestDataProvide
           return searchUrl && searchUrl.trim() && isValidSearchUrl(searchUrl);
         });
 
-      if (searchTestRows.length === 0) {
+      if (rawDataRows.length === 0) {
         console.log(`No valid search URLs found for ${endpointKey} in TSV file`);
         return [];
       }
 
       // Convert TSV objects to row arrays matching the column structure
-      const testRows = searchTestRows.map((record, index) => {
+      const testRows = rawDataRows.map((record, index) => {
         const searchUrl = this.getSearchUrlFromRecord(record);
         const queryParams = parseUrlQueryString(searchUrl);
         
@@ -118,9 +123,8 @@ export class AdvancedSearchQueriesTestDataProvider extends SearchTestDataProvide
         }
       }
 
-      console.log(`✓ Loaded ${testRows.length} search test cases from TSV: ${path.basename(this.sourcePath)}`);
+      console.log(`✓ Loaded ${testRows.length} ${endpointKey} test cases`);
       return testRows;
-
     } catch (error) {
       console.error(`Error reading TSV file ${this.sourcePath}:`, error.message);
       throw error;

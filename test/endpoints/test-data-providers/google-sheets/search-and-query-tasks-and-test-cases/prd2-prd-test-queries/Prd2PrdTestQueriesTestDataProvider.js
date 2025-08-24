@@ -2,11 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import csv from 'csv-parser';
 import { fileURLToPath } from 'url';
-import { SearchTestDataProvider } from '../../../SearchTestDataProvider.js';
+import { TestDataProvider } from '../../../interface.js';
 import { ENDPOINT_KEYS } from '../../../../constants.js';
 import { parseUrlQueryString } from '../../../../utils.js';
 
-export class Prd2PrdTestQueriesTestDataProvider extends SearchTestDataProvider {
+export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
   /**
    * Constructor
    * @param {Object} options - Options for TSV parsing
@@ -39,19 +39,30 @@ export class Prd2PrdTestQueriesTestDataProvider extends SearchTestDataProvider {
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
+      if (!this.isGetSearch(endpointKey)) {
+        // console.log(
+        //   `Skipping: the ${endpointKey} endpoint is not applicable for this provider`
+        // );
+        return [];
+      }
+
       // Check if file exists
       if (!fs.existsSync(this.sourcePath)) {
-        console.log(`TSV file not found: ${this.sourcePath} - skipping prd2-prd queries provider`);
+        console.warn(
+          `Warning: the provider's data file was not found (${this.sourcePath})`
+        );
         return [];
       }
 
       const tsvData = await this.parseTsvFile();
-      
+
       if (tsvData.length === 0) {
-        console.warn(`Warning: No test data found in TSV file: ${this.sourcePath}`);
+        console.warn(
+          `Warning: No data found in the provider's data file: ${this.sourcePath}`
+        );
         return [];
       }
-
+      
       // Filter for rows that have URLs in the second column (TST) and match the endpoint type
       const relevantRows = tsvData
         .map((record, index) => ({ 
@@ -141,7 +152,7 @@ export class Prd2PrdTestQueriesTestDataProvider extends SearchTestDataProvider {
         }
       }
 
-      console.log(`✓ Loaded ${testRows.length} test cases for ${endpointKey} from TSV: ${path.basename(this.sourcePath)}`);
+      console.log(`✓ Loaded ${testRows.length} ${endpointKey} test cases`);
       return testRows;
 
     } catch (error) {
