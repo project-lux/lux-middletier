@@ -15,6 +15,8 @@ import { SpecificItemTestCasesTestDataProvider } from
   './google-sheets/search-and-query-tasks-and-test-cases/specific-item-test-cases/SpecificItemTestCasesTestDataProvider.js';
 import { UpdatedAdvancedSearchQueriesTestDataProvider } from 
   './google-sheets/search-and-query-tasks-and-test-cases/updated-advanced-search-queries/UpdatedAdvancedSearchQueriesTestDataProvider.js';
+import { AtLeastOneRelatedListItemTestDataProvider } from 
+  './backend-logs/atLeastOneRelatedListItem/AtLeastOneRelatedListItemTestDataProvider.js';
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
@@ -22,6 +24,7 @@ TestDataProviderFactory.registerProvider(BenchmarkQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(Prd2PrdTestQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(SpecificItemTestCasesTestDataProvider);
 TestDataProviderFactory.registerProvider(UpdatedAdvancedSearchQueriesTestDataProvider);
+TestDataProviderFactory.registerProvider(AtLeastOneRelatedListItemTestDataProvider);
 
 // Export the main classes and interfaces
 export {

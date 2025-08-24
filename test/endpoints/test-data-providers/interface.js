@@ -20,12 +20,16 @@ export class TestDataProvider {
     this.options = options;
   }
 
-  isGetSearch(endpointKey) {
-    return ENDPOINT_KEYS.GET_SEARCH === endpointKey;
-  }
-
   isGetData(endpointKey) {
     return ENDPOINT_KEYS.GET_DATA === endpointKey;
+  }
+
+  isGetRelatedList(endpointKey) {
+    return ENDPOINT_KEYS.GET_RELATED_LIST === endpointKey;
+  }
+
+  isGetSearch(endpointKey) {
+    return ENDPOINT_KEYS.GET_SEARCH === endpointKey;
   }
 
   /**
