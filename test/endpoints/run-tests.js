@@ -1174,6 +1174,9 @@ class ReportGenerator {
         .json-popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; }
         .json-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
         .json-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .json-popup-buttons { display: flex; gap: 10px; }
+        .json-popup-copy { background: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .json-popup-copy:hover { background: #45a049; }
         .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-close:hover { background: #d32f2f; }
         .json-content { background-color: #f8f8f8; border: 1px solid #ddd; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; overflow-x: auto; }
@@ -1242,7 +1245,11 @@ class ReportGenerator {
         <div class="json-popup-content" onclick="event.stopPropagation()">
             <div class="json-popup-header">
                 <h3>Search Criteria</h3>
-                <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
+                <div class="json-popup-buttons">
+                    <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
+                    <button class="json-popup-copy" onclick="copyJsonAsEncoded(event)" title="Copy JSON as URL-encoded">Copy URL-Encoded</button>
+                    <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
+                </div>
             </div>
             <div id="jsonContent" class="json-content"></div>
         </div>
@@ -1253,7 +1260,10 @@ class ReportGenerator {
         <div class="json-popup-content" onclick="event.stopPropagation()">
             <div class="json-popup-header">
                 <h3>Response Body</h3>
-                <button class="json-popup-close" onclick="closeResponsePopup()">Close</button>
+                <div class="json-popup-buttons">
+                    <button class="json-popup-copy" onclick="copyResponseAsDisplayed(event)" title="Copy response body as displayed">Copy JSON</button>
+                    <button class="json-popup-close" onclick="closeResponsePopup()">Close</button>
+                </div>
             </div>
             <div id="responseContent" class="json-content"></div>
         </div>
@@ -1465,10 +1475,54 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
                 const formatted = JSON.stringify(parsed, null, 2);
                 document.getElementById('jsonContent').textContent = formatted;
                 document.getElementById('jsonPopup').style.display = 'block';
+                
+                // Store the original and formatted JSON for copy functions
+                window.currentJsonData = {
+                    formatted: formatted,
+                    encoded: jsonString
+                };
             } catch (e) {
                 document.getElementById('jsonContent').textContent = 'Invalid JSON: ' + decodeURIComponent(jsonString);
                 document.getElementById('jsonPopup').style.display = 'block';
+                
+                // Store error data for copy functions
+                window.currentJsonData = {
+                    formatted: 'Invalid JSON: ' + decodeURIComponent(jsonString),
+                    encoded: jsonString
+                };
             }
+        }
+
+        function copyToClipboard(event, dataSource, dataKey, buttonName) {
+            const data = window[dataSource];
+            if (data && data[dataKey]) {
+                navigator.clipboard.writeText(data[dataKey]).then(function() {
+                    // Temporarily change button text to show success
+                    const button = event ? event.target : document.querySelector('button[onclick*="' + buttonName + '"]');
+                    const originalText = button.textContent;
+                    button.textContent = 'Copied!';
+                    button.style.background = '#2196F3';
+                    setTimeout(function() {
+                        button.textContent = originalText;
+                        button.style.background = '#4CAF50';
+                    }, 1000);
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy to clipboard');
+                });
+            }
+        }
+
+        function copyJsonAsDisplayed(event) {
+            copyToClipboard(event, 'currentJsonData', 'formatted', 'copyJsonAsDisplayed');
+        }
+
+        function copyJsonAsEncoded(event) {
+            copyToClipboard(event, 'currentJsonData', 'encoded', 'copyJsonAsEncoded');
+        }
+
+        function copyResponseAsDisplayed(event) {
+            copyToClipboard(event, 'currentResponseData', 'formatted', 'copyResponseAsDisplayed');
         }
 
         function closeJsonPopup(event) {
@@ -1492,12 +1546,28 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
                     const parsed = JSON.parse(content);
                     const formatted = JSON.stringify(parsed, null, 2);
                     document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre class="json-content" style="margin: 0;">' + formatted + '</pre>';
+                    
+                    // Store the formatted content for copy function
+                    window.currentResponseData = {
+                        formatted: formatted
+                    };
                 } catch (jsonError) {
                     document.getElementById('responseContent').innerHTML = hyperlinkHtml + '<pre style="margin: 0; font-family: monospace; white-space: pre-wrap;">' + content + '</pre>';
+                    
+                    // Store the raw content for copy function
+                    window.currentResponseData = {
+                        formatted: content
+                    };
                 }
             } catch (e) {
-                document.getElementById('responseContent').textContent = 'Error displaying content: ' + e.message;
+                const errorMessage = 'Error displaying content: ' + e.message;
+                document.getElementById('responseContent').textContent = errorMessage;
                 document.getElementById('responsePopup').style.display = 'block';
+                
+                // Store the error message for copy function
+                window.currentResponseData = {
+                    formatted: errorMessage
+                };
             }
         }
 
@@ -1506,8 +1576,14 @@ Execution timestamp: ${result.timestamp || 'Unknown'}`;
             const decodedPath = decodeURIComponent(filePath);
             const linkLabel = decodeURIComponent(encodedLinkLabel);
             
-            document.getElementById('responseContent').innerHTML = '<div>Response file path: ' + decodedPath + '</div>';
+            const pathContent = 'Response file path: ' + decodedPath;
+            document.getElementById('responseContent').innerHTML = '<div>' + pathContent + '</div>';
             document.getElementById('responsePopup').style.display = 'block';
+            
+            // Store the path content for copy function
+            window.currentResponseData = {
+                formatted: pathContent
+            };
         }
 
         function closeResponsePopup(event) {
