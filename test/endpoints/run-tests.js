@@ -1,30 +1,30 @@
-import XLSX from 'xlsx';
-import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { getEndpointKeyFromPath, isDefined, parseBoolean } from './utils.js';
-import { TestDataProviderFactory } from './test-data-providers/interface.js';
-import { ENDPOINT_KEYS } from './constants.js';
+import XLSX from "xlsx";
+import axios from "axios";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath, pathToFileURL } from "url";
+import { getEndpointKeyFromPath, isDefined, parseBoolean } from "./utils.js";
+import { TestDataProviderFactory } from "./test-data-providers/interface.js";
+import { ENDPOINT_KEYS } from "./constants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration constants
 const DEFAULT_CONFIG = {
-  baseUrl: 'https://lux-middle-dev.collections.yale.edu',
+  baseUrl: "https://lux-middle-dev.collections.yale.edu",
   timeout: 10000,
   maxResponseTime: 5000,
   expectedStatus: 200,
-  method: 'GET',
+  method: "GET",
   delayAfterMs: 0,
 };
 
 const PARAMETER_CONFIG = {
-  pathParams: ['scope'],
+  pathParams: ["scope"],
   bodyParams: {
-    json: ['q', 'scope', 'page', 'pageLength', 'sort', 'facets'],
-    formData: ['doc', 'unitName', 'lang', 'uri'],
+    json: ["q", "scope", "page", "pageLength", "sort", "facets"],
+    formData: ["doc", "unitName", "lang", "uri"],
   },
 };
 
@@ -69,8 +69,8 @@ class ConfigurationLoader {
   getValidConfigFiles() {
     return fs
       .readdirSync(this.configDir)
-      .filter(file => file.endsWith('.xlsx') || file.endsWith('.csv'))
-      .filter(file => !file.startsWith('~'));
+      .filter((file) => file.endsWith(".xlsx") || file.endsWith(".csv"))
+      .filter((file) => !file.startsWith("~"));
   }
 
   /**
@@ -78,7 +78,7 @@ class ConfigurationLoader {
    */
   extractEndpointType(filename) {
     const baseName = path.basename(filename, path.extname(filename));
-    return baseName.replace(/-tests?$/, '').replace(/_tests?$/, '');
+    return baseName.replace(/-tests?$/, "").replace(/_tests?$/, "");
   }
 
   /**
@@ -87,7 +87,7 @@ class ConfigurationLoader {
   loadSingleConfig(filePath, endpointType) {
     let data;
 
-    if (filePath.endsWith('.xlsx')) {
+    if (filePath.endsWith(".xlsx")) {
       data = this.parseExcelFile(filePath);
     } else {
       data = this.parseCSVFile(filePath);
@@ -112,17 +112,19 @@ class ConfigurationLoader {
    * Parse CSV file to JSON
    */
   parseCSVFile(filePath) {
-    const csvContent = fs.readFileSync(filePath, 'utf8');
-    const lines = csvContent.split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const csvContent = fs.readFileSync(filePath, "utf8");
+    const lines = csvContent.split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim()) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        const values = lines[i]
+          .split(",")
+          .map((v) => v.trim().replace(/"/g, ""));
         const row = {};
         headers.forEach((header, index) => {
-          row[header] = values[index] || '';
+          row[header] = values[index] || "";
         });
         data.push(row);
       }
@@ -136,22 +138,29 @@ class ConfigurationLoader {
    */
   transformRowToConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     const testConfig = {
-      provider_id: row.provider_id || '',
+      provider_id: row.provider_id || "",
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
       source_file: path.basename(sourceFile),
       row_number: rowIndex + 2,
       total_rows: totalRows + 1,
-      method: row.method || this.getEndpointMethod(endpointType) || DEFAULT_CONFIG.method,
-      base_endpoint: row.base_endpoint || this.getEndpointPath(endpointType) || '/',
+      method:
+        row.method ||
+        this.getEndpointMethod(endpointType) ||
+        DEFAULT_CONFIG.method,
+      base_endpoint:
+        row.base_endpoint || this.getEndpointPath(endpointType) || "/",
       endpoint_tests: row.endpoint_tests || this.getEndpointTests(endpointType),
-      expected_status: parseInt(row.expected_status) || DEFAULT_CONFIG.expectedStatus,
+      expected_status:
+        parseInt(row.expected_status) || DEFAULT_CONFIG.expectedStatus,
       timeout_ms: parseInt(row.timeout_ms) || DEFAULT_CONFIG.timeout,
-      max_response_time: parseInt(row.max_response_time) || DEFAULT_CONFIG.maxResponseTime,
-      delay_after_ms: parseInt(row.delay_after_ms) || DEFAULT_CONFIG.delayAfterMs,
-      enabled: row.enabled === 'true' || row.enabled === true,
-      description: row.description || '',
-      tags: row.tags ? row.tags.split(',').map(t => t.trim()) : [],
+      max_response_time:
+        parseInt(row.max_response_time) || DEFAULT_CONFIG.maxResponseTime,
+      delay_after_ms:
+        parseInt(row.delay_after_ms) || DEFAULT_CONFIG.delayAfterMs,
+      enabled: row.enabled === "true" || row.enabled === true,
+      description: row.description || "",
+      tags: row.tags ? row.tags.split(",").map((t) => t.trim()) : [],
       parameters: this.extractParameters(row),
     };
 
@@ -163,11 +172,15 @@ class ConfigurationLoader {
    */
   extractParameters(row) {
     const parameters = {};
-    Object.keys(row).forEach(key => {
-      if (key.startsWith('param:')) {
+    Object.keys(row).forEach((key) => {
+      if (key.startsWith("param:")) {
         const paramName = key.substring(6);
         const paramValue = row[key];
-        if (paramValue !== undefined && paramValue !== null && paramValue !== '') {
+        if (
+          paramValue !== undefined &&
+          paramValue !== null &&
+          paramValue !== ""
+        ) {
           parameters[paramName] = paramValue;
         }
       }
@@ -180,11 +193,11 @@ class ConfigurationLoader {
    */
   getEndpointMethod(endpointType) {
     if (this.endpointsSpec?.endpoints) {
-      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+      const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
         return specKey === endpointType;
       });
-      
+
       if (endpoint) {
         return endpoint.method;
       }
@@ -198,11 +211,11 @@ class ConfigurationLoader {
    */
   getEndpointPath(endpointType) {
     if (this.endpointsSpec?.endpoints) {
-      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+      const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
         return specKey === endpointType;
       });
-      
+
       if (endpoint) {
         return endpoint.path;
       }
@@ -216,17 +229,17 @@ class ConfigurationLoader {
    */
   getEndpointTests(endpointType) {
     if (this.endpointsSpec?.endpoints) {
-      const endpoint = this.endpointsSpec.endpoints.find(ep => {
+      const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
         return specKey === endpointType;
       });
-      
+
       if (endpoint) {
         return endpoint.path;
       }
     }
 
-    return '/';
+    return "/";
   }
 }
 
@@ -267,26 +280,28 @@ class RequestHandler {
   buildUrl(testConfig) {
     let url = this.baseUrl;
     let pathTemplate = testConfig.endpoint_tests || testConfig.base_endpoint;
-    
+
     // Substitute path parameters
     const pathParams = this.extractPathParameters(pathTemplate);
     let finalPath = pathTemplate;
-    
-    pathParams.forEach(paramName => {
+
+    pathParams.forEach((paramName) => {
       const paramValue = testConfig.parameters[paramName];
       if (paramValue) {
         finalPath = finalPath.replace(`:${paramName}`, paramValue);
       } else {
-        console.warn(`Missing required path parameter '${paramName}' for ${testConfig.test_name}`);
+        console.warn(
+          `Missing required path parameter '${paramName}' for ${testConfig.test_name}`
+        );
       }
     });
-    
+
     url += finalPath;
 
     // Add query parameters
     const queryParams = this.buildQueryParams(testConfig, pathParams);
     if (queryParams.length > 0) {
-      url += '?' + queryParams.join('&');
+      url += "?" + queryParams.join("&");
     }
 
     return url;
@@ -297,7 +312,7 @@ class RequestHandler {
    */
   extractPathParameters(pathTemplate) {
     const matches = pathTemplate.match(/:([^/]+)/g);
-    return matches ? matches.map(match => match.substring(1)) : [];
+    return matches ? matches.map((match) => match.substring(1)) : [];
   }
 
   /**
@@ -309,7 +324,9 @@ class RequestHandler {
 
     Object.entries(testConfig.parameters).forEach(([key, value]) => {
       if (this.isQueryParameter(key, testConfig, allPathParams)) {
-        queryParams.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+        queryParams.push(
+          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+        );
       }
     });
 
@@ -325,8 +342,10 @@ class RequestHandler {
     }
 
     const { method, endpoint_type } = testConfig;
-    if ((method === 'POST' || method === 'PUT') && 
-        PARAMETER_CONFIG.bodyParams.formData.includes(paramName)) {
+    if (
+      (method === "POST" || method === "PUT") &&
+      PARAMETER_CONFIG.bodyParams.formData.includes(paramName)
+    ) {
       return false;
     }
 
@@ -337,16 +356,16 @@ class RequestHandler {
    * Build request body
    */
   buildBody(testConfig) {
-    if (testConfig.method === 'GET' || testConfig.method === 'DELETE') {
+    if (testConfig.method === "GET" || testConfig.method === "DELETE") {
       return null;
     }
 
     switch (testConfig.endpoint_type) {
-      case 'translate':
-      case 'search':
+      case "translate":
+      case "search":
         return this.buildJSONBody(testConfig);
-      case 'document-create':
-      case 'document-update':
+      case "document-create":
+      case "document-update":
         return this.buildFormDataBody(testConfig);
       default:
         return this.buildJSONBody(testConfig);
@@ -387,10 +406,12 @@ class RequestHandler {
    * Parse parameter value (handle JSON, arrays, etc.)
    */
   parseParameterValue(value) {
-    if (typeof value === 'string') {
+    if (typeof value === "string") {
       // Try to parse as JSON
-      if ((value.startsWith('{') && value.endsWith('}')) ||
-          (value.startsWith('[') && value.endsWith(']'))) {
+      if (
+        (value.startsWith("{") && value.endsWith("}")) ||
+        (value.startsWith("[") && value.endsWith("]"))
+      ) {
         try {
           return JSON.parse(value);
         } catch {
@@ -399,8 +420,8 @@ class RequestHandler {
       }
 
       // Handle comma-separated arrays
-      if (value.includes(',') && !value.includes(' ')) {
-        return value.split(',');
+      if (value.includes(",") && !value.includes(" ")) {
+        return value.split(",");
       }
     }
 
@@ -412,17 +433,17 @@ class RequestHandler {
    */
   buildHeaders(testConfig) {
     const headers = {
-      'User-Agent': 'LUX-Endpoint-Tester/1.0',
+      "User-Agent": "LUX-Endpoint-Tester/1.0",
     };
 
-    if (testConfig.method === 'POST' || testConfig.method === 'PUT') {
+    if (testConfig.method === "POST" || testConfig.method === "PUT") {
       switch (testConfig.endpoint_type) {
-        case 'document-create':
-        case 'document-update':
-          headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        case "document-create":
+        case "document-update":
+          headers["Content-Type"] = "application/x-www-form-urlencoded";
           break;
         default:
-          headers['Content-Type'] = 'application/json';
+          headers["Content-Type"] = "application/json";
       }
     }
 
@@ -433,9 +454,11 @@ class RequestHandler {
    * Build authentication configuration
    */
   buildAuth() {
-    if (this.authConfig.type === 'digest' && 
-        this.authConfig.username && 
-        this.authConfig.password) {
+    if (
+      this.authConfig.type === "digest" &&
+      this.authConfig.username &&
+      this.authConfig.password
+    ) {
       return {
         username: this.authConfig.username,
         password: this.authConfig.password,
@@ -461,14 +484,20 @@ class ResponseAnalyzer {
     const { data } = response;
 
     switch (endpoint_type) {
+      case ENDPOINT_KEYS.GET_DATA:
+        const key = "params:profile";
+        const value = isDefined(testConfig[key])
+          ? testConfig[key]
+          : "Not specified";
+        return { header: "Profile", value };
       case ENDPOINT_KEYS.GET_FACETS:
-        return this.extractOrderedItemsInfo('Facet Values', data);
+        return this.extractOrderedItemsInfo("Facet Values", data);
       case ENDPOINT_KEYS.GET_SEARCH:
-        return this.extractOrderedItemsInfo('Results Count', data);
+        return this.extractOrderedItemsInfo("Results Count", data);
       case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
-        return this.extractOrderedItemsInfo('Estimate', data);
+        return this.extractOrderedItemsInfo("Estimate", data);
       case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-        return this.extractWillMatchInfo('Will Match', data);
+        return this.extractWillMatchInfo("Will Match", data);
       default:
         return null;
     }
@@ -478,8 +507,8 @@ class ResponseAnalyzer {
    * Extract ordered items information
    */
   extractOrderedItemsInfo(header, data) {
-    let value = 'N/A';
-    
+    let value = "N/A";
+
     if (data.orderedItems && Array.isArray(data.orderedItems)) {
       value = data.orderedItems.length;
     } else if (data.totalItems !== undefined) {
@@ -487,7 +516,7 @@ class ResponseAnalyzer {
     } else if (data.results && Array.isArray(data.results)) {
       value = data.results.length;
     }
-    
+
     return { value, header };
   }
 
@@ -495,26 +524,32 @@ class ResponseAnalyzer {
    * Extract will match information from data properties
    */
   extractWillMatchInfo(header, data) {
-    if (!data || typeof data !== 'object') {
-      return { value: 'N/A', header };
+    if (!data || typeof data !== "object") {
+      return { value: "N/A", header };
     }
 
     const results = [];
-    Object.keys(data).forEach(propertyName => {
+    Object.keys(data).forEach((propertyName) => {
       const propertyData = data[propertyName];
-      if (propertyData && typeof propertyData === 'object' && 
-          propertyData.hasOneOrMoreResult !== undefined) {
-        results.push({ name: propertyName, value: propertyData.hasOneOrMoreResult });
+      if (
+        propertyData &&
+        typeof propertyData === "object" &&
+        propertyData.hasOneOrMoreResult !== undefined
+      ) {
+        results.push({
+          name: propertyName,
+          value: propertyData.hasOneOrMoreResult,
+        });
       }
     });
 
-    let value = 'N/A';
-    if (results.length === 1 && results[0].name === 'unnamed') {
+    let value = "N/A";
+    if (results.length === 1 && results[0].name === "unnamed") {
       // Special case: single unnamed result, return just the value
       value = results[0].value;
     } else if (results.length > 0) {
       // Multiple results or named results, return formatted list
-      value = results.map(r => `${r.name}: ${r.value}`).join(' | ');
+      value = results.map((r) => `${r.name}: ${r.value}`).join(" | ");
     }
 
     return { value, header };
@@ -533,14 +568,21 @@ class ResponseSaver {
   /**
    * Save response body to disk if enabled
    */
-  saveResponseBody(provider, testName, response, sourceFile, rowNumber, totalRows) {
+  saveResponseBody(
+    provider,
+    testName,
+    response,
+    sourceFile,
+    rowNumber,
+    totalRows
+  ) {
     if (!this.enabled) return null;
-    
+
     try {
       const providerDir = this.createProviderDirectory(sourceFile, provider);
       const filename = this.createFilename(testName, rowNumber, totalRows);
       const filePath = path.join(providerDir, filename);
-      
+
       const responseData = {
         status: response.status,
         statusText: response.statusText,
@@ -550,11 +592,11 @@ class ResponseSaver {
           url: response.config?.url,
           method: response.config?.method,
           headers: response.config?.headers,
-        }
+        },
       };
-      
+
       fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
-      
+
       return `${providerDir}/${filename}`;
     } catch (error) {
       console.warn(`  Failed to save response body: ${error.message}`);
@@ -572,7 +614,7 @@ class ResponseSaver {
     if (!fs.existsSync(providerDir)) {
       fs.mkdirSync(providerDir, { recursive: true });
     }
-    
+
     return providerDir;
   }
 
@@ -581,16 +623,18 @@ class ResponseSaver {
    */
   createFilename(testName, rowNumber, totalRows) {
     const maxDigits = Math.max(totalRows.toString().length, 2);
-    const paddedRowNumber = rowNumber.toString().padStart(maxDigits, '0');
-    
+    const paddedRowNumber = rowNumber.toString().padStart(maxDigits, "0");
+
     const safeTestName = testName
-      .replace(/[^a-zA-Z0-9 ]/g, ' ')
-      .split(' ')
-      .map((word, index) => 
-        index === 0 ? word.toLowerCase() : 
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
-      
+      .replace(/[^a-zA-Z0-9 ]/g, " ")
+      .split(" ")
+      .map((word, index) =>
+        index === 0
+          ? word.toLowerCase()
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      )
+      .join("");
+
     return `confRow${paddedRowNumber}_${safeTestName}.json`;
   }
 }
@@ -599,7 +643,7 @@ class ResponseSaver {
  * Main endpoint testing class - refactored for maintainability
  */
 class EndpointTester {
-  constructor(configDir, reportsDir = './reports', options = {}) {
+  constructor(configDir, reportsDir = "./reports", options = {}) {
     this.configDir = configDir;
     this.reportsDir = reportsDir;
     this.results = [];
@@ -615,19 +659,26 @@ class EndpointTester {
    * Initialize directory structure
    */
   initializeDirectories() {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .replace("T", "_")
+      .slice(0, 19);
     this.executionDir = path.join(this.reportsDir, `test-run-${timestamp}`);
-    this.responsesDir = path.join(this.executionDir, 'responses');
+    this.responsesDir = path.join(this.executionDir, "responses");
 
     if (!this.options.dryRun) {
       // Ensure directories exist
-      [this.reportsDir, this.executionDir].forEach(dir => {
+      [this.reportsDir, this.executionDir].forEach((dir) => {
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
       });
 
-      if (this.options.saveResponseBodies && !fs.existsSync(this.responsesDir)) {
+      if (
+        this.options.saveResponseBodies &&
+        !fs.existsSync(this.responsesDir)
+      ) {
         fs.mkdirSync(this.responsesDir, { recursive: true });
       }
     }
@@ -642,22 +693,33 @@ class EndpointTester {
 
     // Authentication configuration
     const authConfig = {
-      type: process.env.AUTH_TYPE || 'none',
+      type: process.env.AUTH_TYPE || "none",
       username: process.env.AUTH_USERNAME || null,
       password: process.env.AUTH_PASSWORD || null,
     };
 
     // Validate authentication
-    if (authConfig.type === 'digest' && (!authConfig.username || !authConfig.password)) {
-      throw new Error('Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables');
+    if (
+      authConfig.type === "digest" &&
+      (!authConfig.username || !authConfig.password)
+    ) {
+      throw new Error(
+        "Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables"
+      );
     }
 
     // Initialize components
     this.configLoader = new ConfigurationLoader(this.configDir);
     this.requestHandler = new RequestHandler(baseUrl, authConfig);
     this.responseAnalyzer = new ResponseAnalyzer();
-    this.responseSaver = new ResponseSaver(this.responsesDir, this.options.saveResponseBodies);
-    this.reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+    this.responseSaver = new ResponseSaver(
+      this.responsesDir,
+      this.options.saveResponseBodies
+    );
+    this.reportGenerator = new ReportGenerator(
+      this.executionDir,
+      this.responseSaver.enabled
+    );
   }
 
   /**
@@ -665,7 +727,7 @@ class EndpointTester {
    */
   async initializeAsync() {
     // Load test data providers
-    await import('./test-data-providers/index.js');
+    await import("./test-data-providers/index.js");
   }
 
   /**
@@ -673,16 +735,22 @@ class EndpointTester {
    */
   loadEndpointsSpec() {
     try {
-      const endpointsSpecPath = path.join(__dirname, 'endpoints-spec.json');
+      const endpointsSpecPath = path.join(__dirname, "endpoints-spec.json");
       if (fs.existsSync(endpointsSpecPath)) {
-        const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, 'utf8'));
+        const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, "utf8"));
         this.configLoader.endpointsSpec = spec;
-        console.log(`Loaded ${spec.endpoints?.length || 0} endpoint specifications`);
+        console.log(
+          `Loaded ${spec.endpoints?.length || 0} endpoint specifications`
+        );
       } else {
-        console.warn(`Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`);
+        console.warn(
+          `Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`
+        );
       }
     } catch (error) {
-      console.warn(`Warning: Could not load endpoints-spec.json: ${error.message}`);
+      console.warn(
+        `Warning: Could not load endpoints-spec.json: ${error.message}`
+      );
     }
   }
 
@@ -692,28 +760,40 @@ class EndpointTester {
   async runFilteredTests() {
     // Initialize async dependencies first
     await this.initializeAsync();
-    
+
     // Validate providers and endpoints after async initialization
     if (this.options.providers || this.options.endpoints) {
       if (this.options.providers) {
         const availableProviders = this.getAvailableProviders();
-        const invalidProviders = this.options.providers.filter(p => !availableProviders.includes(p));
+        const invalidProviders = this.options.providers.filter(
+          (p) => !availableProviders.includes(p)
+        );
         if (invalidProviders.length > 0) {
-          throw new Error(`Unknown provider(s): ${invalidProviders.join(', ')}\nAvailable providers:\n\t${availableProviders.join('\n\t')}`);
+          throw new Error(
+            `Unknown provider(s): ${invalidProviders.join(
+              ", "
+            )}\nAvailable providers:\n\t${availableProviders.join("\n\t")}`
+          );
         }
       }
-      
+
       if (this.options.endpoints) {
         const availableEndpoints = this.getAvailableEndpoints();
-        const invalidEndpoints = this.options.endpoints.filter(e => !availableEndpoints.includes(e));
+        const invalidEndpoints = this.options.endpoints.filter(
+          (e) => !availableEndpoints.includes(e)
+        );
         if (invalidEndpoints.length > 0) {
-          throw new Error(`Unknown endpoint(s): ${invalidEndpoints.join(', ')}\nAvailable endpoints:\n\t${availableEndpoints.join('\n\t')}`);
+          throw new Error(
+            `Unknown endpoint(s): ${invalidEndpoints.join(
+              ", "
+            )}\nAvailable endpoints:\n\t${availableEndpoints.join("\n\t")}`
+          );
         }
       }
     }
-    
+
     this.displayConfiguration();
-    
+
     const testConfigs = this.configLoader.loadConfigs(this.options.endpoints);
     this.displayTestDistribution(testConfigs);
 
@@ -722,7 +802,7 @@ class EndpointTester {
       return;
     }
 
-    console.log('\n=== EXECUTING TESTS ===');
+    console.log("\n=== EXECUTING TESTS ===");
     await this.executeTests(testConfigs);
     this.generateReports();
   }
@@ -731,39 +811,49 @@ class EndpointTester {
    * Display configuration information
    */
   displayConfiguration() {
-    console.log('');
-    console.log('Resolved:');
-    this.logValues('  Requested providers', this.getProvidersIncluded());
-    this.logValues('  Requested endpoints', this.getEndpointsIncluded());
-    console.log('');
+    console.log("");
+    console.log("Resolved:");
+    this.logValues("  Requested providers", this.getProvidersIncluded());
+    this.logValues("  Requested endpoints", this.getEndpointsIncluded());
+    console.log("");
 
-    console.log('Filtering options:');
-    this.logValues('  Available providers', this.getAvailableProviders());
-    this.logValues('  Available endpoints', this.getAvailableEndpoints());
-    console.log('');
+    console.log("Filtering options:");
+    this.logValues("  Available providers", this.getAvailableProviders());
+    this.logValues("  Available endpoints", this.getAvailableEndpoints());
+    console.log("");
   }
 
   /**
    * Display test distribution by endpoint type
    */
   displayTestDistribution(testConfigs) {
-    console.log(`Found ${testConfigs.length} test configurations across ${
-      [...new Set(testConfigs.map(t => t.source_file))].length
-    } files`);
+    console.log(
+      `Found ${testConfigs.length} test configurations across ${
+        [...new Set(testConfigs.map((t) => t.source_file))].length
+      } files`
+    );
 
     const testsByType = this.groupTestsByType(testConfigs);
-    console.log('\nTest distribution by endpoint type:');
+    console.log("\nTest distribution by endpoint type:");
     Object.entries(testsByType).forEach(([type, tests]) => {
-      const enabledCount = tests.filter(config => this.shouldRunTest(config)).length;
+      const enabledCount = tests.filter((config) =>
+        this.shouldRunTest(config)
+      ).length;
       const disabledCount = tests.length - enabledCount;
-      console.log(`  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`);
+      console.log(
+        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`
+      );
     });
 
     // Overall summary
-    const totalEnabled = testConfigs.filter(config => this.shouldRunTest(config)).length;
+    const totalEnabled = testConfigs.filter((config) =>
+      this.shouldRunTest(config)
+    ).length;
     const totalDisabled = testConfigs.length - totalEnabled;
     if (totalDisabled > 0) {
-      console.log(`\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`);
+      console.log(
+        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`
+      );
     }
   }
 
@@ -771,32 +861,42 @@ class EndpointTester {
    * Display dry run summary
    */
   displayDryRunSummary(testConfigs) {
-    const enabledCount = testConfigs.filter(config => this.shouldRunTest(config)).length;
+    const enabledCount = testConfigs.filter((config) =>
+      this.shouldRunTest(config)
+    ).length;
     const disabledCount = testConfigs.length - enabledCount;
 
-    console.log('');
-    console.log('=== DRY RUN SUMMARY ===');
+    console.log("");
+    console.log("=== DRY RUN SUMMARY ===");
     console.log(`Total tests found: ${testConfigs.length}`);
     console.log(`Tests that would be executed: ${enabledCount}`);
     console.log(`Tests that would be skipped: ${disabledCount}`);
-    console.log(`Estimated execution time: ${enabledCount * 2}s - ${enabledCount * 10}s (rough estimate)`);
-    console.log('\nNo actual HTTP requests were made.');
-    console.log('To execute these tests, run the same command without --dry-run');
+    console.log(
+      `Estimated execution time: ${enabledCount * 2}s - ${
+        enabledCount * 10
+      }s (rough estimate)`
+    );
+    console.log("\nNo actual HTTP requests were made.");
+    console.log(
+      "To execute these tests, run the same command without --dry-run"
+    );
   }
 
   /**
    * Execute all valid tests
    */
   async executeTests(testConfigs) {
-    const validTestConfigs = testConfigs.filter(config => this.shouldRunTest(config));
+    const validTestConfigs = testConfigs.filter((config) =>
+      this.shouldRunTest(config)
+    );
     const totalTests = validTestConfigs.length;
-    
+
     for (let testIndex = 0; testIndex < validTestConfigs.length; testIndex++) {
       const testConfig = validTestConfigs[testIndex];
       console.log(
-        `Running test ${testIndex + 1} of ${totalTests}: [${testConfig.test_name}] as ${
-          testConfig.method
-        } ${this.requestHandler.buildUrl(testConfig)}`
+        `Running test ${testIndex + 1} of ${totalTests}: [${
+          testConfig.test_name
+        }] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
       );
 
       const result = await this.runSingleTest(testConfig);
@@ -822,18 +922,28 @@ class EndpointTester {
 
       // Save response body if enabled
       const responseBodyFile = this.responseSaver.saveResponseBody(
-        testConfig.provider_id, 
+        testConfig.provider_id,
         testConfig.test_name,
-        response, 
-        testConfig.source_file, 
-        testConfig.row_number, 
+        response,
+        testConfig.source_file,
+        testConfig.row_number,
         testConfig.total_rows
       );
 
       // Extract additional info
-      const additionalInfo = this.responseAnalyzer.extractAdditionalInfo(testConfig, response);
+      const additionalInfo = this.responseAnalyzer.extractAdditionalInfo(
+        testConfig,
+        response
+      );
 
-      return this.createTestResult(testConfig, response, duration, timestamp, additionalInfo, responseBodyFile);
+      return this.createTestResult(
+        testConfig,
+        response,
+        duration,
+        timestamp,
+        additionalInfo,
+        responseBodyFile
+      );
     } catch (error) {
       return this.createErrorResult(testConfig, error, Date.now() - startTime);
     }
@@ -842,13 +952,24 @@ class EndpointTester {
   /**
    * Create test result object
    */
-  createTestResult(testConfig, response, duration, timestamp, additionalInfo, responseBodyFile) {
+  createTestResult(
+    testConfig,
+    response,
+    duration,
+    timestamp,
+    additionalInfo,
+    responseBodyFile
+  ) {
     const statusMatches = response.status === testConfig.expected_status;
-    let status = statusMatches ? 'PASS' : 'FAIL';
+    let status = statusMatches ? "PASS" : "FAIL";
 
     // Check response time for passing tests
-    if (statusMatches && testConfig.max_response_time && duration > testConfig.max_response_time) {
-      status = 'SLOW';
+    if (
+      statusMatches &&
+      testConfig.max_response_time &&
+      duration > testConfig.max_response_time
+    ) {
+      status = "SLOW";
     }
 
     const result = {
@@ -884,7 +1005,7 @@ class EndpointTester {
     // Add failure reason if needed
     if (!statusMatches) {
       result.error_message = `Expected status ${testConfig.expected_status} but got ${response.status}`;
-    } else if (status === 'SLOW') {
+    } else if (status === "SLOW") {
       result.warning = `Response time ${duration}ms exceeded threshold ${testConfig.max_response_time}ms`;
     }
 
@@ -907,7 +1028,10 @@ class EndpointTester {
         testConfig.row_number,
         testConfig.total_rows
       );
-      additionalInfo = this.responseAnalyzer.extractAdditionalInfo(testConfig, error.response);
+      additionalInfo = this.responseAnalyzer.extractAdditionalInfo(
+        testConfig,
+        error.response
+      );
     }
 
     const result = {
@@ -915,9 +1039,9 @@ class EndpointTester {
       provider_id: testConfig.provider_id,
       endpoint_type: testConfig.endpoint_type,
       source_file: testConfig.source_file,
-      status: 'FAIL',
+      status: "FAIL",
       expected_status: testConfig.expected_status,
-      actual_status: error.response?.status || 'ERROR',
+      actual_status: error.response?.status || "ERROR",
       duration_ms: duration,
       error_message: error.message,
       url: this.requestHandler.buildUrl(testConfig),
@@ -945,7 +1069,10 @@ class EndpointTester {
    */
   shouldRunTest(testConfig) {
     // Apply provider filter
-    if (this.options.providers && !this.options.providers.includes(testConfig.provider_id)) {
+    if (
+      this.options.providers &&
+      !this.options.providers.includes(testConfig.provider_id)
+    ) {
       return false;
     }
 
@@ -968,14 +1095,15 @@ class EndpointTester {
   }
 
   // Utility methods
-  logValues(label, values, defaultValue = 'None') {
-    const formattedValues = values && values.length > 0 ? values.join('\n\t') : defaultValue;
+  logValues(label, values, defaultValue = "None") {
+    const formattedValues =
+      values && values.length > 0 ? values.join("\n\t") : defaultValue;
     console.log(`${label}:\n\t${formattedValues}`);
   }
 
   groupTestsByType(testConfigs) {
     const testsByType = {};
-    testConfigs.forEach(config => {
+    testConfigs.forEach((config) => {
       if (!testsByType[config.endpoint_type]) {
         testsByType[config.endpoint_type] = [];
       }
@@ -985,26 +1113,34 @@ class EndpointTester {
   }
 
   getAvailableProviders() {
-    const registeredProviders = TestDataProviderFactory.getRegisteredProviders();
-    return registeredProviders.map(ProviderClass => ProviderClass.name).sort();
+    const registeredProviders =
+      TestDataProviderFactory.getRegisteredProviders();
+    return registeredProviders
+      .map((ProviderClass) => ProviderClass.name)
+      .sort();
   }
 
   getAvailableEndpoints() {
-    return this.configLoader.getValidConfigFiles()
-      .map(file => this.configLoader.extractEndpointType(file))
+    return this.configLoader
+      .getValidConfigFiles()
+      .map((file) => this.configLoader.extractEndpointType(file))
       .sort();
   }
 
   getProvidersIncluded() {
-    return this.options.providers?.length ? this.options.providers.sort() : ['All'];
+    return this.options.providers?.length
+      ? this.options.providers.sort()
+      : ["All"];
   }
 
   getEndpointsIncluded() {
-    return this.options.endpoints?.length ? this.options.endpoints.sort() : ['All'];
+    return this.options.endpoints?.length
+      ? this.options.endpoints.sort()
+      : ["All"];
   }
 
   delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
@@ -1021,17 +1157,22 @@ class ReportGenerator {
    * Generate all reports
    */
   generate(results, options = {}) {
-    const { providersIncluded = ['All'], endpointsIncluded = ['All'] } = options;
+    const { providersIncluded = ["All"], endpointsIncluded = ["All"] } =
+      options;
 
-    const summary = this.createSummary(results, providersIncluded, endpointsIncluded);
+    const summary = this.createSummary(
+      results,
+      providersIncluded,
+      endpointsIncluded
+    );
     const report = { summary, results };
 
     // Generate all report formats
-    console.log('Generating the JSON report...');
+    console.log("Generating the JSON report...");
     this.generateJSONReport(report);
-    console.log('Generating the CSV report...');
+    console.log("Generating the CSV report...");
     this.generateCSVReport(results);
-    console.log('Generating the HTML report...');
+    console.log("Generating the HTML report...");
     this.generateHTMLReport(report);
 
     this.displaySummary(summary);
@@ -1042,7 +1183,7 @@ class ReportGenerator {
    */
   createSummary(results, providersIncluded, endpointsIncluded) {
     const statusCounts = this.getStatusCounts(results);
-    
+
     return {
       total_tests: results.length,
       ...statusCounts,
@@ -1060,10 +1201,10 @@ class ReportGenerator {
    */
   getStatusCounts(results) {
     return {
-      passed: results.filter(r => r.status === 'PASS').length,
-      failed: results.filter(r => r.status === 'FAIL').length,
-      errors: results.filter(r => r.status === 'ERROR').length,
-      slow: results.filter(r => r.status === 'SLOW').length,
+      passed: results.filter((r) => r.status === "PASS").length,
+      failed: results.filter((r) => r.status === "FAIL").length,
+      errors: results.filter((r) => r.status === "ERROR").length,
+      slow: results.filter((r) => r.status === "SLOW").length,
     };
   }
 
@@ -1072,7 +1213,10 @@ class ReportGenerator {
    */
   calculateAverageDuration(results) {
     if (results.length === 0) return 0;
-    const totalDuration = results.reduce((sum, r) => sum + (r.duration_ms || 0), 0);
+    const totalDuration = results.reduce(
+      (sum, r) => sum + (r.duration_ms || 0),
+      0
+    );
     return totalDuration / results.length;
   }
 
@@ -1088,25 +1232,25 @@ class ReportGenerator {
    */
   getTestsByEndpointType(results) {
     const summary = {};
-    results.forEach(result => {
+    results.forEach((result) => {
       const type = result.endpoint_type;
       if (!summary[type]) {
         summary[type] = { total: 0, passed: 0, failed: 0, errors: 0, slow: 0 };
       }
       summary[type].total++;
-      
+
       // Map status to the correct counter property
       switch (result.status) {
-        case 'PASS':
+        case "PASS":
           summary[type].passed++;
           break;
-        case 'FAIL':
+        case "FAIL":
           summary[type].failed++;
           break;
-        case 'ERROR':
+        case "ERROR":
           summary[type].errors++;
           break;
-        case 'SLOW':
+        case "SLOW":
           summary[type].slow++;
           break;
       }
@@ -1118,7 +1262,10 @@ class ReportGenerator {
    * Generate JSON report
    */
   generateJSONReport(report) {
-    const reportFile = path.join(this.executionDir, 'endpoint-test-report.json');
+    const reportFile = path.join(
+      this.executionDir,
+      "endpoint-test-report.json"
+    );
     fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
     return reportFile;
   }
@@ -1128,8 +1275,8 @@ class ReportGenerator {
    */
   generateCSVReport(results) {
     if (results.length === 0) return null;
-    
-    const csvFile = path.join(this.executionDir, 'endpoint-test-report.csv');
+
+    const csvFile = path.join(this.executionDir, "endpoint-test-report.csv");
     const csvContent = this.convertToCSV(results);
     fs.writeFileSync(csvFile, csvContent);
     return csvFile;
@@ -1139,7 +1286,7 @@ class ReportGenerator {
    * Generate HTML report
    */
   generateHTMLReport(report) {
-    const htmlFile = path.join(this.executionDir, 'endpoint-test-report.html');
+    const htmlFile = path.join(this.executionDir, "endpoint-test-report.html");
     const htmlContent = this.createHTMLContent(report);
     fs.writeFileSync(htmlFile, htmlContent);
     return htmlFile;
@@ -1149,32 +1296,35 @@ class ReportGenerator {
    * Convert results to CSV format
    */
   convertToCSV(results) {
-    if (results.length === 0) return '';
+    if (results.length === 0) return "";
 
-    const headers = Object.keys(results[0]).join(',');
-    const rows = results.map(result =>
+    const headers = Object.keys(results[0]).join(",");
+    const rows = results.map((result) =>
       Object.values(result)
-        .map(value => {
-          if (typeof value === 'object') {
+        .map((value) => {
+          if (typeof value === "object") {
             return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
           }
-          return typeof value === 'string'
+          return typeof value === "string"
             ? `"${value.replace(/"/g, '""')}"`
             : value;
         })
-        .join(',')
+        .join(",")
     );
 
-    return [headers, ...rows].join('\n');
+    return [headers, ...rows].join("\n");
   }
 
   /**
    * Create HTML content
    */
   createHTMLContent(report) {
-    const endpointTypeSummary = Object.entries(report.summary.tests_by_endpoint_type)
-      .map(([type, stats]) =>
-        `<tr>
+    const endpointTypeSummary = Object.entries(
+      report.summary.tests_by_endpoint_type
+    )
+      .map(
+        ([type, stats]) =>
+          `<tr>
           <td>${type}</td>
           <td>${stats.total}</td>
           <td class="pass">${stats.passed}</td>
@@ -1183,7 +1333,7 @@ class ReportGenerator {
           <td class="slow">${stats.slow}</td>
         </tr>`
       )
-      .join('');
+      .join("");
 
     return `
 <!DOCTYPE html>
@@ -1302,15 +1452,29 @@ class ReportGenerator {
     <div class="summary">
         <h2>Summary</h2>
         <p><strong>Generated:</strong> ${summary.timestamp}</p>
-        <p><strong>Providers Included:</strong> ${summary.providers_included.join(', ')}</p>
-        <p><strong>Endpoints Included:</strong> ${summary.endpoints_included.join(', ')}</p>
+        <p><strong>Providers Included:</strong> ${summary.providers_included.join(
+          ", "
+        )}</p>
+        <p><strong>Endpoints Included:</strong> ${summary.endpoints_included.join(
+          ", "
+        )}</p>
         <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
-        <p><strong>Passed:</strong> <span class="pass">${summary.passed}</span></p>
-        <p><strong>Failed:</strong> <span class="fail">${summary.failed}</span></p>
-        <p><strong>Errors:</strong> <span class="error">${summary.errors}</span></p>
+        <p><strong>Passed:</strong> <span class="pass">${
+          summary.passed
+        }</span></p>
+        <p><strong>Failed:</strong> <span class="fail">${
+          summary.failed
+        }</span></p>
+        <p><strong>Errors:</strong> <span class="error">${
+          summary.errors
+        }</span></p>
         <p><strong>Slow:</strong> <span class="slow">${summary.slow}</span></p>
-        <p><strong>Average Duration:</strong> ${Math.round(summary.average_duration)}ms</p>
-        <p><strong>Total Duration:</strong> ${Math.round(summary.total_duration)}ms</p>
+        <p><strong>Average Duration:</strong> ${Math.round(
+          summary.average_duration
+        )}ms</p>
+        <p><strong>Total Duration:</strong> ${Math.round(
+          summary.total_duration
+        )}ms</p>
     </div>`;
   }
 
@@ -1402,7 +1566,7 @@ class ReportGenerator {
    */
   generateTestResultsByEndpointType(report) {
     const resultsByType = {};
-    report.results.forEach(result => {
+    report.results.forEach((result) => {
       const type = result.endpoint_type;
       if (!resultsByType[type]) {
         resultsByType[type] = [];
@@ -1413,39 +1577,55 @@ class ReportGenerator {
     return Object.entries(resultsByType)
       .map(([endpointType, results]) => {
         const additionalInfoHeaders = results
-          .filter(result => result.additional_info_header)
-          .map(result => result.additional_info_header);
-        
-        const columnHeader = additionalInfoHeaders.length > 0 
-          ? additionalInfoHeaders.reduce((a, b, i, arr) =>
-              arr.filter(v => v === a).length >= arr.filter(v => v === b).length ? a : b
-            )
-          : 'Additional Info';
+          .filter((result) => result.additional_info_header)
+          .map((result) => result.additional_info_header);
+
+        const columnHeader =
+          additionalInfoHeaders.length > 0
+            ? additionalInfoHeaders.reduce((a, b, i, arr) =>
+                arr.filter((v) => v === a).length >=
+                arr.filter((v) => v === b).length
+                  ? a
+                  : b
+              )
+            : "Additional Info";
 
         // Determine if additional info column should be treated as numeric
         const additionalInfoValues = results
-          .filter(result => result.additional_info !== undefined && result.additional_info !== null)
-          .map(result => {
+          .filter(
+            (result) =>
+              result.additional_info !== undefined &&
+              result.additional_info !== null
+          )
+          .map((result) => {
             // Convert to string if it's a number, otherwise clean the string
-            if (typeof result.additional_info === 'number') {
+            if (typeof result.additional_info === "number") {
               return result.additional_info.toString();
-            } else if (typeof result.additional_info === 'string') {
-              return result.additional_info.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+            } else if (typeof result.additional_info === "string") {
+              return result.additional_info
+                .replace(/[\u200B-\u200D\uFEFF]/g, "")
+                .trim();
             } else {
               return String(result.additional_info);
             }
           })
-          .filter(value => value !== '');
-        
-        const isNumericColumn = additionalInfoValues.length > 0 && 
-          additionalInfoValues.every(value => {
-            // Check if it's a pure number (integer or decimal)
-            return /^\d+(\.\d+)?$/.test(value) || value === 'N/A' || value === '';
-          });
-        
-        const additionalInfoDataType = isNumericColumn ? 'number' : 'text';
+          .filter((value) => value !== "");
 
-        const sectionId = `endpoint-${endpointType.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const isNumericColumn =
+          additionalInfoValues.length > 0 &&
+          additionalInfoValues.every((value) => {
+            // Check if it's a pure number (integer or decimal)
+            return (
+              /^\d+(\.\d+)?$/.test(value) || value === "N/A" || value === ""
+            );
+          });
+
+        const additionalInfoDataType = isNumericColumn ? "number" : "text";
+
+        const sectionId = `endpoint-${endpointType.replace(
+          /[^a-zA-Z0-9]/g,
+          "_"
+        )}`;
         const tableId = `table-${sectionId}`;
         const toggleId = `toggle-${sectionId}`;
 
@@ -1453,7 +1633,9 @@ class ReportGenerator {
         <div class="endpoint-section">
           <div class="endpoint-header" onclick="toggleEndpointTable('${sectionId}')">
             <span id="${toggleId}" class="endpoint-toggle">▼</span>
-            <h3 class="endpoint-title">${this.escapeHtmlContent(endpointType)} (${results.length} tests)</h3>
+            <h3 class="endpoint-title">${this.escapeHtmlContent(
+              endpointType
+            )} (${results.length} tests)</h3>
           </div>
           <div id="${tableId}" class="endpoint-table">
             <table>
@@ -1471,26 +1653,43 @@ class ReportGenerator {
                 </thead>
                 <tbody>
                     ${results
-                      .map(result => `
+                      .map(
+                        (result) => `
                         <tr class="status-${result.status}">
-                            <td><span title="${this.getTestNameTooltip(result)}">${this.escapeHtmlContent(result.test_name)} <span class="info-icon">ℹ️</span></span></td>
+                            <td><span title="${this.getTestNameTooltip(
+                              result
+                            )}">${this.escapeHtmlContent(
+                          result.test_name
+                        )} <span class="info-icon">ℹ️</span></span></td>
                             <td>${this.escapeHtmlContent(result.status)}</td>
                             <td>${result.expected_status}</td>
                             <td>${result.actual_status}</td>
-                            <td>${result.duration_ms || 'N/A'}</td>
-                            <td>${result.additional_info !== undefined && result.additional_info !== null ? this.escapeHtmlContent(String(result.additional_info)) : 'N/A'}</td>
-                            <td class="url-column">${this.formatUrlForHtml(result.url)}</td>
-                            <td>${this.formatResponseBodyFileForHtml(result.response_body_file)}</td>
+                            <td>${result.duration_ms || "N/A"}</td>
+                            <td>${
+                              result.additional_info !== undefined &&
+                              result.additional_info !== null
+                                ? this.escapeHtmlContent(
+                                    String(result.additional_info)
+                                  )
+                                : "N/A"
+                            }</td>
+                            <td class="url-column">${this.formatUrlForHtml(
+                              result.url
+                            )}</td>
+                            <td>${this.formatResponseBodyFileForHtml(
+                              result.response_body_file
+                            )}</td>
                         </tr>
-                      `)
-                      .join('')}
+                      `
+                      )
+                      .join("")}
                 </tbody>
             </table>
           </div>
         </div>
         `;
       })
-      .join('');
+      .join("");
   }
 
   /**
@@ -1499,13 +1698,13 @@ class ReportGenerator {
   escapeHtmlAttribute(text) {
     if (!text) return text;
     return text
-      .replace(/&/g, '&amp;')     // Must be first
-      .replace(/"/g, '&quot;')    // Double quotes
-      .replace(/'/g, '&#39;')     // Single quotes  
-      .replace(/</g, '&lt;')      // Less than
-      .replace(/>/g, '&gt;')      // Greater than
-      .replace(/\r?\n/g, '&#10;') // Line breaks to HTML entity
-      .replace(/\t/g, '&#9;');    // Tabs to HTML entity
+      .replace(/&/g, "&amp;") // Must be first
+      .replace(/"/g, "&quot;") // Double quotes
+      .replace(/'/g, "&#39;") // Single quotes
+      .replace(/</g, "&lt;") // Less than
+      .replace(/>/g, "&gt;") // Greater than
+      .replace(/\r?\n/g, "&#10;") // Line breaks to HTML entity
+      .replace(/\t/g, "&#9;"); // Tabs to HTML entity
   }
 
   /**
@@ -1514,19 +1713,25 @@ class ReportGenerator {
   escapeHtmlContent(text) {
     if (!text) return text;
     return text
-      .replace(/&/g, '&amp;')     // Must be first
-      .replace(/</g, '&lt;')      // Less than
-      .replace(/>/g, '&gt;');     // Greater than
+      .replace(/&/g, "&amp;") // Must be first
+      .replace(/</g, "&lt;") // Less than
+      .replace(/>/g, "&gt;"); // Greater than
   }
 
   /**
    * Get test name tooltip
    */
   getTestNameTooltip(result) {
-    const providerText = this.escapeHtmlAttribute(result.provider_id || 'Not specified');
-    const descriptionText = this.escapeHtmlAttribute(this.wrapText(result.description || 'Not specified'));
-    const timestampText = this.escapeHtmlAttribute(result.timestamp || 'Unknown');
-    
+    const providerText = this.escapeHtmlAttribute(
+      result.provider_id || "Not specified"
+    );
+    const descriptionText = this.escapeHtmlAttribute(
+      this.wrapText(result.description || "Not specified")
+    );
+    const timestampText = this.escapeHtmlAttribute(
+      result.timestamp || "Unknown"
+    );
+
     return `Provider: ${providerText}&#10;
 Description: ${descriptionText}&#10;
 Timestamp: ${timestampText}`;
@@ -1539,11 +1744,11 @@ Timestamp: ${timestampText}`;
     if (!text || text.length <= maxLength) {
       return text;
     }
-    
-    const words = text.split(' ');
-    let currentLine = '';
+
+    const words = text.split(" ");
+    let currentLine = "";
     const lines = [];
-    
+
     for (const word of words) {
       if (currentLine.length + word.length + 1 > maxLength) {
         if (currentLine.length > 0) {
@@ -1553,23 +1758,23 @@ Timestamp: ${timestampText}`;
           lines.push(word);
         }
       } else {
-        currentLine += (currentLine.length > 0 ? ' ' : '') + word;
+        currentLine += (currentLine.length > 0 ? " " : "") + word;
       }
     }
-    
+
     if (currentLine.length > 0) {
       lines.push(currentLine.trim());
     }
-    
-    return lines.join('\n');  // Use actual newlines, escaping will be handled later
+
+    return lines.join("\n"); // Use actual newlines, escaping will be handled later
   }
 
   /**
    * Format response body file for HTML
    */
   formatResponseBodyFileForHtml(responseBodyFile) {
-    if (!responseBodyFile || responseBodyFile === 'N/A') {
-      return 'N/A';
+    if (!responseBodyFile || responseBodyFile === "N/A") {
+      return "N/A";
     }
 
     try {
@@ -1577,16 +1782,21 @@ Timestamp: ${timestampText}`;
       const pathParts = absolutePath.split(path.sep);
       const lastDirAndFile = pathParts.slice(-2).join(path.sep);
       const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
-      
+
       let fileContent = null;
       try {
-        fileContent = fs.readFileSync(absolutePath, 'utf8');
+        fileContent = fs.readFileSync(absolutePath, "utf8");
       } catch (readError) {
-        console.warn(`Could not read response file ${absolutePath}: ${readError.message}`);
+        console.warn(
+          `Could not read response file ${absolutePath}: ${readError.message}`
+        );
       }
-      
+
       if (fileContent) {
-        const encodedContent = encodeURIComponent(fileContent).replace(/'/g, '%27');
+        const encodedContent = encodeURIComponent(fileContent).replace(
+          /'/g,
+          "%27"
+        );
         const encodedPath = encodeURIComponent(absolutePath);
         return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
       } else {
@@ -1603,16 +1813,16 @@ Timestamp: ${timestampText}`;
    */
   formatUrlForHtml(url) {
     if (!url) {
-      return 'N/A';
+      return "N/A";
     }
 
     try {
       const urlObj = new URL(url);
       let baseUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
-      
-      const qParam = urlObj.searchParams.get('q');
+
+      const qParam = urlObj.searchParams.get("q");
       let hasJsonQuery = false;
-      let encodedQParam = '';
+      let encodedQParam = "";
 
       if (qParam) {
         try {
@@ -1623,7 +1833,7 @@ Timestamp: ${timestampText}`;
           // Not valid JSON
         }
       }
-      
+
       const encodedParams = [];
       const decodedParams = [];
       for (const [key, value] of urlObj.searchParams.entries()) {
@@ -1632,26 +1842,31 @@ Timestamp: ${timestampText}`;
         encodedParams.push(`${encodedKey}=${encodedValue}`);
         decodedParams.push(`${key}=${value}`);
       }
-      
+
       let fullEncodedUrl = baseUrl;
       if (encodedParams.length > 0) {
-        fullEncodedUrl += '?' + encodedParams.join('&');
+        fullEncodedUrl += "?" + encodedParams.join("&");
       }
-      
+
       let fullDecodedUrl = baseUrl;
       if (decodedParams.length > 0) {
-        fullDecodedUrl += '?' + decodedParams.join('&');
+        fullDecodedUrl += "?" + decodedParams.join("&");
       }
-      
+
       let result = `<a href="${fullEncodedUrl}" class="url-link" target="_blank" title="Open URL in new tab">${fullDecodedUrl}</a>`;
-      
+
       if (hasJsonQuery) {
         result += ` <span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the criteria">📄 Criteria</span>`;
       }
-      
+
       return result;
     } catch (error) {
-      return url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      return url
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
   }
 
@@ -2108,9 +2323,9 @@ Timestamp: ${timestampText}`;
    * Display summary to console
    */
   displaySummary(summary) {
-    console.log('\n=== Test Summary ===');
-    console.log(`Providers Included: ${summary.providers_included.join(', ')}`);
-    console.log(`Endpoints Included: ${summary.endpoints_included.join(', ')}`);
+    console.log("\n=== Test Summary ===");
+    console.log(`Providers Included: ${summary.providers_included.join(", ")}`);
+    console.log(`Endpoints Included: ${summary.endpoints_included.join(", ")}`);
     console.log(`Total Tests: ${summary.total_tests}`);
     console.log(`Passed: ${summary.passed}`);
     console.log(`Failed: ${summary.failed}`);
@@ -2131,67 +2346,93 @@ Timestamp: ${timestampText}`;
 // CLI Interface
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
-  
+
   // Parse arguments
-  let configDir = './configs';
-  let reportsDir = './reports';
+  let configDir = "./configs";
+  let reportsDir = "./reports";
   let saveResponseBodies = false;
   let providers = null; // null means use all available providers
   let endpoints = null; // null means test all endpoints
   let dryRun = false; // dry-run mode - don't execute tests, just show what would be run
   let positionalArgIndex = 0;
-  
+
   // Process command line arguments
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--save-responses' || arg === '-r') {
+    if (arg === "--save-responses" || arg === "-r") {
       saveResponseBodies = true;
-    } else if (arg === '--dry-run' || arg === '-d') {
+    } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
-    } else if (arg === '--providers' || arg === '-p') {
+    } else if (arg === "--providers" || arg === "-p") {
       // Next argument should be comma-separated list of providers
       i++;
       if (i < args.length) {
-        providers = args[i].split(',').map(p => p.trim());
+        providers = args[i].split(",").map((p) => p.trim());
       } else {
-        console.error('Error: --providers requires a comma-separated list of provider names');
+        console.error(
+          "Error: --providers requires a comma-separated list of provider names"
+        );
         process.exit(1);
       }
-    } else if (arg === '--endpoints' || arg === '-e') {
+    } else if (arg === "--endpoints" || arg === "-e") {
       // Next argument should be comma-separated list of endpoints
       i++;
       if (i < args.length) {
-        endpoints = args[i].split(',').map(e => e.trim());
+        endpoints = args[i].split(",").map((e) => e.trim());
       } else {
-        console.error('Error: --endpoints requires a comma-separated list of endpoint types');
+        console.error(
+          "Error: --endpoints requires a comma-separated list of endpoint types"
+        );
         process.exit(1);
       }
-    } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
-      console.log('');
-      console.log('Arguments:');
-      console.log('  configDir    Directory containing test configuration files (default: ./configs)');
-      console.log('  reportsDir   Directory for test reports (default: ./reports)');
-      console.log('');
-      console.log('Options:');
-      console.log('  --save-responses, -r          Save response bodies to disk');
-      console.log('  --dry-run, -d                 Helpful to see resolved configuration and available filtering options');
-      console.log('  --providers, -p <providers>   Comma-separated list of test data providers to use');
-      console.log('                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider');
-      console.log('  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test');
-      console.log('                                Available: search, auto-complete, facets, translate, etc.');
-      console.log('  --help, -h                    Show this help message');
-      console.log('');
-      console.log('Examples:');
-      console.log('  node run-tests.js');
-      console.log('  node run-tests.js ./configs ./reports');
-      console.log('  node run-tests.js --save-responses');
-      console.log('  node run-tests.js --dry-run');
-      console.log('  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider');
-      console.log('  node run-tests.js --endpoints search,auto-complete');
-      console.log('  node run-tests.js --dry-run --providers csv-provider --endpoints search');
+    } else if (arg === "--help" || arg === "-h") {
+      console.log(
+        "Usage: node run-tests.js [configDir] [reportsDir] [options]"
+      );
+      console.log("");
+      console.log("Arguments:");
+      console.log(
+        "  configDir    Directory containing test configuration files (default: ./configs)"
+      );
+      console.log(
+        "  reportsDir   Directory for test reports (default: ./reports)"
+      );
+      console.log("");
+      console.log("Options:");
+      console.log(
+        "  --save-responses, -r          Save response bodies to disk"
+      );
+      console.log(
+        "  --dry-run, -d                 Helpful to see resolved configuration and available filtering options"
+      );
+      console.log(
+        "  --providers, -p <providers>   Comma-separated list of test data providers to use"
+      );
+      console.log(
+        "                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+      );
+      console.log(
+        "  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test"
+      );
+      console.log(
+        "                                Available: search, auto-complete, facets, translate, etc."
+      );
+      console.log("  --help, -h                    Show this help message");
+      console.log("");
+      console.log("Examples:");
+      console.log("  node run-tests.js");
+      console.log("  node run-tests.js ./configs ./reports");
+      console.log("  node run-tests.js --save-responses");
+      console.log("  node run-tests.js --dry-run");
+      console.log(
+        "  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+      );
+      console.log("  node run-tests.js --endpoints search,auto-complete");
+      console.log(
+        "  node run-tests.js --dry-run --providers csv-provider --endpoints search"
+      );
       process.exit(0);
-    } else if (!arg.startsWith('-')) {
+    } else if (!arg.startsWith("-")) {
       // Positional arguments
       if (positionalArgIndex === 0) {
         configDir = arg;
@@ -2205,40 +2446,45 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   if (!dryRun && !fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
-    console.log('Usage: node run-tests.js [configDir] [reportsDir] [options]');
-    console.log('Use --help for more information');
+    console.log("Usage: node run-tests.js [configDir] [reportsDir] [options]");
+    console.log("Use --help for more information");
     process.exit(1);
   }
 
   console.log(`Configuration directory: ${configDir}`);
   console.log(`Reports directory: ${reportsDir}`);
   if (saveResponseBodies) {
-    console.log('Response bodies will be saved to disk');
+    console.log("Response bodies will be saved to disk");
   }
   if (dryRun) {
-    console.log('');
-    console.log('DRY RUN MODE: Tests will not be executed, only planned test execution will be shown');
-    console.log('');
+    console.log("");
+    console.log(
+      "DRY RUN MODE: Tests will not be executed, only planned test execution will be shown"
+    );
+    console.log("");
   }
 
-  const options = { 
+  const options = {
     saveResponseBodies,
     providers,
     endpoints,
-    dryRun
+    dryRun,
   };
   const tester = new EndpointTester(configDir, reportsDir, options);
-  
+
   console.log(`Test execution directory: ${tester.executionDir}`);
-  
+
   // Validate providers and endpoints after async initialization
   tester.runFilteredTests().catch(async (error) => {
     // If the error is due to validation, we want to show it properly
-    if (error.message && error.message.includes('Unknown provider') || error.message.includes('Unknown endpoint')) {
-      console.error('Test execution failed:', error.message);
+    if (
+      (error.message && error.message.includes("Unknown provider")) ||
+      error.message.includes("Unknown endpoint")
+    ) {
+      console.error("Test execution failed:", error.message);
       process.exit(1);
     }
-    console.error('Test execution failed:', error);
+    console.error("Test execution failed:", error);
     process.exit(1);
   });
 }
