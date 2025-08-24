@@ -116,7 +116,7 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName === 'max_response_time') {
             return 10000;
           } else if (columnName === 'delay_after_ms') {
-            return 1000;
+            return 0;
           } else if (columnName === 'tags') {
             return `prd2-prd,${endpointKey}`;
           } else if (columnName.startsWith('param:')) {

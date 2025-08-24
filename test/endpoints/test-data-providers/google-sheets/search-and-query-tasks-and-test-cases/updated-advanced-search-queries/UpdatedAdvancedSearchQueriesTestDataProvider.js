@@ -108,7 +108,7 @@ export class UpdatedAdvancedSearchQueriesTestDataProvider extends TestDataProvid
           } else if (columnName === 'max_response_time') {
             return 10000;
           } else if (columnName === 'delay_after_ms') {
-            return 1000;
+            return 0;
           } else if (columnName === 'tags') {
             return `updated-advanced-search-queries,search`;
           } else if (columnName.startsWith('param:')) {

@@ -793,10 +793,10 @@ class EndpointTester {
         const result = await this.runSingleTest(testConfig);
         this.results.push(result);
 
-        if (testConfig.delay_after_ms > 0) {
-          console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
-          await this.delay(testConfig.delay_after_ms);
-        }
+        // if (testConfig.delay_after_ms > 0) {
+        //   console.log(`  Waiting ${testConfig.delay_after_ms}ms...`);
+        //   await this.delay(testConfig.delay_after_ms);
+        // }
       }
     }
   }

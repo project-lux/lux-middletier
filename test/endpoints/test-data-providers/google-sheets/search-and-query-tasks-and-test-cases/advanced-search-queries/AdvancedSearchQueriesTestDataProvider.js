@@ -99,7 +99,7 @@ export class AdvancedSearchQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName === 'max_response_time') {
             return 10000;
           } else if (columnName === 'delay_after_ms') {
-            return 1000;
+            return 0;
           } else if (columnName === 'tags') {
             return `advanced-search-queries,search`;
           } else if (columnName.startsWith('param:')) {
