@@ -1417,6 +1417,29 @@ class ReportGenerator {
             )
           : 'Additional Info';
 
+        // Determine if additional info column should be treated as numeric
+        const additionalInfoValues = results
+          .filter(result => result.additional_info !== undefined && result.additional_info !== null)
+          .map(result => {
+            // Convert to string if it's a number, otherwise clean the string
+            if (typeof result.additional_info === 'number') {
+              return result.additional_info.toString();
+            } else if (typeof result.additional_info === 'string') {
+              return result.additional_info.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+            } else {
+              return String(result.additional_info);
+            }
+          })
+          .filter(value => value !== '');
+        
+        const isNumericColumn = additionalInfoValues.length > 0 && 
+          additionalInfoValues.every(value => {
+            // Check if it's a pure number (integer or decimal)
+            return /^\d+(\.\d+)?$/.test(value) || value === 'N/A' || value === '';
+          });
+        
+        const additionalInfoDataType = isNumericColumn ? 'number' : 'text';
+
         const sectionId = `endpoint-${endpointType.replace(/[^a-zA-Z0-9]/g, '_')}`;
         const tableId = `table-${sectionId}`;
         const toggleId = `toggle-${sectionId}`;
@@ -1431,12 +1454,12 @@ class ReportGenerator {
             <table>
                 <thead>
                     <tr>
-                        <th>Test Name</th>
-                        <th>Status</th>
-                        <th>Expected</th>
-                        <th>Actual</th>
-                        <th class="sortable" onclick="sortTableByDuration('${tableId}')">Duration (ms)<span class="sort-arrow"></span></th>
-                        <th>${columnHeader}</th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 0, 'text')">Test Name<span class="sort-arrow"></span></th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 1, 'text')">Status<span class="sort-arrow"></span></th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 2, 'number')">Expected<span class="sort-arrow"></span></th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 3, 'number')">Actual<span class="sort-arrow"></span></th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 4, 'duration')">Duration (ms)<span class="sort-arrow"></span></th>
+                        <th class="sortable" onclick="sortTable('${tableId}', 5, '${additionalInfoDataType}')">${columnHeader}<span class="sort-arrow"></span></th>
                         <th>URL</th>
                         <th>Response Body</th>
                     </tr>
@@ -1850,7 +1873,7 @@ Timestamp: ${timestampText}`;
                 section.classList.remove('hidden');
             });
             
-            // Reset sort arrows and states
+            // Reset all sort arrows and states
             const allSortableHeaders = document.querySelectorAll('th.sortable .sort-arrow');
             allSortableHeaders.forEach(arrow => {
                 arrow.className = 'sort-arrow';
@@ -1908,19 +1931,28 @@ Timestamp: ${timestampText}`;
         }
 
         // Sorting functionality
-        let sortState = {}; // Track sort state for each table
+        let sortState = {}; // Track sort state for each table and column
 
-        function sortTableByDuration(tableId) {
+        function sortTable(tableId, columnIndex, dataType) {
             const table = document.getElementById(tableId);
             if (!table) return;
             
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
-            const headerCell = table.querySelector('th.sortable');
+            const headerCell = table.querySelectorAll('th.sortable')[columnIndex];
             const arrow = headerCell.querySelector('.sort-arrow');
             
-            // Get current sort state for this table
-            const currentState = sortState[tableId] || 'none';
+            // Clear other arrows in this table
+            const allArrows = table.querySelectorAll('th.sortable .sort-arrow');
+            allArrows.forEach(arr => {
+                if (arr !== arrow) {
+                    arr.className = 'sort-arrow';
+                }
+            });
+            
+            // Get current sort state for this table and column
+            const sortKey = tableId + '-' + columnIndex;
+            const currentState = sortState[sortKey] || 'none';
             let newState;
             
             // Toggle sort state: none -> asc -> desc -> asc -> ...
@@ -1930,27 +1962,129 @@ Timestamp: ${timestampText}`;
                 newState = 'desc';
             }
             
+            // Clear other sort states for this table
+            Object.keys(sortState).forEach(key => {
+                if (key.startsWith(tableId + '-') && key !== sortKey) {
+                    delete sortState[key];
+                }
+            });
+            
             // Update sort state
-            sortState[tableId] = newState;
+            sortState[sortKey] = newState;
             
             // Update arrow display
             arrow.className = 'sort-arrow ' + newState;
             
             // Sort rows (including both visible and hidden rows to maintain filter state)
             rows.sort((a, b) => {
-                const aDuration = getDurationValue(a.cells[4].textContent); // Duration is 5th column (index 4)
-                const bDuration = getDurationValue(b.cells[4].textContent);
+                const aValue = getCellValue(a.cells[columnIndex], dataType);
+                const bValue = getCellValue(b.cells[columnIndex], dataType);
                 
                 if (newState === 'asc') {
-                    return aDuration - bDuration;
+                    return compareValues(aValue, bValue, dataType);
                 } else {
-                    return bDuration - aDuration;
+                    return compareValues(bValue, aValue, dataType);
                 }
             });
             
             // Clear tbody and re-append sorted rows (this maintains hidden state)
             tbody.innerHTML = '';
             rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function getCellValue(cell, dataType) {
+            if (!cell) return '';
+            
+            let text = cell.textContent.trim();
+            
+            switch (dataType) {
+                case 'duration':
+                    return getDurationValue(text);
+                case 'number':
+                    // Handle N/A and empty values
+                    if (text === 'N/A' || text === '') {
+                        return -1; // Put these at the end for ascending sort
+                    }
+                    // Remove any zero-width or invisible characters
+                    const cleanText = text.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+                    const numValue = parseFloat(cleanText);
+                    return isNaN(numValue) ? -1 : numValue;
+                case 'text':
+                default:
+                    // For text columns, be smart about detecting numbers
+                    if (text === '' || text === 'N/A') {
+                        return text.toLowerCase();
+                    }
+                    
+                    // Remove any zero-width or invisible characters
+                    const cleanTextForText = text.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+                    
+                    // Check if it's a pure number (integer or decimal)
+                    if (/^\d+(\.\d+)?$/.test(cleanTextForText)) {
+                        return parseFloat(cleanTextForText);
+                    }
+                    
+                    // Check if it starts with a number followed by text (like "12 facet categories")
+                    const numberMatch = cleanTextForText.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+                    if (numberMatch) {
+                        return {
+                            numValue: parseFloat(numberMatch[1]),
+                            textValue: numberMatch[2].toLowerCase()
+                        };
+                    }
+                    
+                    // Pure text
+                    return cleanTextForText.toLowerCase();
+            }
+        }
+
+        function compareValues(a, b, dataType) {
+            if (dataType === 'text') {
+                // Handle mixed types in text columns
+                const aIsNumber = typeof a === 'number';
+                const bIsNumber = typeof b === 'number';
+                const aIsObject = typeof a === 'object' && a !== null && a.numValue !== undefined;
+                const bIsObject = typeof b === 'object' && b !== null && b.numValue !== undefined;
+                const aIsString = typeof a === 'string';
+                const bIsString = typeof b === 'string';
+                
+                // Both are pure numbers
+                if (aIsNumber && bIsNumber) {
+                    return a - b;
+                }
+                
+                // Both are mixed objects (number + text)
+                if (aIsObject && bIsObject) {
+                    const numCompare = a.numValue - b.numValue;
+                    if (numCompare !== 0) return numCompare;
+                    return a.textValue.localeCompare(b.textValue);
+                }
+                
+                // One number, one mixed object - compare by numeric value
+                if (aIsNumber && bIsObject) {
+                    return a - b.numValue;
+                }
+                if (aIsObject && bIsNumber) {
+                    return a.numValue - b;
+                }
+                
+                // Both are strings
+                if (aIsString && bIsString) {
+                    return a.localeCompare(b);
+                }
+                
+                // Mixed cases - numbers come first, then mixed objects, then pure text
+                if (aIsNumber && bIsString) return -1;
+                if (aIsString && bIsNumber) return 1;
+                if (aIsObject && bIsString) return -1;
+                if (aIsString && bIsObject) return 1;
+                
+                // Fallback
+                return String(a).localeCompare(String(b));
+            } else {
+                // For numbers and durations
+                return a - b;
+            }
         }
 
         function getDurationValue(durationText) {
