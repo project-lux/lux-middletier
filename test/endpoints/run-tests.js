@@ -1221,6 +1221,12 @@ class ReportGenerator {
         .filter-button:hover { background-color: #e9ecef; }
         .hidden { display: none !important; }
         .filter-info { font-size: 0.9em; color: #666; margin-top: 10px; }
+        .sortable { cursor: pointer; position: relative; user-select: none; }
+        .sortable:hover { background-color: #e9ecef; }
+        .sort-arrow { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); font-size: 12px; opacity: 0.5; }
+        .sort-arrow.asc::after { content: '▲'; }
+        .sort-arrow.desc::after { content: '▼'; }
+        .sortable:hover .sort-arrow { opacity: 1; }
         .status-PASS { background-color: #d4edda; }
         .status-FAIL { background-color: #f8d7da; }
         .status-ERROR { background-color: #fff3cd; }
@@ -1429,7 +1435,7 @@ class ReportGenerator {
                         <th>Status</th>
                         <th>Expected</th>
                         <th>Actual</th>
-                        <th>Duration (ms)</th>
+                        <th class="sortable" onclick="sortTableByDuration('${tableId}')">Duration (ms)<span class="sort-arrow"></span></th>
                         <th>${columnHeader}</th>
                         <th>URL</th>
                         <th>Response Body</th>
@@ -1844,6 +1850,13 @@ Timestamp: ${timestampText}`;
                 section.classList.remove('hidden');
             });
             
+            // Reset sort arrows and states
+            const allSortableHeaders = document.querySelectorAll('th.sortable .sort-arrow');
+            allSortableHeaders.forEach(arrow => {
+                arrow.className = 'sort-arrow';
+            });
+            sortState = {}; // Clear all sort states
+            
             // Reset section headers to original counts
             updateEndpointSectionCounts();
             
@@ -1892,6 +1905,62 @@ Timestamp: ${timestampText}`;
                     }
                 }
             });
+        }
+
+        // Sorting functionality
+        let sortState = {}; // Track sort state for each table
+
+        function sortTableByDuration(tableId) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headerCell = table.querySelector('th.sortable');
+            const arrow = headerCell.querySelector('.sort-arrow');
+            
+            // Get current sort state for this table
+            const currentState = sortState[tableId] || 'none';
+            let newState;
+            
+            // Toggle sort state: none -> asc -> desc -> asc -> ...
+            if (currentState === 'none' || currentState === 'desc') {
+                newState = 'asc';
+            } else {
+                newState = 'desc';
+            }
+            
+            // Update sort state
+            sortState[tableId] = newState;
+            
+            // Update arrow display
+            arrow.className = 'sort-arrow ' + newState;
+            
+            // Sort rows (including both visible and hidden rows to maintain filter state)
+            rows.sort((a, b) => {
+                const aDuration = getDurationValue(a.cells[4].textContent); // Duration is 5th column (index 4)
+                const bDuration = getDurationValue(b.cells[4].textContent);
+                
+                if (newState === 'asc') {
+                    return aDuration - bDuration;
+                } else {
+                    return bDuration - aDuration;
+                }
+            });
+            
+            // Clear tbody and re-append sorted rows (this maintains hidden state)
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function getDurationValue(durationText) {
+            // Handle 'N/A' and extract numeric value
+            if (!durationText || durationText.trim() === 'N/A') {
+                return -1; // Put N/A values at the end for ascending, beginning for descending
+            }
+            
+            const numericValue = parseFloat(durationText.replace(/[^0-9.-]/g, ''));
+            return isNaN(numericValue) ? -1 : numericValue;
         }
     </script>`;
   }
