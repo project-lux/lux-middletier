@@ -554,7 +554,6 @@ class ResponseSaver {
       };
       
       fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
-      console.log(`  Response body saved to: ${providerDir}/${filename}`);
       
       return `${providerDir}/${filename}`;
     } catch (error) {
@@ -809,9 +808,11 @@ class EndpointTester {
     const startTime = Date.now();
 
     try {
-      console.log(`Running test: ${testConfig.test_name}`);
-      console.log(`  URL: ${this.requestHandler.buildUrl(testConfig)}`);
-      console.log(`  Method: ${testConfig.method}`);
+      console.log(
+        `Running test ${testConfig.test_name} as ${
+          testConfig.method
+        } ${this.requestHandler.buildUrl(testConfig)}`
+      );
 
       const response = await this.requestHandler.executeRequest(testConfig);
       const duration = Date.now() - startTime;
