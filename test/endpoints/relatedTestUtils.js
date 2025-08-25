@@ -261,7 +261,7 @@ const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
           [COLUMNS.TIMEOUT_MS]: "30000",
           [COLUMNS.MAX_RESPONSE_TIME]: "5000",
           [COLUMNS.DELAY_AFTER_MS]: "0",
-          [COLUMNS.TAGS]: `${endpointKey},search-related`
+          [COLUMNS.TAGS]: `${endpointKey},derived`
         });
       });
     },
@@ -295,7 +295,7 @@ const getSearchEstimateConfigs = (endpointKey, endpointColumns, searchTestRows, 
         [COLUMNS.TIMEOUT_MS]: "15000",
         [COLUMNS.MAX_RESPONSE_TIME]: "3000",
         [COLUMNS.DELAY_AFTER_MS]: "0",
-        [COLUMNS.TAGS]: `${endpointKey},search-related`
+        [COLUMNS.TAGS]: `${endpointKey},derived`
       })];
     },
 
@@ -322,7 +322,7 @@ const getSearchWillMatchConfigs = (endpointKey, endpointColumns, searchTestRows,
         [COLUMNS.TIMEOUT_MS]: "10000",
         [COLUMNS.MAX_RESPONSE_TIME]: "2000",
         [COLUMNS.DELAY_AFTER_MS]: "0",
-        [COLUMNS.TAGS]: `${endpointKey},search-related`
+        [COLUMNS.TAGS]: `${endpointKey},derived`
       })];
     },
 

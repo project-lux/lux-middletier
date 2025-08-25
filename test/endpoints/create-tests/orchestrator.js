@@ -7,17 +7,17 @@ import { ENDPOINT_KEYS } from "../constants.js";
 
 /**
  * Create instances of all available TestDataProvider implementations
- * @param {Array<string>} providerFilter - Optional filter for specific providers
+ * @param {Object} options - Options to pass to provider constructors
  * @returns {Array<TestDataProvider>} Array of filtered provider instances
  */
-export function createAllProviders(providerFilter = null) {
+export function createAllProviders(options = {}) {
   console.log("Creating TestDataProvider instances...");
 
   // Create instances of all registered providers
-  const allProviders = TestDataProviderFactory.createAllProviders();
+  const allProviders = TestDataProviderFactory.createAllProviders(options);
 
   // Apply provider filtering if specified
-  const filteredProviders = filterProviders(allProviders, providerFilter);
+  const filteredProviders = filterProviders(allProviders, options);
 
   console.log(`Created ${filteredProviders.length} provider instance(s):`);
   filteredProviders.forEach((provider) => {
@@ -25,8 +25,8 @@ export function createAllProviders(providerFilter = null) {
   });
 
   if (
-    providerFilter &&
-    providerFilter.length > 0 &&
+    options.providerFilter &&
+    options.providerFilter.length > 0 &&
     filteredProviders.length === 0
   ) {
     console.warn(

@@ -44,7 +44,7 @@ async function createEndpointTests(testsDir, options = {}) {
   }
 
   // Create instances of filtered TestDataProvider implementations
-  const allProviders = createAllProviders(options.providerFilter);
+  const allProviders = createAllProviders(options);
   if (allProviders.length === 0) {
     console.warn("Warning: No providers available for test generation");
     return;
@@ -251,14 +251,14 @@ async function createTestsForEndpoint(
 
     if (searchRelatedTestData.length > 0) {
       console.log(
-        `Adding ${searchRelatedTestData.length} search-related test cases...`
+        `Adding ${searchRelatedTestData.length} derived test cases...`
       );
       allTestData = allTestData.concat(searchRelatedTestData);
       totalBeforeDedup += searchRelatedTestData.length;
     }
   }
 
-  // Now handle deduplication for all data (provider + search-related)
+  // Now handle deduplication for all data (provider + derived)
   let finalTestData;
   let duplicatesRemoved = 0;
 

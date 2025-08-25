@@ -63,10 +63,12 @@ export function shouldIncludeEndpoint(endpointKey, endpointFilter) {
 /**
  * Apply filtering to a list of providers
  * @param {Array} providers - Array of provider instances
- * @param {Array<string>} providerFilter - Array of provider filter strings
+ * @param {Object} options - Run time options, including the provider filter
  * @returns {Array} - Filtered array of provider instances
  */
-export function filterProviders(providers, providerFilter) {
+export function filterProviders(providers, options) {
+  const { providerFilter } = options;
+
   if (!providerFilter || providerFilter.length === 0) {
     return providers;
   }

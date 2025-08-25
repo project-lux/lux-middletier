@@ -5,7 +5,7 @@ import { ENDPOINT_KEYS } from "../constants.js";
  * Get list of available provider IDs
  */
 function getAvailableProviders() {
-  const allProviders = TestDataProviderFactory.createAllProviders();
+  const allProviders = TestDataProviderFactory.createAllProviders({});
   return allProviders.map((provider) => provider.getProviderId()).sort();
 }
 
