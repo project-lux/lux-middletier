@@ -241,7 +241,7 @@ async function createTestsForEndpoint(
   let totalBeforeDedup = collectionResult.totalCollected;
 
   // Add search-related test data if available and enabled
-  if (isDefined(searchTestConfigs) && options.includeSearchRelated) {
+  if (isDefined(searchTestConfigs) && options.deriveRelatedTests) {
     const searchRelatedTestData = getSearchRelatedTestConfigs(
       endpointKey,
       columns,
@@ -644,9 +644,9 @@ if (options.skipDeduplication) {
   console.log("Deduplication disabled (--no-dedup specified)");
 }
 
-if (options.includeSearchRelated) {
+if (options.deriveRelatedTests) {
   console.log(
-    "Search-related test configurations enabled (--search-related specified)"
+    "Allowed to derive related tests (--derive-related-tests specified)"
   );
 }
 
