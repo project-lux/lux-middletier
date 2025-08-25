@@ -48,7 +48,7 @@ class ConfigurationLoader {
       const filePath = path.join(this.configDir, file);
       const endpointType = this.extractEndpointType(file);
 
-      if (endpointFilter && !endpointFilter.includes(endpointType)) {
+      if (!this.shouldIncludeEndpoint(endpointType, endpointFilter)) {
         continue;
       }
 
@@ -61,6 +61,41 @@ class ConfigurationLoader {
     }
 
     return configs;
+  }
+
+  /**
+   * Determine if an endpoint should be included based on filter criteria
+   * Supports inclusion (default) and exclusion (with ^ prefix)
+   */
+  shouldIncludeEndpoint(endpointType, endpointFilter) {
+    if (!endpointFilter || endpointFilter.length === 0) {
+      return true; // No filter means include all
+    }
+
+    // Separate inclusion and exclusion filters
+    const inclusionFilters = [];
+    const exclusionFilters = [];
+
+    for (const filter of endpointFilter) {
+      if (filter.startsWith('^')) {
+        exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
+      } else {
+        inclusionFilters.push(filter);
+      }
+    }
+
+    // If endpoint matches any exclusion filter, exclude it
+    if (exclusionFilters.length > 0 && exclusionFilters.includes(endpointType)) {
+      return false;
+    }
+
+    // If there are inclusion filters, endpoint must match at least one
+    if (inclusionFilters.length > 0) {
+      return inclusionFilters.includes(endpointType);
+    }
+
+    // If only exclusion filters exist and endpoint wasn't excluded, include it
+    return true;
   }
 
   /**
@@ -782,7 +817,11 @@ class EndpointTester {
       if (this.options.endpoints) {
         const availableEndpoints = this.getAvailableEndpoints();
         const invalidEndpoints = this.options.endpoints.filter(
-          (e) => !availableEndpoints.includes(e)
+          (e) => {
+            // Strip ^ prefix for validation
+            const endpointName = e.startsWith('^') ? e.substring(1) : e;
+            return !availableEndpoints.includes(endpointName);
+          }
         );
         if (invalidEndpoints.length > 0) {
           throw new Error(
@@ -2411,13 +2450,25 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         "  --providers, -p <providers>   Comma-separated list of test data providers to use"
       );
       console.log(
+        "                                Run in dry-run mode to view available providers."
+      );
+      console.log(
         "                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
       );
       console.log(
         "  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test"
       );
       console.log(
-        "                                Available: search, auto-complete, facets, translate, etc."
+        "                                Run in dry-run mode to view available endpoints."
+      );
+      console.log(
+        "                                Use ^ prefix to exclude: ^get-facets excludes get-facets"
+      );
+      console.log(
+        "                                Examples: get-search,get-auto-complete (include only these)"
+      );
+      console.log(
+        "                                          ^get-facets,^get-translate (exclude these)"
       );
       console.log("  --help, -h                    Show this help message");
       console.log("");
@@ -2429,7 +2480,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log(
         "  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
       );
-      console.log("  node run-tests.js --endpoints search,auto-complete");
+      console.log("  node run-tests.js --endpoints get-search,get-auto-complete");
+      console.log("  node run-tests.js --endpoints ^get-facets,^get-translate");
       console.log(
         "  node run-tests.js --dry-run --providers csv-provider --endpoints search"
       );
