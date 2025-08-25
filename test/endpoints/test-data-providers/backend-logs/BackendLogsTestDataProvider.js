@@ -1,22 +1,22 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { TestDataProvider } from '../interface.js';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { TestDataProvider } from "../interface.js";
 
 /**
  * Backend Logs Test Data Provider
- * 
+ *
  * Parses LUX backend error logs to extract endpoint test cases automatically.
- * This provider analyzes log files from backend operations to generate 
+ * This provider analyzes log files from backend operations to generate
  * endpoint-specific test cases for various LUX API endpoints.
- * 
+ *
  * Supported log patterns:
  * - LuxSearch: Search requests with timing and parameters
  * - LuxFacets: Facet calculation requests with facet names and timing
  * - LuxRelatedList: Related list requests with URIs, scopes, and names
  * - LuxNamedProfiles: Document profile requests with URIs and profiles
  * - requestCompleted: Completed search requests with full parameters
- * 
+ *
  * Log file format expected: *.txt files in the raw/ subdirectory
  */
 export class BackendLogsTestDataProvider extends TestDataProvider {
@@ -26,14 +26,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   constructor(options = {}) {
     super({
-      encoding: 'utf8',
+      encoding: "utf8",
       strictValidation: false,
       maxTestCasesPerEndpoint: 50, // Limit to avoid overwhelming test suites
-      includeFastRequests: true,   // Include requests under 100ms
-      includeSlowRequests: true,   // Include requests over 1000ms
-      ...options
+      includeFastRequests: true, // Include requests under 100ms
+      includeSlowRequests: true, // Include requests over 1000ms
+      ...options,
     });
-    
+
     // This provider processes all log files in the raw subdirectory
     this.sourceDir = path.dirname(fileURLToPath(import.meta.url));
     this.logFiles = [];
@@ -49,7 +49,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   discoverLogFiles() {
     try {
       if (!fs.existsSync(this.sourceDir)) {
-        console.warn(`Warning: Backend logs directory not found (${this.sourceDir})`);
+        console.warn(
+          `Warning: Backend logs directory not found (${this.sourceDir})`
+        );
         return [];
       }
 
@@ -57,7 +59,10 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       this.logFiles = logFiles;
       return logFiles;
     } catch (error) {
-      console.error(`Error discovering log files in ${this.sourceDir}:`, error.message);
+      console.error(
+        `Error discovering log files in ${this.sourceDir}:`,
+        error.message
+      );
       return [];
     }
   }
@@ -69,28 +74,30 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   findLogFilesRecursively(dir) {
     const logFiles = [];
-    
+
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-        
+
         if (entry.isDirectory()) {
           // Recursively search subdirectories
           const subDirFiles = this.findLogFilesRecursively(fullPath);
           logFiles.push(...subDirFiles);
         } else if (entry.isFile()) {
           // Check if it's a log file we want to process
-          if (this.isLogFile(entry.name)) {
+          if (this.isQualifyingLogFile(entry.name)) {
             logFiles.push(fullPath);
           }
         }
       }
     } catch (error) {
-      console.warn(`Warning: Could not read directory ${dir}: ${error.message}`);
+      console.warn(
+        `Warning: Could not read directory ${dir}: ${error.message}`
+      );
     }
-    
+
     return logFiles;
   }
 
@@ -99,29 +106,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @param {string} filename - The filename to check
    * @returns {boolean} - Whether this is a processable log file
    */
-  isLogFile(filename) {
-    const lowerName = filename.toLowerCase();
-    
-    // Include .txt files but exclude specific files we don't want
-    if (!lowerName.endsWith('.txt')) {
-      return false;
-    }
-    
-    // Exclude mining scripts and other non-log files
-    const excludePatterns = [
-      'minebackendlogs',
-      'readme',
-      'config',
-      'setup'
-    ];
-    
-    for (const pattern of excludePatterns) {
-      if (lowerName.includes(pattern)) {
-        return false;
-      }
-    }
-    
-    return true;
+  isQualifyingLogFile(filename) {
+    return filename.includes("ErrorLog") && filename.endsWith(".txt");
   }
 
   /**
@@ -139,13 +125,15 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       }
 
       const logFiles = this.discoverLogFiles();
-      
+
       if (logFiles.length === 0) {
         console.warn(`Warning: No log files found in ${this.sourceDir}`);
         return [];
       }
 
-      console.log(`Processing ${logFiles.length} log file(s) for ${endpointKey} endpoint...`);
+      console.log(
+        `Processing ${logFiles.length} log file(s) for ${endpointKey} endpoint...`
+      );
 
       const allTestRows = [];
       const processedDirs = new Set();
@@ -154,35 +142,49 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       for (const logFilePath of logFiles) {
         const relativePath = path.relative(this.sourceDir, logFilePath);
         const dirName = path.dirname(relativePath);
-        
+
         // Log directory being processed (only once per directory)
-        if (dirName !== '.' && !processedDirs.has(dirName)) {
+        if (dirName !== "." && !processedDirs.has(dirName)) {
           console.log(`  - Processing directory: ${dirName}/`);
           processedDirs.add(dirName);
         }
-        
+
         console.log(`    - Analyzing log file: ${path.basename(logFilePath)}`);
-        
+
         const logData = await this.parseLogFile(logFilePath);
-        const endpointTestCases = this.extractTestCasesForEndpoint(logData, endpointKey, relativePath);
+        const endpointTestCases = this.extractTestCasesForEndpoint(
+          logData,
+          endpointKey,
+          relativePath
+        );
 
         if (endpointTestCases.length > 0) {
-          console.log(`      ✓ Found ${endpointTestCases.length} test cases for ${endpointKey}`);
-          
+          console.log(
+            `      ✓ Found ${endpointTestCases.length} test cases for ${endpointKey}`
+          );
+
           // Convert to test rows
-          const testRows = this.convertToTestRows(endpointTestCases, columns, relativePath);
+          const testRows = this.convertToTestRows(
+            endpointTestCases,
+            columns,
+            relativePath
+          );
           allTestRows.push(...testRows);
         }
       }
 
       // Apply limits and filtering
       const filteredRows = this.applyFiltersAndLimits(allTestRows, endpointKey);
-      
-      console.log(`✓ Generated ${filteredRows.length} test cases for ${endpointKey} from backend logs`);
-      return filteredRows;
 
+      console.log(
+        `✓ Generated ${filteredRows.length} test cases for ${endpointKey} from backend logs`
+      );
+      return filteredRows;
     } catch (error) {
-      console.error(`Error processing backend logs for ${endpointKey}:`, error.message);
+      console.error(
+        `Error processing backend logs for ${endpointKey}:`,
+        error.message
+      );
       return []; // Return empty array to not break other providers
     }
   }
@@ -194,9 +196,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   shouldProcessEndpoint(endpointKey) {
     const supportedEndpoints = [
-      'get-search',
-      'get-related-list',
-      'get-data'
+      "get-search",
+      "get-related-list",
+      "get-data",
       // Note: get-facets, get-search-estimate, and get-search-will-match are handled by getSearchRelatedTestConfigs
     ];
     return supportedEndpoints.includes(endpointKey);
@@ -209,14 +211,16 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   async parseLogFile(logFilePath) {
     // Check cache first
-    const cacheKey = `${logFilePath}:${fs.statSync(logFilePath).mtime.getTime()}`;
+    const cacheKey = `${logFilePath}:${fs
+      .statSync(logFilePath)
+      .mtime.getTime()}`;
     if (this.parsedDataCache.has(cacheKey)) {
       return this.parsedDataCache.get(cacheKey);
     }
 
-    const logContent = fs.readFileSync(logFilePath, 'utf8');
-    const lines = logContent.split('\n');
-    
+    const logContent = fs.readFileSync(logFilePath, "utf8");
+    const lines = logContent.split("\n");
+
     const parsedData = {
       successfulSearchRequests: [],
       failedSearchRequests: [],
@@ -234,7 +238,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
       try {
         // Parse different types of log entries
-        if (line.includes('[Event:id=LuxSearch]')) {
+        if (line.includes("[Event:id=LuxSearch]")) {
           // if (line.includes('requestCompleted')) {
           //   // Parse completed search requests with parameters
           //   const completed = this.parseRequestCompleted(line, lines, i);
@@ -266,26 +270,26 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
             if (requestContext) {
               parsedData.successfulSearchRequests.push(requestContext);
             }
-          // } else if (line.includes('"requestCompleted":false')) {
-          //   // Parse failed search requests
-          //   const failedRequest = this.parseFailedRequest(line, lines, i);
-          //   if (failedRequest) {
-          //     parsedData.failedSearchRequests.push(failedRequest);
-          //   }
+            // } else if (line.includes('"requestCompleted":false')) {
+            //   // Parse failed search requests
+            //   const failedRequest = this.parseFailedRequest(line, lines, i);
+            //   if (failedRequest) {
+            //     parsedData.failedSearchRequests.push(failedRequest);
+            //   }
           }
-        // } else if (line.includes('[Event:id=LuxFacets]')) {
-        //   // Parse facet calculation requests
-        //   const facet = this.parseFacetRequest(line);
-        //   if (facet) {
-        //     parsedData.facetRequests.push(facet);
-        //   }
-        } else if (line.includes('[Event:id=LuxRelatedList]')) {
+          // } else if (line.includes('[Event:id=LuxFacets]')) {
+          //   // Parse facet calculation requests
+          //   const facet = this.parseFacetRequest(line);
+          //   if (facet) {
+          //     parsedData.facetRequests.push(facet);
+          //   }
+        } else if (line.includes("[Event:id=LuxRelatedList]")) {
           // Parse related list requests
           const relatedList = this.parseRelatedListRequest(line);
           if (relatedList) {
             parsedData.relatedListRequests.push(relatedList);
           }
-        } else if (line.includes('[Event:id=LuxNamedProfiles]')) {
+        } else if (line.includes("[Event:id=LuxNamedProfiles]")) {
           // Parse document profile requests
           const document = this.parseDocumentRequest(line);
           if (document) {
@@ -294,13 +298,15 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         }
       } catch (error) {
         // Skip malformed lines
-        console.warn(`Warning: Could not parse log line: ${line.substring(0, 100)}...`);
+        console.warn(
+          `Warning: Could not parse log line: ${line.substring(0, 100)}...`
+        );
       }
     }
 
     // Cache the results
     this.parsedDataCache.set(cacheKey, parsedData);
-    
+
     return parsedData;
   }
 
@@ -315,21 +321,21 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   //   // Extract timestamp
   //   const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/);
   //   if (!timestampMatch) return null;
-    
+
   //   const timestamp = timestampMatch[1];
 
   //   // Find the JSON part of the log line
   //   const jsonStart = line.indexOf('{"requestId":');
   //   if (jsonStart === -1) return null;
-    
+
   //   try {
   //     // The JSON might be truncated, so we need to extract what we can
   //     let jsonPart = line.substring(jsonStart);
-      
+
   //     // Try to find the end of the JSON or take a reasonable portion
   //     // Look for the end of the criteria object which is what we mainly need
   //     const criteriaMatch = jsonPart.match(/"criteria":\{[^}]*(?:\{[^}]*\}[^}]*)*\}/);
-      
+
   //     let searchRequest;
   //     try {
   //       // First try to parse the entire JSON if it's complete
@@ -344,23 +350,23 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   //           scope: 'item',
   //           criteria: {}
   //         };
-          
+
   //         // Extract individual fields
   //         const requestCompletedMatch = jsonPart.match(/"requestCompleted":(true|false)/);
   //         if (requestCompletedMatch) {
   //           partialData.requestCompleted = requestCompletedMatch[1] === 'true';
   //         }
-          
+
   //         const totalTimeMatch = jsonPart.match(/"total":(\d+)/);
   //         if (totalTimeMatch) {
   //           partialData.milliseconds.total = parseInt(totalTimeMatch[1]);
   //         }
-          
+
   //         const scopeMatch = jsonPart.match(/"scope":"([^"]+)"/);
   //         if (scopeMatch) {
   //           partialData.scope = scopeMatch[1];
   //         }
-          
+
   //         // Extract criteria - this is the most complex part
   //         if (criteriaMatch) {
   //           try {
@@ -374,7 +380,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   //             }
   //           }
   //         }
-          
+
   //         searchRequest = partialData;
   //       }
   //     } catch (e) {
@@ -385,7 +391,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   //         scope: 'item',
   //         criteria: {}
   //       };
-        
+
   //       const totalMatch = line.match(/"total":(\d+)/);
   //       if (totalMatch) {
   //         searchRequest.milliseconds.total = parseInt(totalMatch[1]);
@@ -404,7 +410,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   //       },
   //       rawLine: line
   //     };
-      
+
   //   } catch (error) {
   //     console.warn(`Warning: Could not parse search request JSON in line: ${line.substring(0, 100)}...`);
   //     return null;
@@ -420,52 +426,67 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   parseSearchRequest(line, lines, index) {
     // Extract timestamp
-    const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/);
+    const timestampMatch = line.match(
+      /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/
+    );
     if (!timestampMatch) return null;
-    
+
     const timestamp = timestampMatch[1];
 
     // Find the JSON part of the log line (after the log level and event info)
     const jsonMatch = line.match(/\[Event:id=LuxSearch\]\s*(\{.*\})/);
     if (!jsonMatch) return null;
-    
+
     try {
       const jsonString = jsonMatch[1];
       const logData = JSON.parse(jsonString);
-      
+
       // Extract search parameters from the log data
       const searchParams = {
-        scope: logData.scope || 'item'
+        scope: logData.scope || "item",
       };
-      
+
       // Add criteria as the main search parameters
       if (logData.criteria) {
         // If criteria is a complex object, serialize it as q parameter
-        if (typeof logData.criteria === 'object' && Object.keys(logData.criteria).length > 0) {
+        if (
+          typeof logData.criteria === "object" &&
+          Object.keys(logData.criteria).length > 0
+        ) {
           searchParams.q = JSON.stringify(logData.criteria);
         }
       }
-      
+
       // Add other search parameters that might be useful for testing
-      const paramKeys = ['page', 'pageLength', 'pageWith', 'filterResults', 'facetsSoon'];
+      const paramKeys = [
+        "page",
+        "pageLength",
+        "pageWith",
+        "filterResults",
+        "facetsSoon",
+      ];
       for (const key of paramKeys) {
         if (logData[key] !== undefined) {
           searchParams[key] = logData[key];
         }
       }
-      
+
       return {
         timestamp,
         total: logData.estimate || 0,
         duration: logData.milliseconds?.total || 0,
         isSuccessful: logData.requestCompleted === true,
-        scope: logData.scope || 'item',
+        scope: logData.scope || "item",
         searchParams,
-        rawLine: line
+        rawLine: line,
       };
-      
     } catch (error) {
-      console.warn(`Warning: Could not parse request JSON in line: ${line.substring(0, 100)}...`);
+      console.warn(
+        `Warning: Could not parse request JSON in line: ${line.substring(
+          0,
+          100
+        )}...`
+      );
       return null;
     }
   }
@@ -476,7 +497,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {Object|null} - Parsed estimate or null
    */
   parseSearchEstimate(line) {
-    const match = line.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated estimate in (\d+) milliseconds?/);
+    const match = line.match(
+      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated estimate in (\d+) milliseconds?/
+    );
     if (!match) return null;
 
     const [, timestamp, duration] = match;
@@ -484,8 +507,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     return {
       timestamp,
       duration: parseInt(duration),
-      type: 'estimate',
-      rawLine: line
+      type: "estimate",
+      rawLine: line,
     };
   }
 
@@ -495,7 +518,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {Object|null} - Parsed will match or null
    */
   parseSearchWillMatch(line) {
-    const match = line.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Checked (\d+) searches in (\d+) milliseconds?/);
+    const match = line.match(
+      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Checked (\d+) searches in (\d+) milliseconds?/
+    );
     if (!match) return null;
 
     const [, timestamp, searchCount, duration] = match;
@@ -504,8 +529,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       timestamp,
       searchCount: parseInt(searchCount),
       duration: parseInt(duration),
-      type: 'will-match',
-      rawLine: line
+      type: "will-match",
+      rawLine: line,
     };
   }
 
@@ -515,7 +540,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {Object|null} - Parsed facet request or null
    */
   parseFacetRequest(line) {
-    const match = line.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated the following facet in (\d+) milliseconds?: ([^(]+)(?:\(page: (\d+); pageLength: (\d+)\))?/);
+    const match = line.match(
+      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated the following facet in (\d+) milliseconds?: ([^(]+)(?:\(page: (\d+); pageLength: (\d+)\))?/
+    );
     if (!match) return null;
 
     const [, timestamp, duration, facetName, page, pageLength] = match;
@@ -526,20 +553,23 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       facetName: facetName.trim(),
       page: page ? parseInt(page) : 1,
       pageLength: pageLength ? parseInt(pageLength) : 20,
-      rawLine: line
+      rawLine: line,
     };
   }
 
   /**
-   * Parse a related list request log entry  
+   * Parse a related list request log entry
    * @param {string} line - The log line
    * @returns {Object|null} - Parsed related list request or null
    */
   parseRelatedListRequest(line) {
-    const match = line.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Created the '([^']+)' list in scope '([^']+)' for '([^']+)' in (\d+) milliseconds?.*?(?:page: (\d+); pageLength: (\d+))?/);
+    const match = line.match(
+      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Created the '([^']+)' list in scope '([^']+)' for '([^']+)' in (\d+) milliseconds?.*?(?:page: (\d+); pageLength: (\d+))?/
+    );
     if (!match) return null;
 
-    const [, timestamp, relationName, scope, uri, duration, page, pageLength] = match;
+    const [, timestamp, relationName, scope, uri, duration, page, pageLength] =
+      match;
 
     return {
       timestamp,
@@ -549,7 +579,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       duration: parseInt(duration),
       page: page ? parseInt(page) : 1,
       pageLength: pageLength ? parseInt(pageLength) : 25,
-      rawLine: line
+      rawLine: line,
     };
   }
 
@@ -559,15 +589,17 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {Object|null} - Parsed document request or null
    */
   parseDocumentRequest(line) {
-    const match = line.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Applied the '([^']+)' profile to '([^']+)' in (\d+) milliseconds?/);
+    const match = line.match(
+      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Applied the '([^']+)' profile to '([^']+)' in (\d+) milliseconds?/
+    );
     if (!match) return null;
 
     const [, timestamp, profile, uri, duration] = match;
 
     // Extract type and UUID from URI
     const uriMatch = uri.match(/\/data\/([^/]+)\/([^/]+)$/);
-    const type = uriMatch ? uriMatch[1] : '';
-    const uuid = uriMatch ? uriMatch[2] : '';
+    const type = uriMatch ? uriMatch[1] : "";
+    const uuid = uriMatch ? uriMatch[2] : "";
 
     return {
       timestamp,
@@ -576,7 +608,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       type,
       uuid,
       duration: parseInt(duration),
-      rawLine: line
+      rawLine: line,
     };
   }
 
@@ -589,17 +621,17 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   extractTestCasesForEndpoint(logData, endpointKey, sourceFile) {
     switch (endpointKey) {
-      case 'get-search':
+      case "get-search":
         return this.extractSearchTestCases(logData, sourceFile);
-      case 'get-facets':
+      case "get-facets":
         return this.extractFacetTestCases(logData, sourceFile);
-      case 'get-related-list':
+      case "get-related-list":
         return this.extractRelatedListTestCases(logData, sourceFile);
-      case 'get-data':
+      case "get-data":
         return this.extractDocumentTestCases(logData, sourceFile);
-      case 'get-search-estimate':
+      case "get-search-estimate":
         return this.extractSearchEstimateTestCases(logData, sourceFile);
-      case 'get-search-will-match':
+      case "get-search-will-match":
         return this.extractSearchWillMatchTestCases(logData, sourceFile);
       default:
         return [];
@@ -615,7 +647,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   extractSearchTestCases(logData, sourceFile) {
     const testCases = [];
     const sourceLabel = this.createSourceLabel(sourceFile);
-    
+
     // // Use completed search requests (original logic)
     // for (const request of logData.requestsCompleted) {
     //   // Determine the q parameter value
@@ -630,13 +662,13 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     //     // Check if we have complex criteria that should be serialized as JSON
     //     const criteriaWithoutScope = { ...request.searchParams };
     //     delete criteriaWithoutScope.scope; // Remove scope as it's handled separately
-        
+
     //     if (Object.keys(criteriaWithoutScope).length > 0) {
     //       // We have complex search criteria - serialize as JSON string
     //       qParam = JSON.stringify(criteriaWithoutScope);
     //     }
     //   }
-      
+
     //   const testCase = {
     //     testName: `Search (completed) ${sourceLabel} at ${request.timestamp}`,
     //     timestamp: request.timestamp,
@@ -652,14 +684,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     //     sourceFile,
     //     rawLine: request.rawLine
     //   };
-      
+
     //   testCases.push(testCase);
     // }
-    
+
     // Also use search request contexts (new logic to capture more requests)
     for (const request of logData.successfulSearchRequests) {
       // Determine the q parameter value
-      let qParam = '';
+      let qParam = "";
       if (request.searchParams.q) {
         // Simple string query
         qParam = request.searchParams.q;
@@ -670,13 +702,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         // Check if we have other search criteria
         const criteriaWithoutScope = { ...request.searchParams };
         delete criteriaWithoutScope.scope; // Remove scope as it's handled separately
-        
-        if (Object.keys(criteriaWithoutScope).length > 1) { // More than just scope
+
+        if (Object.keys(criteriaWithoutScope).length > 1) {
+          // More than just scope
           // We have complex search criteria - serialize as JSON string
           qParam = JSON.stringify(criteriaWithoutScope);
         }
       }
-      
+
       const testCase = {
         testName: `Search (context) ${sourceLabel} at ${request.timestamp}`,
         timestamp: request.timestamp,
@@ -685,14 +718,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         timeout: 30000, // Default timeout
         maxResponseTime: 10000, // Default max response time
         params: {
-          scope: request.searchParams.scope || 'item',
+          scope: request.searchParams.scope || "item",
           q: qParam,
-          ...request.searchParams
+          ...request.searchParams,
         },
         sourceFile,
-        rawLine: request.rawLine
+        rawLine: request.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -701,13 +734,13 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract facet test cases
-   * @param {Object} logData - Parsed log data  
+   * @param {Object} logData - Parsed log data
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractFacetTestCases(logData, sourceFile) {
     const testCases = [];
-    
+
     for (const facet of logData.facetRequests) {
       const testCase = {
         testName: `Facet ${facet.facetName} from ${sourceFile}`,
@@ -717,15 +750,15 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         timeout: Math.max(15000, facet.duration * 3),
         maxResponseTime: Math.max(3000, facet.duration * 2),
         params: {
-          scope: 'item', // Default scope for facets
+          scope: "item", // Default scope for facets
           name: facet.facetName,
           page: facet.page,
-          pageLength: facet.pageLength
+          pageLength: facet.pageLength,
         },
         sourceFile,
-        rawLine: facet.rawLine
+        rawLine: facet.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -740,7 +773,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   extractRelatedListTestCases(logData, sourceFile) {
     const testCases = [];
-    
+
     for (const relatedList of logData.relatedListRequests) {
       const testCase = {
         testName: `Related list ${relatedList.relationName} for ${relatedList.scope} from ${sourceFile}`,
@@ -754,12 +787,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
           uri: relatedList.uri,
           name: relatedList.relationName,
           page: relatedList.page,
-          pageLength: relatedList.pageLength
+          pageLength: relatedList.pageLength,
         },
         sourceFile,
-        rawLine: relatedList.rawLine
+        rawLine: relatedList.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -774,7 +807,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   extractDocumentTestCases(logData, sourceFile) {
     const testCases = [];
-    
+
     for (const document of logData.documentRequests) {
       const testCase = {
         testName: `Document ${document.type} with ${document.profile} profile from ${sourceFile}`,
@@ -786,12 +819,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         params: {
           type: document.type,
           uuid: document.uuid,
-          profile: document.profile
+          profile: document.profile,
         },
         sourceFile,
-        rawLine: document.rawLine
+        rawLine: document.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -806,7 +839,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   extractSearchEstimateTestCases(logData, sourceFile) {
     const testCases = [];
-    
+
     for (const estimate of logData.searchEstimates) {
       const testCase = {
         testName: `Search estimate from ${sourceFile} at ${estimate.timestamp}`,
@@ -816,12 +849,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         timeout: Math.max(10000, estimate.duration * 3),
         maxResponseTime: Math.max(2000, estimate.duration * 2),
         params: {
-          scope: 'item' // Default scope for estimates
+          scope: "item", // Default scope for estimates
         },
         sourceFile,
-        rawLine: estimate.rawLine
+        rawLine: estimate.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -836,7 +869,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   extractSearchWillMatchTestCases(logData, sourceFile) {
     const testCases = [];
-    
+
     for (const willMatch of logData.searchWillMatch) {
       const testCase = {
         testName: `Search will match (${willMatch.searchCount} searches) from ${sourceFile}`,
@@ -846,12 +879,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         timeout: Math.max(10000, willMatch.duration * 3),
         maxResponseTime: Math.max(2000, willMatch.duration * 2),
         params: {
-          scope: 'item' // Default scope
+          scope: "item", // Default scope
         },
         sourceFile,
-        rawLine: willMatch.rawLine
+        rawLine: willMatch.rawLine,
       };
-      
+
       testCases.push(testCase);
     }
 
@@ -867,28 +900,33 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   convertToTestRows(testCases, columns, sourceFile) {
     return testCases.map((testCase, index) => {
-      return columns.map(columnName => {
-        if (columnName === 'test_name') {
+      return columns.map((columnName) => {
+        if (columnName === "test_name") {
           return testCase.testName || `Backend log test ${index + 1}`;
-        } else if (columnName === 'description') {
-          return `Generated from backend logs: ${testCase.rawLine?.substring(0, 100)}...` || '';
-        } else if (columnName === 'enabled') {
+        } else if (columnName === "description") {
+          return (
+            `Generated from backend logs: ${testCase.rawLine?.substring(
+              0,
+              100
+            )}...` || ""
+          );
+        } else if (columnName === "enabled") {
           return true;
-        } else if (columnName === 'expected_status') {
+        } else if (columnName === "expected_status") {
           return testCase.expectedStatus || 200;
-        } else if (columnName === 'timeout_ms') {
+        } else if (columnName === "timeout_ms") {
           return testCase.timeout || 30000;
-        } else if (columnName === 'max_response_time') {
+        } else if (columnName === "max_response_time") {
           return testCase.maxResponseTime || 10000;
-        } else if (columnName === 'delay_after_ms') {
+        } else if (columnName === "delay_after_ms") {
           return 0;
-        } else if (columnName === 'tags') {
-          return `backend-logs,${sourceFile.replace('.txt', '')}`;
-        } else if (columnName.startsWith('param:')) {
-          const paramName = columnName.replace('param:', '');
-          return testCase.params?.[paramName] || '';
+        } else if (columnName === "tags") {
+          return `backend-logs,${sourceFile.replace(".txt", "")}`;
+        } else if (columnName.startsWith("param:")) {
+          const paramName = columnName.replace("param:", "");
+          return testCase.params?.[paramName] || "";
         } else {
-          return '';
+          return "";
         }
       });
     });
@@ -915,10 +953,10 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
           paramCols.push(val.toString().trim());
         }
       });
-      const paramKey = paramCols.join('|');
-      
+      const paramKey = paramCols.join("|");
+
       // Only filter out if we have an exact parameter match and it's not empty
-      if (paramKey && paramKey !== '' && seen.has(paramKey)) {
+      if (paramKey && paramKey !== "" && seen.has(paramKey)) {
         return false;
       }
       if (paramKey) {
@@ -931,7 +969,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     // const maxCases = this.options.maxTestCasesPerEndpoint || 50;
     // if (filtered.length > maxCases) {
     //   console.log(`  - Limiting ${endpointKey} test cases from ${filtered.length} to ${maxCases}`);
-      
+
     //   // Try to get a good distribution by sorting by various criteria and taking from different parts
     //   filtered = filtered.sort((a, b) => {
     //     // Sort by test name to get some variety
@@ -939,7 +977,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     //     const nameB = b[0] || '';
     //     return nameA.localeCompare(nameB);
     //   });
-      
+
     //   // Take every Nth item to get good coverage
     //   const step = Math.ceil(filtered.length / maxCases);
     //   const distributed = [];
@@ -958,15 +996,15 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {string} - Readable label
    */
   createSourceLabel(sourceFile) {
-    if (sourceFile.includes('/') || sourceFile.includes('\\')) {
+    if (sourceFile.includes("/") || sourceFile.includes("\\")) {
       // Has directory structure - create a nice label
-      const parts = sourceFile.replace(/\\/g, '/').split('/');
-      const dir = parts.slice(0, -1).join('/');
-      const file = parts[parts.length - 1].replace(/\.txt$/i, '');
+      const parts = sourceFile.replace(/\\/g, "/").split("/");
+      const dir = parts.slice(0, -1).join("/");
+      const file = parts[parts.length - 1].replace(/\.txt$/i, "");
       return `from ${dir}/${file}`;
     } else {
       // Just a filename
-      return `from ${sourceFile.replace(/\.txt$/i, '')}`;
+      return `from ${sourceFile.replace(/\.txt$/i, "")}`;
     }
   }
 }
