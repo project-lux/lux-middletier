@@ -772,19 +772,55 @@ const options = {};
 
 // Check for data source arguments
 // Usage examples:
-// node create-tests.js --data-source=./test-data.csv
-// node create-tests.js --test-count=5 --include-errors=false
+// node create-tests.js --test-count=5
 // node create-tests.js --no-dedup
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
-  if (arg.startsWith("--data-source=")) {
-    options.dataSource = arg.split("=")[1];
+  
+  if (arg === "--help" || arg === "-h") {
+    console.log("Usage: node create-tests.js [options]");
+    console.log("");
+    console.log("Options:");
+    console.log("  --test-count=<number>         Maximum number of test cases to generate per provider");
+    console.log("  --no-dedup                    Skip deduplication of test cases for faster processing");
+    console.log("  --help, -h                    Show this help message");
+    console.log("");
+    console.log("Examples:");
+    console.log("  node create-tests.js");
+    console.log("  node create-tests.js --no-dedup");
+    console.log("  node create-tests.js --test-count=100");
+    console.log("  node create-tests.js --no-dedup --test-count=50");
+    process.exit(0);
   } else if (arg.startsWith("--test-count=")) {
-    options.testCaseCount = parseInt(arg.split("=")[1]);
-  } else if (arg.startsWith("--include-errors=")) {
-    options.includeErrorCases = arg.split("=")[1].toLowerCase() === "true";
+    const value = arg.split("=")[1];
+    if (!value) {
+      console.error("Error: --test-count requires a value");
+      console.log("Example: --test-count=100");
+      process.exit(1);
+    }
+    const count = parseInt(value);
+    if (isNaN(count) || count <= 0) {
+      console.error("Error: --test-count must be a positive number");
+      console.log("Example: --test-count=100");
+      process.exit(1);
+    }
+    options.testCaseCount = count;
   } else if (arg === "--no-dedup") {
     options.skipDeduplication = true;
+  } else if (arg === "--test-count") {
+    console.error("Error: --test-count requires a value");
+    console.log("Example: --test-count=100");
+    process.exit(1);
+  } else if (arg.startsWith("-")) {
+    // Unknown option starting with "-"
+    console.error(`Error: Unknown option '${arg}'`);
+    console.log("Use --help for a list of available options");
+    process.exit(1);
+  } else {
+    // Unknown positional argument
+    console.error(`Error: Unexpected argument '${arg}'`);
+    console.log("Use --help for usage information");
+    process.exit(1);
   }
 }
 
