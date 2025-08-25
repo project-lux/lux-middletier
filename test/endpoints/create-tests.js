@@ -4,120 +4,19 @@ import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { getEndpointKeyFromPath, isDefined } from "./utils.js";
-import { TestDataProviderFactory } from "./test-data-providers/index.js";
-import { ENDPOINT_KEYS } from "./constants.js";
 import { getSearchRelatedTestConfigs } from "./relatedTestUtils.js";
+import { parseCommandLineArgs } from "./create-tests/cli-parser.js";
+import { TestStatistics } from "./create-tests/statistics.js";
+import { 
+  createAllProviders, 
+  cleanupExistingFiles, 
+  prepareEndpoints, 
+  processPriorityEndpoint, 
+  processRemainingEndpoints 
+} from "./create-tests/orchestrator.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-/**
- * Create instances of all available TestDataProvider implementations
- * @param {Array<string>} providerFilter - Optional filter for specific providers
- * @returns {Array<TestDataProvider>} Array of filtered provider instances
- */
-function createAllProviders(providerFilter = null) {
-  console.log("Creating TestDataProvider instances...");
-
-  // Create instances of all registered providers
-  const allProviders = TestDataProviderFactory.createAllProviders();
-
-  // Apply provider filtering if specified
-  let filteredProviders = allProviders;
-  if (providerFilter && providerFilter.length > 0) {
-    filteredProviders = allProviders.filter((provider) =>
-      shouldIncludeProvider(provider.getProviderId(), providerFilter)
-    );
-  }
-
-  console.log(`Created ${filteredProviders.length} provider instance(s):`);
-  filteredProviders.forEach((provider) => {
-    console.log(`  - ${provider.getProviderId()}`);
-  });
-
-  if (
-    providerFilter &&
-    providerFilter.length > 0 &&
-    filteredProviders.length === 0
-  ) {
-    console.warn(
-      "Warning: Provider filter resulted in no providers being selected"
-    );
-  }
-
-  return filteredProviders;
-}
-
-/**
- * Determine if a provider should be included based on filter criteria
- * Supports inclusion (default) and exclusion (with ^ prefix)
- */
-function shouldIncludeProvider(providerId, providerFilter) {
-  if (!providerFilter || providerFilter.length === 0) {
-    return true; // No filter means include all
-  }
-
-  // Separate inclusion and exclusion filters
-  const inclusionFilters = [];
-  const exclusionFilters = [];
-
-  for (const filter of providerFilter) {
-    if (filter.startsWith("^")) {
-      exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
-    } else {
-      inclusionFilters.push(filter);
-    }
-  }
-
-  // If provider matches any exclusion filter, exclude it
-  if (exclusionFilters.length > 0 && exclusionFilters.includes(providerId)) {
-    return false;
-  }
-
-  // If there are inclusion filters, provider must match at least one
-  if (inclusionFilters.length > 0) {
-    return inclusionFilters.includes(providerId);
-  }
-
-  // If only exclusion filters exist and provider wasn't excluded, include it
-  return true;
-}
-
-/**
- * Determine if an endpoint should be included based on filter criteria
- * Supports inclusion (default) and exclusion (with ^ prefix)
- */
-function shouldIncludeEndpoint(endpointKey, endpointFilter) {
-  if (!endpointFilter || endpointFilter.length === 0) {
-    return true; // No filter means include all
-  }
-
-  // Separate inclusion and exclusion filters
-  const inclusionFilters = [];
-  const exclusionFilters = [];
-
-  for (const filter of endpointFilter) {
-    if (filter.startsWith("^")) {
-      exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
-    } else {
-      inclusionFilters.push(filter);
-    }
-  }
-
-  // If endpoint matches any exclusion filter, exclude it
-  if (exclusionFilters.length > 0 && exclusionFilters.includes(endpointKey)) {
-    return false;
-  }
-
-  // If there are inclusion filters, endpoint must match at least one
-  if (inclusionFilters.length > 0) {
-    return inclusionFilters.includes(endpointKey);
-  }
-
-  // If only exclusion filters exist and endpoint wasn't excluded, include it
-  return true;
-}
-
 /**
  * Create separate Excel test files for each API endpoint with parameter-specific columns
  * Based on endpoints-spec.json file and filtered TestDataProvider implementations
@@ -133,50 +32,15 @@ async function createEndpointTests(testsDir, options = {}) {
   }
 
   // Clean up existing Excel files
-  console.log(`Deleting existing Excel files in ${testsDir}...`);
-  try {
-    const files = fs.readdirSync(testsDir);
-    const excelFiles = files.filter((file) => file.endsWith(".xlsx"));
-
-    if (excelFiles.length > 0) {
-      console.log(
-        `Found ${excelFiles.length} existing Excel file(s) to remove:`
-      );
-      for (const file of excelFiles) {
-        const filePath = path.join(testsDir, file);
-        fs.unlinkSync(filePath);
-        console.log(`  - Deleted: ${file}`);
-      }
-    } else {
-      console.log("  No existing Excel files found");
-    }
-  } catch (error) {
-    console.error(`Unable to delete spreadsheets: ${error.message}`);
-    process.exit(1);
-  }
+  cleanupExistingFiles(testsDir);
 
   // Get all API definitions
   const apiDefinitions = analyzeEndpointsSpec();
-  console.log(
-    `Found ${Object.keys(apiDefinitions).length} unique API endpoints\n`
-  );
 
-  // Apply endpoint filtering
-  let endpointKeys = Object.keys(apiDefinitions);
-  if (options.endpointFilter && options.endpointFilter.length > 0) {
-    const originalCount = endpointKeys.length;
-    endpointKeys = endpointKeys.filter((key) =>
-      shouldIncludeEndpoint(key, options.endpointFilter)
-    );
-    console.log(
-      `Filtered endpoints: ${endpointKeys.length}/${originalCount} endpoints selected`
-    );
-    if (endpointKeys.length === 0) {
-      console.warn(
-        "Warning: Endpoint filter resulted in no endpoints being selected"
-      );
-      return;
-    }
+  // Prepare endpoints with filtering
+  const endpointKeys = prepareEndpoints(apiDefinitions, options);
+  if (endpointKeys.length === 0) {
+    return;
   }
 
   // Create instances of filtered TestDataProvider implementations
@@ -186,268 +50,34 @@ async function createEndpointTests(testsDir, options = {}) {
     return;
   }
 
-  // Generate Excel test files for each API endpoint
-  // Prioritize GET_SEARCH tests first
-  const getSearchKey = ENDPOINT_KEYS.GET_SEARCH;
+  // Initialize statistics tracking
+  const statistics = new TestStatistics();
 
-  // Track statistics for summary
-  const endpointStats = {};
-  let totalUniqueTests = 0;
-  let totalDuplicatesFound = 0;
-  let totalTestsBeforeDedup = 0;
-  const overallStartTime = Date.now();
-
-  // Generate the search requests first.
-  let searchTestConfigs = null;
-  if (endpointKeys.includes(getSearchKey)) {
-    console.log(`\nProcessing priority endpoint: ${getSearchKey}`);
-    const apiDef = apiDefinitions[getSearchKey];
-
-    const startTime = Date.now();
-    const result = await createTestsForEndpoint(
-      apiDef,
-      getSearchKey,
-      testsDir,
-      allProviders,
-      options
-    );
-    const endTime = Date.now();
-    const duration = endTime - startTime;
-
-    searchTestConfigs = result;
-
-    // Record stats for search endpoint
-    if (result && result.stats) {
-      endpointStats[getSearchKey] = {
-        ...result.stats,
-        duration: duration,
-      };
-      totalUniqueTests += result.stats.uniqueTests;
-      totalDuplicatesFound += result.stats.duplicatesRemoved;
-      totalTestsBeforeDedup += result.stats.totalBeforeDedup;
-    }
-
-    if (options.skipDeduplication) {
-      totalDuplicatesFound = "Disabled";
-    }
-  }
+  // Process priority endpoint first (GET_SEARCH)
+  const searchTestConfigs = await processPriorityEndpoint(
+    endpointKeys,
+    apiDefinitions,
+    testsDir,
+    allProviders,
+    options,
+    statistics,
+    createTestsForEndpoint
+  );
 
   // Process remaining endpoints
-  for (const endpointKey of endpointKeys) {
-    if (endpointKey !== getSearchKey) {
-      const apiDef = apiDefinitions[endpointKey];
-
-      const startTime = Date.now();
-      const result = await createTestsForEndpoint(
-        apiDef,
-        endpointKey,
-        testsDir,
-        allProviders,
-        options,
-        searchTestConfigs
-      );
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // Record stats for this endpoint
-      if (result && result.stats) {
-        endpointStats[endpointKey] = {
-          ...result.stats,
-          duration: duration,
-        };
-        totalUniqueTests += result.stats.uniqueTests;
-        totalDuplicatesFound += result.stats.duplicatesRemoved;
-        totalTestsBeforeDedup += result.stats.totalBeforeDedup;
-      }
-
-      if (options.skipDeduplication) {
-        totalDuplicatesFound = "Disabled";
-      }
-    }
-  }
-
-  const overallEndTime = Date.now();
-  const totalDuration = overallEndTime - overallStartTime;
-
-  // Helper function to format duration in a human-readable way
-  const formatDuration = (ms) => {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    const minutes = Math.floor(ms / 60000);
-    const seconds = ((ms % 60000) / 1000).toFixed(1);
-    return `${minutes}m ${seconds}s`;
-  };
-
-  // Print summary
-  console.log("\n" + "=".repeat(92));
-  console.log("TEST GENERATION SUMMARY");
-  console.log("=".repeat(92));
-
-  // Sort endpoints by name for consistent output
-  const sortedEndpoints = Object.keys(endpointStats).sort();
-
-  // Helper function to format numbers with commas
-  const formatNumber = (num) => num.toLocaleString();
-
-  // Calculate column widths based on the data
-  const endpointKeyWidth =
-    Math.max(
-      "Endpoint".length,
-      ...sortedEndpoints.map((key) => key.length),
-      "TOTALS".length
-    ) + 2;
-
-  const totalBeforeWidth =
-    Math.max(
-      "Total Before Dedup".length,
-      formatNumber(totalTestsBeforeDedup).length,
-      ...sortedEndpoints.map(
-        (key) => formatNumber(endpointStats[key].totalBeforeDedup).length
-      )
-    ) + 2;
-
-  const uniqueTestsWidth =
-    Math.max(
-      "Unique Tests".length,
-      formatNumber(totalUniqueTests).length,
-      ...sortedEndpoints.map(
-        (key) => formatNumber(endpointStats[key].uniqueTests).length
-      )
-    ) + 2;
-
-  const duplicatesWidth =
-    Math.max(
-      "Duplicates Removed".length,
-      formatNumber(totalDuplicatesFound).length,
-      ...sortedEndpoints.map(
-        (key) => formatNumber(endpointStats[key].duplicatesRemoved).length
-      )
-    ) + 2;
-
-  const durationWidth =
-    Math.max(
-      "Duration".length,
-      formatDuration(totalDuration).length,
-      ...sortedEndpoints.map(
-        (key) => formatDuration(endpointStats[key].duration).length
-      )
-    ) + 2;
-
-  // Print table header
-  console.log(
-    "\n" +
-      "Endpoint".padEnd(endpointKeyWidth) +
-      "Total Before Dedup".padStart(totalBeforeWidth) +
-      "Unique Tests".padStart(uniqueTestsWidth) +
-      "Duplicates Removed".padStart(duplicatesWidth) +
-      "Duration".padStart(durationWidth)
+  await processRemainingEndpoints(
+    endpointKeys,
+    apiDefinitions,
+    testsDir,
+    allProviders,
+    options,
+    statistics,
+    searchTestConfigs,
+    createTestsForEndpoint
   );
 
-  console.log(
-    "-".repeat(endpointKeyWidth) +
-      "-".repeat(totalBeforeWidth) +
-      "-".repeat(uniqueTestsWidth) +
-      "-".repeat(duplicatesWidth) +
-      "-".repeat(durationWidth)
-  );
-
-  // Print each endpoint's data
-  for (const endpointKey of sortedEndpoints) {
-    const stats = endpointStats[endpointKey];
-    console.log(
-      endpointKey.padEnd(endpointKeyWidth) +
-        formatNumber(stats.totalBeforeDedup).padStart(totalBeforeWidth) +
-        formatNumber(stats.uniqueTests).padStart(uniqueTestsWidth) +
-        formatNumber(stats.duplicatesRemoved).padStart(duplicatesWidth) +
-        formatDuration(stats.duration).padStart(durationWidth)
-    );
-  }
-
-  // Print separator line before totals
-  console.log(
-    "-".repeat(endpointKeyWidth) +
-      "-".repeat(totalBeforeWidth) +
-      "-".repeat(uniqueTestsWidth) +
-      "-".repeat(duplicatesWidth) +
-      "-".repeat(durationWidth)
-  );
-
-  // Print totals row
-  console.log(
-    "TOTALS".padEnd(endpointKeyWidth) +
-      formatNumber(totalTestsBeforeDedup).padStart(totalBeforeWidth) +
-      formatNumber(totalUniqueTests).padStart(uniqueTestsWidth) +
-      formatNumber(totalDuplicatesFound).padStart(duplicatesWidth) +
-      formatDuration(totalDuration).padStart(durationWidth)
-  );
-
-  console.log(`\nEndpoints processed: ${Object.keys(endpointStats).length}`);
-
-  // Show excluded providers and endpoints if filtering was applied
-  if (options.providerFilter || options.endpointFilter) {
-    console.log("\n" + "=".repeat(50));
-    console.log("FILTERING SUMMARY");
-    console.log("=".repeat(50));
-
-    // Show excluded providers
-    if (options.providerFilter && options.providerFilter.length > 0) {
-      const allAvailableProviders =
-        TestDataProviderFactory.createAllProviders().map((p) =>
-          p.getProviderId()
-        );
-      const filteredProviders = createAllProviders(options.providerFilter);
-      const includedProviders = filteredProviders.map((p) => p.getProviderId());
-      const excludedProviders = allAvailableProviders.filter(
-        (p) => !includedProviders.includes(p)
-      );
-
-      console.log(
-        `\nProviders included (${includedProviders.length}/${allAvailableProviders.length}):`
-      );
-      includedProviders
-        .sort()
-        .forEach((provider) => console.log(`  ✓ ${provider}`));
-
-      if (excludedProviders.length > 0) {
-        console.log(
-          `\nProviders excluded (${excludedProviders.length}/${allAvailableProviders.length}):`
-        );
-        excludedProviders
-          .sort()
-          .forEach((provider) => console.log(`  ✗ ${provider}`));
-      }
-    }
-
-    // Show excluded endpoints
-    if (options.endpointFilter && options.endpointFilter.length > 0) {
-      const allAvailableEndpoints = Object.values(ENDPOINT_KEYS).sort();
-      const includedEndpoints = endpointKeys.sort();
-      const excludedEndpoints = allAvailableEndpoints.filter(
-        (e) => !includedEndpoints.includes(e)
-      );
-
-      console.log(
-        `\nEndpoints included (${includedEndpoints.length}/${allAvailableEndpoints.length}):`
-      );
-      includedEndpoints.forEach((endpoint) => console.log(`  ✓ ${endpoint}`));
-
-      if (excludedEndpoints.length > 0) {
-        console.log(
-          `\nEndpoints excluded (${excludedEndpoints.length}/${allAvailableEndpoints.length}):`
-        );
-        excludedEndpoints.forEach((endpoint) => console.log(`  ✗ ${endpoint}`));
-      }
-    }
-  }
-
-  console.log(
-    `\nGenerated search-related tests: ${
-      options.includeSearchRelated === true
-        ? true
-        : `false (the --search-related option was not specified)`
-    }`
-  );
-  console.log("\nTest file generation complete!");
+  // Print comprehensive summary
+  statistics.printSummary(options);
 }
 
 /**
@@ -956,89 +586,6 @@ function getParameterDescription(paramName, datatype) {
 }
 
 /**
- * Get list of available provider IDs
- */
-function getAvailableProviders() {
-  const allProviders = TestDataProviderFactory.createAllProviders();
-  return allProviders.map((provider) => provider.getProviderId()).sort();
-}
-
-/**
- * Get list of available endpoint keys
- */
-function getAvailableEndpoints() {
-  return Object.values(ENDPOINT_KEYS).sort();
-}
-
-/**
- * Display available providers and endpoints for filtering
- */
-function displayAvailableOptions() {
-  console.log("\n=== AVAILABLE PROVIDERS ===");
-  const providers = getAvailableProviders();
-  providers.forEach((provider) => console.log(`  ${provider}`));
-
-  console.log("\n=== AVAILABLE ENDPOINTS ===");
-  const endpoints = getAvailableEndpoints();
-  endpoints.forEach((endpoint) => console.log(`  ${endpoint}`));
-
-  console.log("\n=== FILTERING EXAMPLES ===");
-  console.log("Include specific providers:");
-  console.log(
-    "  --providers AdvancedSearchQueriesTestDataProvider,BenchmarkQueriesTestDataProvider"
-  );
-  console.log("\nExclude specific providers:");
-  console.log("  --providers ^BackendLogsTestDataProvider");
-  console.log("\nInclude specific endpoints:");
-  console.log("  --endpoints get-search,get-auto-complete");
-  console.log("\nExclude specific endpoints:");
-  console.log("  --endpoints ^get-facets,^get-translate");
-  console.log("\nCombine filters:");
-  console.log(
-    "  --providers AdvancedSearchQueriesTestDataProvider --endpoints ^get-facets"
-  );
-}
-
-/**
- * Validate provider and endpoint filters
- */
-function validateFilters(providerFilter, endpointFilter) {
-  const errors = [];
-
-  if (providerFilter && providerFilter.length > 0) {
-    const availableProviders = getAvailableProviders();
-    const invalidProviders = providerFilter.filter((p) => {
-      const providerName = p.startsWith("^") ? p.substring(1) : p;
-      return !availableProviders.includes(providerName);
-    });
-
-    if (invalidProviders.length > 0) {
-      errors.push(
-        `Unknown provider(s): ${invalidProviders.join(", ")}\n` +
-          `Available providers: ${availableProviders.join(", ")}`
-      );
-    }
-  }
-
-  if (endpointFilter && endpointFilter.length > 0) {
-    const availableEndpoints = getAvailableEndpoints();
-    const invalidEndpoints = endpointFilter.filter((e) => {
-      const endpointName = e.startsWith("^") ? e.substring(1) : e;
-      return !availableEndpoints.includes(endpointName);
-    });
-
-    if (invalidEndpoints.length > 0) {
-      errors.push(
-        `Unknown endpoint(s): ${invalidEndpoints.join(", ")}\n` +
-          `Available endpoints: ${availableEndpoints.join(", ")}`
-      );
-    }
-  }
-
-  return errors;
-}
-
-/**
  * Get endpoint-specific notes and tips
  */
 function getEndpointNotes(endpointKey, apiDef) {
@@ -1085,161 +632,10 @@ function getEndpointNotes(endpointKey, apiDef) {
 // Main execution with optional configuration
 const testsDir = path.join(__dirname, "configs");
 
-// Parse command line arguments for configuration
-const args = process.argv.slice(2);
-const options = {};
-let showAvailableOptions = false;
+// Parse command line arguments and get configuration options
+const options = parseCommandLineArgs();
 
-// Check for data source arguments
-// Usage examples:
-// node create-tests.js --test-count=5
-// node create-tests.js --no-dedup
-// node create-tests.js --providers AdvancedSearchQueriesTestDataProvider,BenchmarkQueriesTestDataProvider
-// node create-tests.js --endpoints get-search,get-auto-complete
-// node create-tests.js --endpoints ^get-facets,^get-translate
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-
-  if (arg === "--help" || arg === "-h") {
-    console.log("Usage: node create-tests.js [options]");
-    console.log("");
-    console.log("Options:");
-    console.log(
-      "  --test-count=<number>         Maximum number of test cases to generate per provider"
-    );
-    console.log(
-      "  --no-dedup                    Skip deduplication of test cases for faster processing"
-    );
-    console.log(
-      "  --search-related              Generate the get-facet, get-search-estimate, and"
-    );
-    console.log(
-      "                                get-search-will-match tests from get-search requests"
-    );
-    console.log(
-      "  --providers, -p <providers>   Comma-separated list of test data providers to use"
-    );
-    console.log(
-      "                                Use ^ prefix to exclude: ^BackendLogsTestDataProvider"
-    );
-    console.log(
-      "  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to generate"
-    );
-    console.log(
-      "                                Use ^ prefix to exclude: ^get-facets,^get-translate"
-    );
-    console.log(
-      "  --list-options                Show available providers and endpoints for filtering"
-    );
-    console.log("  --help, -h                    Show this help message");
-    console.log("");
-    console.log("Examples:");
-    console.log("  node create-tests.js");
-    console.log("  node create-tests.js --no-dedup");
-    console.log("  node create-tests.js --search-related");
-    console.log("  node create-tests.js --test-count=100");
-    console.log(
-      "  node create-tests.js --providers AdvancedSearchQueriesTestDataProvider"
-    );
-    console.log(
-      "  node create-tests.js --providers ^BackendLogsTestDataProvider"
-    );
-    console.log(
-      "  node create-tests.js --endpoints get-search,get-auto-complete"
-    );
-    console.log(
-      "  node create-tests.js --endpoints ^get-facets,^get-translate"
-    );
-    console.log(
-      "  node create-tests.js --providers AdvancedSearchQueriesTestDataProvider --endpoints get-search"
-    );
-    console.log("  node create-tests.js --list-options");
-    process.exit(0);
-  } else if (arg === "--list-options") {
-    showAvailableOptions = true;
-  } else if (arg === "--providers" || arg === "-p") {
-    // Next argument should be comma-separated list of providers
-    i++;
-    if (i < args.length) {
-      options.providerFilter = args[i].split(",").map((p) => p.trim());
-    } else {
-      console.error(
-        "Error: --providers requires a comma-separated list of provider names"
-      );
-      console.log(
-        "Example: --providers AdvancedSearchQueriesTestDataProvider,BenchmarkQueriesTestDataProvider"
-      );
-      process.exit(1);
-    }
-  } else if (arg === "--endpoints" || arg === "-e") {
-    // Next argument should be comma-separated list of endpoints
-    i++;
-    if (i < args.length) {
-      options.endpointFilter = args[i].split(",").map((e) => e.trim());
-    } else {
-      console.error(
-        "Error: --endpoints requires a comma-separated list of endpoint types"
-      );
-      console.log("Example: --endpoints get-search,get-auto-complete");
-      process.exit(1);
-    }
-  } else if (arg.startsWith("--test-count=")) {
-    const value = arg.split("=")[1];
-    if (!value) {
-      console.error("Error: --test-count requires a value");
-      console.log("Example: --test-count=100");
-      process.exit(1);
-    }
-    const count = parseInt(value);
-    if (isNaN(count) || count <= 0) {
-      console.error("Error: --test-count must be a positive number");
-      console.log("Example: --test-count=100");
-      process.exit(1);
-    }
-    options.testCaseCount = count;
-  } else if (arg === "--no-dedup") {
-    options.skipDeduplication = true;
-  } else if (arg === "--search-related") {
-    options.includeSearchRelated = true;
-  } else if (arg === "--test-count") {
-    console.error("Error: --test-count requires a value");
-    console.log("Example: --test-count=100");
-    process.exit(1);
-  } else if (arg.startsWith("-")) {
-    // Unknown option starting with "-"
-    console.error(`Error: Unknown option '${arg}'`);
-    console.log("Use --help for a list of available options");
-    process.exit(1);
-  } else {
-    // Unknown positional argument
-    console.error(`Error: Unexpected argument '${arg}'`);
-    console.log("Use --help for usage information");
-    process.exit(1);
-  }
-}
-
-// Show available options if requested
-if (showAvailableOptions) {
-  displayAvailableOptions();
-  process.exit(0);
-}
-
-// Validate filters before proceeding
-if (options.providerFilter || options.endpointFilter) {
-  const validationErrors = validateFilters(
-    options.providerFilter,
-    options.endpointFilter
-  );
-  if (validationErrors.length > 0) {
-    console.error("Filter validation errors:");
-    validationErrors.forEach((error) => console.error(`  ${error}`));
-    console.log(
-      "\nUse --list-options to see available providers and endpoints"
-    );
-    process.exit(1);
-  }
-}
-
+// Print configuration summary
 if (options.dataSource) {
   console.log(`Using data source: ${options.dataSource}`);
 }
