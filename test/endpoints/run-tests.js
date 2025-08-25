@@ -1475,8 +1475,8 @@ class ReportGenerator {
           summary.average_duration
         )}ms</p>
         <p><strong>Total Duration:</strong> ${Math.round(
-          summary.total_duration
-        )}ms</p>
+          summary.total_duration / 1000 / 60
+        )} minutes</p>
     </div>`;
   }
 
@@ -2334,7 +2334,7 @@ Timestamp: ${timestampText}`;
     console.log(`Errors: ${summary.errors}`);
     console.log(`Slow: ${summary.slow}`);
     console.log(`Average Duration: ${Math.round(summary.average_duration)}ms`);
-    console.log(`Total Duration: ${Math.round(summary.total_duration)}ms`);
+    console.log(`Total Duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`);
     console.log(`\nReports generated in: ${this.executionDir}`);
     console.log(`- JSON: endpoint-test-report.json`);
     console.log(`- CSV: endpoint-test-report.csv`);
@@ -2443,6 +2443,11 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         reportsDir = arg;
         positionalArgIndex++;
       }
+    } else {
+      // Unknown option starting with "-"
+      console.error(`Error: Unknown option '${arg}'`);
+      console.log("Use --help for a list of available options");
+      process.exit(1);
     }
   }
 
