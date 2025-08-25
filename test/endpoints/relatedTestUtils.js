@@ -236,6 +236,10 @@ const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
     additionalColumns: [COLUMNS.PARAM_NAME],
     
     generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
+      if ('multi' === scope) {
+        return [];
+      }
+
       // Get available facets for this scope
       const availableFacets = FACETS_CONFIGS[scope];
       if (!availableFacets || availableFacets.length === 0) {
@@ -270,6 +274,7 @@ const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
         .forEach(([scope, count]) => {
           console.log(`  ${scope}: ${count}`);
         });
+      console.log(`Writing the ${endpointKey} spreadsheet to disk...`);
     }
   });
 };

@@ -294,6 +294,9 @@ async function createTestsForEndpoint(
   }));
   ws["!cols"] = colWidths;
 
+  // Enable autoFilter for the worksheet
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: columns.length - 1, r: allTestData.length } }) };
+
   // Add worksheet to workbook
   XLSX.utils.book_append_sheet(wb, ws, "Tests");
 
