@@ -1,6 +1,7 @@
 import XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { getEndpointKeyFromPath, isDefined } from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/index.js";
@@ -61,12 +62,15 @@ async function createEndpointTests(testsDir, options = {}) {
   let totalUniqueTests = 0;
   let totalDuplicatesFound = 0;
   let totalTestsBeforeDedup = 0;
+  const overallStartTime = Date.now();
 
   // Generate the search requests first.
   let searchTestConfigs = null;
   if (endpointKeys.includes(getSearchKey)) {
     console.log(`\nProcessing priority endpoint: ${getSearchKey}`);
     const apiDef = apiDefinitions[getSearchKey];
+    
+    const startTime = Date.now();
     const result = await createTestsForEndpoint(
       apiDef,
       getSearchKey,
@@ -74,14 +78,24 @@ async function createEndpointTests(testsDir, options = {}) {
       allProviders,
       options
     );
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
     searchTestConfigs = result;
     
     // Record stats for search endpoint
     if (result && result.stats) {
-      endpointStats[getSearchKey] = result.stats;
+      endpointStats[getSearchKey] = {
+        ...result.stats,
+        duration: duration
+      };
       totalUniqueTests += result.stats.uniqueTests;
       totalDuplicatesFound += result.stats.duplicatesRemoved;
       totalTestsBeforeDedup += result.stats.totalBeforeDedup;
+    }
+
+    if (options.skipDeduplication) {
+      totalDuplicatesFound = "Disabled";
     }
   }
 
@@ -89,6 +103,8 @@ async function createEndpointTests(testsDir, options = {}) {
   for (const endpointKey of endpointKeys) {
     if (endpointKey !== getSearchKey) {
       const apiDef = apiDefinitions[endpointKey];
+      
+      const startTime = Date.now();
       const result = await createTestsForEndpoint(
         apiDef,
         endpointKey,
@@ -97,22 +113,43 @@ async function createEndpointTests(testsDir, options = {}) {
         options,
         searchTestConfigs
       );
+      const endTime = Date.now();
+      const duration = endTime - startTime;
       
       // Record stats for this endpoint
       if (result && result.stats) {
-        endpointStats[endpointKey] = result.stats;
+        endpointStats[endpointKey] = {
+          ...result.stats,
+          duration: duration
+        };
         totalUniqueTests += result.stats.uniqueTests;
         totalDuplicatesFound += result.stats.duplicatesRemoved;
         totalTestsBeforeDedup += result.stats.totalBeforeDedup;
       }
+
+      if (options.skipDeduplication) {
+        totalDuplicatesFound = "Disabled";
+      }
     }
   }
 
+  const overallEndTime = Date.now();
+  const totalDuration = overallEndTime - overallStartTime;
+
+  // Helper function to format duration in a human-readable way
+  const formatDuration = (ms) => {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = ((ms % 60000) / 1000).toFixed(1);
+    return `${minutes}m ${seconds}s`;
+  };
+
   // Print summary
-  console.log("\n" + "=".repeat(80));
+  console.log("\n" + "=".repeat(92));
   console.log("TEST GENERATION SUMMARY");
-  console.log("=".repeat(80));
-  
+  console.log("=".repeat(92));
+
   // Sort endpoints by name for consistent output
   const sortedEndpoints = Object.keys(endpointStats).sort();
   
@@ -144,19 +181,27 @@ async function createEndpointTests(testsDir, options = {}) {
     ...sortedEndpoints.map(key => formatNumber(endpointStats[key].duplicatesRemoved).length)
   ) + 2;
   
+  const durationWidth = Math.max(
+    "Duration".length,
+    formatDuration(totalDuration).length,
+    ...sortedEndpoints.map(key => formatDuration(endpointStats[key].duration).length)
+  ) + 2;
+
   // Print table header
   console.log("\n" + 
     "Endpoint".padEnd(endpointKeyWidth) +
     "Total Before Dedup".padStart(totalBeforeWidth) +
     "Unique Tests".padStart(uniqueTestsWidth) +
-    "Duplicates Removed".padStart(duplicatesWidth)
+    "Duplicates Removed".padStart(duplicatesWidth) +
+    "Duration".padStart(durationWidth)
   );
   
   console.log(
     "-".repeat(endpointKeyWidth) +
     "-".repeat(totalBeforeWidth) +
     "-".repeat(uniqueTestsWidth) +
-    "-".repeat(duplicatesWidth)
+    "-".repeat(duplicatesWidth) +
+    "-".repeat(durationWidth)
   );
   
   // Print each endpoint's data
@@ -166,7 +211,8 @@ async function createEndpointTests(testsDir, options = {}) {
       endpointKey.padEnd(endpointKeyWidth) +
       formatNumber(stats.totalBeforeDedup).padStart(totalBeforeWidth) +
       formatNumber(stats.uniqueTests).padStart(uniqueTestsWidth) +
-      formatNumber(stats.duplicatesRemoved).padStart(duplicatesWidth)
+      formatNumber(stats.duplicatesRemoved).padStart(duplicatesWidth) +
+      formatDuration(stats.duration).padStart(durationWidth)
     );
   }
   
@@ -175,7 +221,8 @@ async function createEndpointTests(testsDir, options = {}) {
     "-".repeat(endpointKeyWidth) +
     "-".repeat(totalBeforeWidth) +
     "-".repeat(uniqueTestsWidth) +
-    "-".repeat(duplicatesWidth)
+    "-".repeat(duplicatesWidth) +
+    "-".repeat(durationWidth)
   );
   
   // Print totals row
@@ -183,7 +230,8 @@ async function createEndpointTests(testsDir, options = {}) {
     "TOTALS".padEnd(endpointKeyWidth) +
     formatNumber(totalTestsBeforeDedup).padStart(totalBeforeWidth) +
     formatNumber(totalUniqueTests).padStart(uniqueTestsWidth) +
-    formatNumber(totalDuplicatesFound).padStart(duplicatesWidth)
+    formatNumber(totalDuplicatesFound).padStart(duplicatesWidth) +
+    formatDuration(totalDuration).padStart(durationWidth)
   );
   
   console.log(`\nEndpoints processed: ${Object.keys(endpointStats).length}`);
@@ -343,13 +391,14 @@ async function createTestsForEndpoint(
     allProviders,
     apiDef,
     endpointKey,
-    columns
+    columns,
+    options
   );
   
   let allTestData = collectionResult.testData;
-  let stats = collectionResult.stats;
+  let totalBeforeDedup = collectionResult.totalCollected;
 
-  // Add search-related test data if available (before final de-duplication)
+  // Add search-related test data if available
   if (isDefined(searchTestConfigs)) {
     const searchRelatedTestData = getSearchRelatedTestConfigs(
       endpointKey,
@@ -359,23 +408,48 @@ async function createTestsForEndpoint(
     );
     
     if (searchRelatedTestData.length > 0) {
-      // Update totals before adding search-related data
-      const totalBeforeSearchData = allTestData.length + searchRelatedTestData.length;
+      console.log(`Adding ${searchRelatedTestData.length} search-related test cases...`);
       allTestData = allTestData.concat(searchRelatedTestData);
-      
-      // Re-apply de-duplication since we added more data
-      console.log(`Re-applying de-duplication after adding search-related data...`);
-      const originalCount = allTestData.length;
-      allTestData = deduplicateTestRows(allTestData, columns);
-      
-      // Update stats to reflect the final counts after adding search-related data
-      stats = {
-        totalBeforeDedup: stats.totalBeforeDedup + searchRelatedTestData.length,
-        uniqueTests: allTestData.length,
-        duplicatesRemoved: (stats.totalBeforeDedup + searchRelatedTestData.length) - allTestData.length
-      };
+      totalBeforeDedup += searchRelatedTestData.length;
     }
   }
+
+  // Now handle deduplication for all data (provider + search-related)
+  let finalTestData;
+  let duplicatesRemoved = 0;
+  
+  if (options.skipDeduplication) {
+    console.log(`Skipping deduplication for ${endpointKey} (--no-dedup specified)`);
+    finalTestData = allTestData;
+    
+    // Initialize duplicate_count column to 1 for all rows if the column exists
+    const duplicateCountIndex = columns.indexOf("duplicate_count");
+    if (duplicateCountIndex !== -1) {
+      finalTestData = allTestData.map(row => {
+        const newRow = [...row];
+        newRow[duplicateCountIndex] = 1;
+        return newRow;
+      });
+    }
+  } else {
+    if (totalBeforeDedup > allTestData.length) {
+      // This shouldn't happen, but just in case
+      totalBeforeDedup = allTestData.length;
+    }
+    
+    console.log(`Deduplicating ${allTestData.length} test cases for ${endpointKey}...`);
+    finalTestData = deduplicateTestRows(allTestData, columns);
+    duplicatesRemoved = totalBeforeDedup - finalTestData.length;
+  }
+
+  // Calculate final statistics
+  const stats = {
+    totalBeforeDedup: totalBeforeDedup,
+    uniqueTests: finalTestData.length,
+    duplicatesRemoved: duplicatesRemoved
+  };
+  
+  allTestData = finalTestData;
 
   console.log(`Adding the ${endpointKey} tests to its spreadsheet...`);
 
@@ -421,6 +495,21 @@ async function createTestsForEndpoint(
 }
 
 /**
+ * Create a hash of parameter values for efficient duplicate detection
+ * @param {Object} parameters - Object containing parameter values
+ * @returns {string} - SHA256 hash of the parameters
+ */
+function createParameterHash(parameters) {
+  // Create a normalized string representation for consistent hashing
+  const sortedEntries = Object.entries(parameters)
+    .sort(([a], [b]) => a.localeCompare(b)) // Sort by key for consistency
+    .map(([key, value]) => `${key}:${value || ''}`); // Handle null/undefined values
+  
+  const normalizedString = sortedEntries.join('|');
+  return crypto.createHash('sha256').update(normalizedString, 'utf8').digest('hex');
+}
+
+/**
  * Extract parameter values from a test row, ignoring non-parameter columns
  * @param {Array} testRow - Array of test values
  * @param {Array<string>} columns - Array of column names
@@ -440,31 +529,6 @@ function extractParameterValues(testRow, columns) {
 }
 
 /**
- * Compare two parameter objects for equality
- * @param {Object} params1 - First parameter object
- * @param {Object} params2 - Second parameter object
- * @returns {boolean} - True if parameters are identical
- */
-function areParametersEqual(params1, params2) {
-  const keys1 = Object.keys(params1);
-  const keys2 = Object.keys(params2);
-  
-  // Check if they have the same number of parameters
-  if (keys1.length !== keys2.length) {
-    return false;
-  }
-  
-  // Check if all parameter values match
-  for (const key of keys1) {
-    if (params1[key] !== params2[key]) {
-      return false;
-    }
-  }
-  
-  return true;
-}
-
-/**
  * De-duplicate test rows based on parameter values, keeping the first occurrence
  * and adding duplicate count to a new column
  * @param {Array<Array>} testRows - Array of test data rows
@@ -478,15 +542,15 @@ function deduplicateTestRows(testRows, columns) {
 
   const duplicateCountIndex = columns.indexOf("duplicate_count");
   const uniqueRows = [];
-  const seenParameters = new Map(); // Map from parameter signature to row index in uniqueRows
+  const seenParameterHashes = new Map(); // Map from parameter hash to row index in uniqueRows
 
   for (const testRow of testRows) {
     const parameters = extractParameterValues(testRow, columns);
-    const paramSignature = JSON.stringify(parameters);
+    const paramHash = createParameterHash(parameters);
     
-    if (seenParameters.has(paramSignature)) {
+    if (seenParameterHashes.has(paramHash)) {
       // This is a duplicate - increment the count in the existing row
-      const existingRowIndex = seenParameters.get(paramSignature);
+      const existingRowIndex = seenParameterHashes.get(paramHash);
       if (duplicateCountIndex !== -1) {
         const currentCount = uniqueRows[existingRowIndex][duplicateCountIndex] || 1;
         uniqueRows[existingRowIndex][duplicateCountIndex] = currentCount + 1;
@@ -498,7 +562,7 @@ function deduplicateTestRows(testRows, columns) {
         newRow[duplicateCountIndex] = 1; // Initialize duplicate count to 1
       }
       uniqueRows.push(newRow);
-      seenParameters.set(paramSignature, uniqueRows.length - 1);
+      seenParameterHashes.set(paramHash, uniqueRows.length - 1);
     }
   }
 
@@ -517,7 +581,8 @@ async function collectTestDataFromAllProviders(
   allProviders,
   apiDef,
   endpointKey,
-  columns
+  columns,
+  options = {}
 ) {
   const allTestData = [];
 
@@ -570,20 +635,8 @@ async function collectTestDataFromAllProviders(
 
   console.log(`Total test cases collected: ${allTestData.length}`);
   
-  // Store original count before deduplication
-  const totalBeforeDedup = allTestData.length;
-  
-  // De-duplicate test cases based on parameter values
-  const deduplicatedData = deduplicateTestRows(allTestData, columns);
-  
-  // Calculate statistics
-  const stats = {
-    totalBeforeDedup: totalBeforeDedup,
-    uniqueTests: deduplicatedData.length,
-    duplicatesRemoved: totalBeforeDedup - deduplicatedData.length
-  };
-  
-  return { testData: deduplicatedData, stats };
+  // Return raw data without deduplication - let the caller handle deduplication
+  return { testData: allTestData, totalCollected: allTestData.length };
 }
 
 /**
@@ -721,6 +774,7 @@ const options = {};
 // Usage examples:
 // node create-tests.js --data-source=./test-data.csv
 // node create-tests.js --test-count=5 --include-errors=false
+// node create-tests.js --no-dedup
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
   if (arg.startsWith("--data-source=")) {
@@ -729,11 +783,17 @@ for (let i = 0; i < args.length; i++) {
     options.testCaseCount = parseInt(arg.split("=")[1]);
   } else if (arg.startsWith("--include-errors=")) {
     options.includeErrorCases = arg.split("=")[1].toLowerCase() === "true";
+  } else if (arg === "--no-dedup") {
+    options.skipDeduplication = true;
   }
 }
 
-if (options.dataSource) {
-  console.log(`Using data source: ${options.dataSource}`);
-}
+  if (options.dataSource) {
+    console.log(`Using data source: ${options.dataSource}`);
+  }
+  
+  if (options.skipDeduplication) {
+    console.log("Deduplication disabled (--no-dedup specified)");
+  }
 
 await createEndpointTests(testsDir, options);
