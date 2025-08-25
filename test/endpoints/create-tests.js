@@ -56,25 +56,40 @@ async function createEndpointTests(testsDir, options = {}) {
   const endpointKeys = Object.keys(apiDefinitions);
   const getSearchKey = ENDPOINT_KEYS.GET_SEARCH;
 
+  // Track statistics for summary
+  const endpointStats = {};
+  let totalUniqueTests = 0;
+  let totalDuplicatesFound = 0;
+  let totalTestsBeforeDedup = 0;
+
   // Generate the search requests first.
   let searchTestConfigs = null;
   if (endpointKeys.includes(getSearchKey)) {
     console.log(`\nProcessing priority endpoint: ${getSearchKey}`);
     const apiDef = apiDefinitions[getSearchKey];
-    searchTestConfigs = await createTestsForEndpoint(
+    const result = await createTestsForEndpoint(
       apiDef,
       getSearchKey,
       testsDir,
       allProviders,
       options
     );
+    searchTestConfigs = result;
+    
+    // Record stats for search endpoint
+    if (result && result.stats) {
+      endpointStats[getSearchKey] = result.stats;
+      totalUniqueTests += result.stats.uniqueTests;
+      totalDuplicatesFound += result.stats.duplicatesRemoved;
+      totalTestsBeforeDedup += result.stats.totalBeforeDedup;
+    }
   }
 
   // Process remaining endpoints
   for (const endpointKey of endpointKeys) {
     if (endpointKey !== getSearchKey) {
       const apiDef = apiDefinitions[endpointKey];
-      await createTestsForEndpoint(
+      const result = await createTestsForEndpoint(
         apiDef,
         endpointKey,
         testsDir,
@@ -82,15 +97,97 @@ async function createEndpointTests(testsDir, options = {}) {
         options,
         searchTestConfigs
       );
+      
+      // Record stats for this endpoint
+      if (result && result.stats) {
+        endpointStats[endpointKey] = result.stats;
+        totalUniqueTests += result.stats.uniqueTests;
+        totalDuplicatesFound += result.stats.duplicatesRemoved;
+        totalTestsBeforeDedup += result.stats.totalBeforeDedup;
+      }
     }
   }
 
+  // Print summary
+  console.log("\n" + "=".repeat(80));
+  console.log("TEST GENERATION SUMMARY");
+  console.log("=".repeat(80));
+  
+  // Sort endpoints by name for consistent output
+  const sortedEndpoints = Object.keys(endpointStats).sort();
+  
+  // Helper function to format numbers with commas
+  const formatNumber = (num) => num.toLocaleString();
+  
+  // Calculate column widths based on the data
+  const endpointKeyWidth = Math.max(
+    "Endpoint".length,
+    ...sortedEndpoints.map(key => key.length),
+    "TOTALS".length
+  ) + 2;
+  
+  const totalBeforeWidth = Math.max(
+    "Total Before Dedup".length,
+    formatNumber(totalTestsBeforeDedup).length,
+    ...sortedEndpoints.map(key => formatNumber(endpointStats[key].totalBeforeDedup).length)
+  ) + 2;
+  
+  const uniqueTestsWidth = Math.max(
+    "Unique Tests".length,
+    formatNumber(totalUniqueTests).length,
+    ...sortedEndpoints.map(key => formatNumber(endpointStats[key].uniqueTests).length)
+  ) + 2;
+  
+  const duplicatesWidth = Math.max(
+    "Duplicates Removed".length,
+    formatNumber(totalDuplicatesFound).length,
+    ...sortedEndpoints.map(key => formatNumber(endpointStats[key].duplicatesRemoved).length)
+  ) + 2;
+  
+  // Print table header
+  console.log("\n" + 
+    "Endpoint".padEnd(endpointKeyWidth) +
+    "Total Before Dedup".padStart(totalBeforeWidth) +
+    "Unique Tests".padStart(uniqueTestsWidth) +
+    "Duplicates Removed".padStart(duplicatesWidth)
+  );
+  
+  console.log(
+    "-".repeat(endpointKeyWidth) +
+    "-".repeat(totalBeforeWidth) +
+    "-".repeat(uniqueTestsWidth) +
+    "-".repeat(duplicatesWidth)
+  );
+  
+  // Print each endpoint's data
+  for (const endpointKey of sortedEndpoints) {
+    const stats = endpointStats[endpointKey];
+    console.log(
+      endpointKey.padEnd(endpointKeyWidth) +
+      formatNumber(stats.totalBeforeDedup).padStart(totalBeforeWidth) +
+      formatNumber(stats.uniqueTests).padStart(uniqueTestsWidth) +
+      formatNumber(stats.duplicatesRemoved).padStart(duplicatesWidth)
+    );
+  }
+  
+  // Print separator line before totals
+  console.log(
+    "-".repeat(endpointKeyWidth) +
+    "-".repeat(totalBeforeWidth) +
+    "-".repeat(uniqueTestsWidth) +
+    "-".repeat(duplicatesWidth)
+  );
+  
+  // Print totals row
+  console.log(
+    "TOTALS".padEnd(endpointKeyWidth) +
+    formatNumber(totalTestsBeforeDedup).padStart(totalBeforeWidth) +
+    formatNumber(totalUniqueTests).padStart(uniqueTestsWidth) +
+    formatNumber(totalDuplicatesFound).padStart(duplicatesWidth)
+  );
+  
+  console.log(`\nEndpoints processed: ${Object.keys(endpointStats).length}`);
   console.log("\nTest file generation complete!");
-  console.log("Next steps:");
-  console.log("1. Review generated test cases in the Excel files");
-  console.log("2. Add additional test configurations as needed");
-  console.log("3. Yellow highlighted columns contain required parameters");
-  console.log("4. Run tests with: npm test");
 }
 
 /**
@@ -222,9 +319,10 @@ async function createTestsForEndpoint(
     "max_response_time",
     "delay_after_ms",
     "tags",
+    "duplicate_count",
   ];
 
-  // Add required parameters first (will be highlighted)
+  // Add required parameters first
   const requiredParamColumns = apiDef.requiredParams.map(
     (param) => `param:${param.name}`
   );
@@ -241,13 +339,17 @@ async function createTestsForEndpoint(
   ];
 
   // Collect test data from ALL providers for this endpoint
-  let allTestData = await collectTestDataFromAllProviders(
+  const collectionResult = await collectTestDataFromAllProviders(
     allProviders,
     apiDef,
     endpointKey,
     columns
   );
+  
+  let allTestData = collectionResult.testData;
+  let stats = collectionResult.stats;
 
+  // Add search-related test data if available (before final de-duplication)
   if (isDefined(searchTestConfigs)) {
     const searchRelatedTestData = getSearchRelatedTestConfigs(
       endpointKey,
@@ -255,32 +357,31 @@ async function createTestsForEndpoint(
       searchTestConfigs.testRows,
       searchTestConfigs.columns
     );
-    allTestData = allTestData.concat(searchRelatedTestData);
+    
+    if (searchRelatedTestData.length > 0) {
+      // Update totals before adding search-related data
+      const totalBeforeSearchData = allTestData.length + searchRelatedTestData.length;
+      allTestData = allTestData.concat(searchRelatedTestData);
+      
+      // Re-apply de-duplication since we added more data
+      console.log(`Re-applying de-duplication after adding search-related data...`);
+      const originalCount = allTestData.length;
+      allTestData = deduplicateTestRows(allTestData, columns);
+      
+      // Update stats to reflect the final counts after adding search-related data
+      stats = {
+        totalBeforeDedup: stats.totalBeforeDedup + searchRelatedTestData.length,
+        uniqueTests: allTestData.length,
+        duplicatesRemoved: (stats.totalBeforeDedup + searchRelatedTestData.length) - allTestData.length
+      };
+    }
   }
+
+  console.log(`Adding the ${endpointKey} tests to its spreadsheet...`);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([columns, ...allTestData]);
-
-  // Apply styling to required parameter columns (light yellow background)
-  if (requiredParamColumns.length > 0) {
-    requiredParamColumns.forEach((requiredParam) => {
-      const colIndex = columns.indexOf(requiredParam);
-      if (colIndex !== -1) {
-        // Convert column index to Excel column letter
-        const colLetter = XLSX.utils.encode_col(colIndex);
-
-        // Apply yellow background to header cell
-        const headerCell = ws[colLetter + "1"];
-        if (headerCell) {
-          if (!headerCell.s) headerCell.s = {};
-          headerCell.s.fill = {
-            fgColor: { rgb: "FFFF99" }, // Light yellow
-          };
-        }
-      }
-    });
-  }
 
   // Set column widths for better readability
   const colWidths = columns.map((col) => ({
@@ -290,6 +391,8 @@ async function createTestsForEndpoint(
       ? 30
       : col === "test_name"
       ? 25
+      : col === "duplicate_count"
+      ? 15
       : 15,
   }));
   ws["!cols"] = colWidths;
@@ -313,8 +416,98 @@ async function createTestsForEndpoint(
   XLSX.writeFile(wb, filePath);
   console.log(`✓ Created ${filePath} with ${allTestData.length} test cases`);
 
-  // Return the columns and rows as they may be used to create related test configs.
-  return { columns, testRows: allTestData };
+  // Return the columns and rows as they may be used to create related test configs, plus stats.
+  return { columns, testRows: allTestData, stats };
+}
+
+/**
+ * Extract parameter values from a test row, ignoring non-parameter columns
+ * @param {Array} testRow - Array of test values
+ * @param {Array<string>} columns - Array of column names
+ * @returns {Object} - Object containing only parameter values
+ */
+function extractParameterValues(testRow, columns) {
+  const paramValues = {};
+  
+  columns.forEach((columnName, index) => {
+    if (columnName.startsWith("param:")) {
+      const paramName = columnName.replace("param:", "");
+      paramValues[paramName] = testRow[index] || "";
+    }
+  });
+  
+  return paramValues;
+}
+
+/**
+ * Compare two parameter objects for equality
+ * @param {Object} params1 - First parameter object
+ * @param {Object} params2 - Second parameter object
+ * @returns {boolean} - True if parameters are identical
+ */
+function areParametersEqual(params1, params2) {
+  const keys1 = Object.keys(params1);
+  const keys2 = Object.keys(params2);
+  
+  // Check if they have the same number of parameters
+  if (keys1.length !== keys2.length) {
+    return false;
+  }
+  
+  // Check if all parameter values match
+  for (const key of keys1) {
+    if (params1[key] !== params2[key]) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * De-duplicate test rows based on parameter values, keeping the first occurrence
+ * and adding duplicate count to a new column
+ * @param {Array<Array>} testRows - Array of test data rows
+ * @param {Array<string>} columns - Array of column names
+ * @returns {Array<Array>} - De-duplicated test rows with duplicate counts
+ */
+function deduplicateTestRows(testRows, columns) {
+  if (testRows.length === 0) {
+    return testRows;
+  }
+
+  const duplicateCountIndex = columns.indexOf("duplicate_count");
+  const uniqueRows = [];
+  const seenParameters = new Map(); // Map from parameter signature to row index in uniqueRows
+
+  for (const testRow of testRows) {
+    const parameters = extractParameterValues(testRow, columns);
+    const paramSignature = JSON.stringify(parameters);
+    
+    if (seenParameters.has(paramSignature)) {
+      // This is a duplicate - increment the count in the existing row
+      const existingRowIndex = seenParameters.get(paramSignature);
+      if (duplicateCountIndex !== -1) {
+        const currentCount = uniqueRows[existingRowIndex][duplicateCountIndex] || 1;
+        uniqueRows[existingRowIndex][duplicateCountIndex] = currentCount + 1;
+      }
+    } else {
+      // This is the first occurrence of this parameter combination
+      const newRow = [...testRow];
+      if (duplicateCountIndex !== -1) {
+        newRow[duplicateCountIndex] = 1; // Initialize duplicate count to 1
+      }
+      uniqueRows.push(newRow);
+      seenParameters.set(paramSignature, uniqueRows.length - 1);
+    }
+  }
+
+  const duplicateCount = testRows.length - uniqueRows.length;
+  if (duplicateCount > 0) {
+    console.log(`    ✓ Removed ${duplicateCount} duplicate test cases (${testRows.length} → ${uniqueRows.length})`);
+  }
+
+  return uniqueRows;
 }
 
 /**
@@ -376,7 +569,21 @@ async function collectTestDataFromAllProviders(
   }
 
   console.log(`Total test cases collected: ${allTestData.length}`);
-  return allTestData;
+  
+  // Store original count before deduplication
+  const totalBeforeDedup = allTestData.length;
+  
+  // De-duplicate test cases based on parameter values
+  const deduplicatedData = deduplicateTestRows(allTestData, columns);
+  
+  // Calculate statistics
+  const stats = {
+    totalBeforeDedup: totalBeforeDedup,
+    uniqueTests: deduplicatedData.length,
+    duplicatesRemoved: totalBeforeDedup - deduplicatedData.length
+  };
+  
+  return { testData: deduplicatedData, stats };
 }
 
 /**
@@ -405,6 +612,7 @@ function createDocumentationSheetForAPI(
     ["max_response_time", "Maximum acceptable response time in ms"],
     ["delay_after_ms", "Delay after test completion in ms"],
     ["tags", "Comma-separated tags for filtering tests"],
+    ["duplicate_count", "Number of duplicate test cases found with identical parameter values (including this one)"],
     [""],
   ];
 
@@ -419,7 +627,7 @@ function createDocumentationSheetForAPI(
       docData.push([
         paramCol,
         `${description} (${param.datatype})${
-          isRequired ? " (REQUIRED - highlighted in yellow)" : " (optional)"
+          isRequired ? " (REQUIRED)" : " (optional)"
         }`,
       ]);
     });
