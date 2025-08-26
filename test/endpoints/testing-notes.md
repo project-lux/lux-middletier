@@ -9,6 +9,8 @@
     - [Run the Small Test](#run-the-small-test)
     - [Reports and Response Bodies](#reports-and-response-bodies)
     - [Recap](#recap)
+  - [Run the Full Test](#run-the-full-test)
+    - [Create All Test Configurations](#create-all-test-configurations)
 
 
 # Middle Tier Endpoint Testing Notes
@@ -329,4 +331,66 @@ total 804
 
 ### Recap
 
-At this point, we proved out everything we need to have confidence to run a larger test.  True, we didn't test all the endpoints that will be part of a full test, but the mechanics of making the rest
+At this point, we proved out everything we need to have confidence to run a larger test.  True, we didn't test all the endpoints that will be part of a full test, but the mechanics of making and processing the requests has.
+
+## Run the Full Test
+
+### Create All Test Configurations
+
+Alright, we can use the same endpoint specification, but we do need to create all of the test configurations.
+
+We want:
+
+1. To derive get-facets, get-search-estimate, and get-search-will-match requests from get-search requests.
+2. De-duplicate the request.
+3. Not restrict by provider or endpoint.
+
+To that end, all of the defaults are perfect and we can go parameter-less (We're so wild!):
+
+`node create-tests.js`
+
+This one will take a little longer to complete.  Here's the output for including part of a days' worth of production logs (20 Aug 25, 00:00 - 14:30 server time):
+
+```bash
+============================================================================================
+TEST GENERATION SUMMARY
+============================================================================================
+
+Endpoint                      Total Before Dedup  Unique Tests  Duplicates Removed  Duration
+--------------------------------------------------------------------------------------------
+delete-data                                    0             0                   0       1ms
+get-advanced-search-config                     0             0                   0       3ms
+get-auto-complete                              0             0                   0       1ms
+get-data                                  75,183        75,183                   0      3.3s
+get-facets                               270,814       270,619                 195     22.5s
+get-health                                     0             0                   0       1ms
+get-info                                       0             0                   0       1ms
+get-related-list                          37,993        37,993                   0      2.5s
+get-resolve                                    0             0                   0       1ms
+get-search                                17,751        17,708                  43      1.7s
+get-search-estimate                       17,708        17,693                  15     995ms
+get-search-info                                0             0                   0       4ms
+get-search-will-match                     17,708        17,693                  15     870ms
+get-stats                                      0             0                   0       2ms
+get-tenant-status                              0             0                   0       2ms
+get-translate                                  0             0                   0       1ms
+get-version-info                               0             0                   0       1ms
+post-data                                      0             0                   0       2ms
+put-data                                       0             0                   0       1ms
+--------------------------------------------------------------------------------------------
+TOTALS                                   437,157       436,889                 268     31.9s
+```
+
+And the updated configs dir:
+
+```bash
+$ ll ./configs
+total 454484
+-rw-r--r-- 1 ec2-user ec2-user 4096  54137117 Aug 26 15:16 get-data-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096 323485854 Aug 26 15:16 get-facets-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  32695542 Aug 26 15:16 get-related-list-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  17124723 Aug 26 15:16 get-search-estimate-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  20781438 Aug 26 15:15 get-search-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  17153122 Aug 26 15:16 get-search-will-match-tests.xlsx
+```
+
