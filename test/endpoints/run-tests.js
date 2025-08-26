@@ -771,7 +771,8 @@ class EndpointTester {
     );
     this.reportGenerator = new ReportGenerator(
       this.executionDir,
-      this.responseSaver.enabled
+      this.options.saveResponseBodies,
+      this.options.embedResponseBodies
     );
   }
 
@@ -981,7 +982,7 @@ class EndpointTester {
     providerData.results.push(...results);
 
     // Update summary for this provider
-    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies);
     providerData.summary = reportGenerator.createSummary(
       providerData.results,
       [providerId],
@@ -1138,7 +1139,8 @@ class EndpointTester {
       // Create endpoint-specific report generator
       const endpointReportGenerator = new ReportGenerator(
         endpointDir,
-        this.responseSaver.enabled
+        this.responseSaver.enabled,
+        this.options.embedResponseBodies
       );
 
       // Generate reports for this endpoint using results from all providers
@@ -1196,7 +1198,7 @@ class EndpointTester {
       const jsonReportPath = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.json");
       
       // Create summary for this endpoint
-      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies);
       const summary = reportGenerator.createSummary(
         endpointData.results,
         endpointData.providers,
@@ -1445,6 +1447,22 @@ class EndpointTester {
       result.response_body_file = responseBodyFile;
     }
 
+    // Store response data for embedding if enabled (but not saving to disk)
+    if (this.options.embedResponseBodies && !this.options.saveResponseBodies) {
+      const responseData = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+        config: {
+          url: response.config?.url,
+          method: response.config?.method,
+          headers: response.config?.headers,
+        },
+      };
+      result.response_data = responseData;
+    }
+
     // Add failure reason if needed
     if (!statusMatches) {
       result.error_message = `Expected status ${testConfig.expected_status} but got ${response.status}`;
@@ -1502,6 +1520,22 @@ class EndpointTester {
 
     if (responseBodyFile) {
       result.response_body_file = responseBodyFile;
+    }
+
+    // Store response data for embedding if enabled (but not saving to disk)
+    if (this.options.embedResponseBodies && !this.options.saveResponseBodies && error.response) {
+      const responseData = {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers,
+        data: error.response.data,
+        config: {
+          url: error.response.config?.url,
+          method: error.response.config?.method,
+          headers: error.response.config?.headers,
+        },
+      };
+      result.response_data = responseData;
     }
 
     return result;
@@ -1591,9 +1625,10 @@ class EndpointTester {
  * Handles report generation (JSON, HTML)
  */
 class ReportGenerator {
-  constructor(executionDir, saveResponseBodies = false) {
+  constructor(executionDir, saveResponseBodies = false, embedResponseBodies = false) {
     this.executionDir = executionDir;
     this.saveResponseBodies = saveResponseBodies;
+    this.embedResponseBodies = embedResponseBodies;
   }
 
   /**
@@ -2106,7 +2141,8 @@ class ReportGenerator {
                               result.url
                             )}</td>
                             <td>${this.formatResponseBodyFileForHtml(
-                              result.response_body_file
+                              result.response_body_file,
+                              result.response_data
                             )}</td>
                         </tr>
                       `
@@ -2201,40 +2237,89 @@ Timestamp: ${timestampText}`;
   /**
    * Format response body file for HTML
    */
-  formatResponseBodyFileForHtml(responseBodyFile) {
-    if (!responseBodyFile || responseBodyFile === "N/A") {
+  formatResponseBodyFileForHtml(responseBodyFile, responseData = null) {
+    // Handle four scenarios based on saveResponseBodies and embedResponseBodies flags
+    
+    // Scenario 4: Neither option is specified
+    if (!this.saveResponseBodies && !this.embedResponseBodies) {
+      return "N/A";
+    }
+    
+    // If no response body file/data is available
+    if (!responseBodyFile && !responseData) {
       return "N/A";
     }
 
     try {
-      const absolutePath = path.resolve(responseBodyFile);
-      const pathParts = absolutePath.split(path.sep);
-      const lastDirAndFile = pathParts.slice(-2).join(path.sep);
-      const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
+      // Scenario 1: Both --embed-responses and --save-response-bodies
+      if (this.embedResponseBodies && this.saveResponseBodies) {
+        // Write to disk and embed in HTML (current behavior when saveResponseBodies is true)
+        if (!responseBodyFile || responseBodyFile === "N/A") {
+          return "N/A";
+        }
+        
+        const absolutePath = path.resolve(responseBodyFile);
+        const pathParts = absolutePath.split(path.sep);
+        const lastDirAndFile = pathParts.slice(-2).join(path.sep);
+        const encodedLinkLabel = encodeURIComponent(lastDirAndFile);
 
-      let fileContent = null;
-      try {
-        fileContent = fs.readFileSync(absolutePath, "utf8");
-      } catch (readError) {
-        console.warn(
-          `Could not read response file ${absolutePath}: ${readError.message}`
-        );
-      }
+        let fileContent = null;
+        try {
+          fileContent = fs.readFileSync(absolutePath, "utf8");
+        } catch (readError) {
+          console.warn(
+            `Could not read response file ${absolutePath}: ${readError.message}`
+          );
+        }
 
-      if (fileContent) {
-        const encodedContent = encodeURIComponent(fileContent).replace(
-          /'/g,
-          "%27"
-        );
-        const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
-      } else {
-        const encodedPath = encodeURIComponent(absolutePath);
-        return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
+        if (fileContent) {
+          const encodedContent = encodeURIComponent(fileContent).replace(
+            /'/g,
+            "%27"
+          );
+          const encodedPath = encodeURIComponent(absolutePath);
+          return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
+        } else {
+          const encodedPath = encodeURIComponent(absolutePath);
+          return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
+        }
       }
+      
+      // Scenario 2: Only --embed-responses (no disk saving)
+      else if (this.embedResponseBodies && !this.saveResponseBodies) {
+        // Don't write to disk but embed in HTML
+        if (responseData) {
+          const responseContent = typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2);
+          const encodedContent = encodeURIComponent(responseContent).replace(
+            /'/g,
+            "%27"
+          );
+          return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '', 'Response')" title="Click to view response body">📄 Response</span>`;
+        }
+        return "N/A";
+      }
+      
+      // Scenario 3: Only --save-response-bodies (no embedding)
+      else if (this.saveResponseBodies && !this.embedResponseBodies) {
+        // Write to disk but only show relative path in HTML
+        if (!responseBodyFile || responseBodyFile === "N/A") {
+          return "N/A";
+        }
+        
+        const absolutePath = path.resolve(responseBodyFile);
+        const fileUrl = new URL(`file:///${absolutePath.replace(/\\/g, '/').replace(/^\//, '')}`).href;
+
+        const pathParts = absolutePath.split(path.sep);
+        const lastDirAndFile = pathParts.slice(-2).join(':<br>');
+
+        return `<a href="${fileUrl}" target="_blank" class="url-link" title="Click to open the response body file">${lastDirAndFile}</a>`;
+      }
+      
     } catch (error) {
-      return responseBodyFile;
+      return responseBodyFile || "N/A";
     }
+    
+    return "N/A";
   }
 
   /**
@@ -3224,6 +3309,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let configDir = "./configs";
   let reportsDir = "./reports";
   let saveResponseBodies = false;
+  let embedResponseBodies = false;
   let providers = null; // null means use all available providers
   let endpoints = null; // null means test all endpoints
   let dryRun = false; // dry-run mode - don't execute tests, just show what would be run
@@ -3234,6 +3320,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     const arg = args[i];
     if (arg === "--save-responses" || arg === "-r") {
       saveResponseBodies = true;
+    } else if (arg === "--embed-responses" || arg === "-b") {
+      embedResponseBodies = true;
     } else if (arg === "--dry-run" || arg === "-d") {
       dryRun = true;
     } else if (arg === "--providers" || arg === "-p") {
@@ -3276,6 +3364,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         "  --save-responses, -r          Save response bodies to disk"
       );
       console.log(
+        "  --embed-responses, -b         Embed response bodies in HTML report"
+      );
+      console.log(
         "  --dry-run, -d                 Helpful to see resolved configuration and available filtering options"
       );
       console.log(
@@ -3308,6 +3399,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("  node run-tests.js");
       console.log("  node run-tests.js ./configs ./reports");
       console.log("  node run-tests.js --save-responses");
+      console.log("  node run-tests.js --embed-responses");
+      console.log("  node run-tests.js --save-responses --embed-responses");
       console.log("  node run-tests.js --dry-run");
       console.log(
         "  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
@@ -3347,6 +3440,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (saveResponseBodies) {
     console.log("Response bodies will be saved to disk");
   }
+  if (embedResponseBodies) {
+    console.log("Response bodies will be embedded in HTML report");
+  }
   if (dryRun) {
     console.log("");
     console.log(
@@ -3357,6 +3453,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   const options = {
     saveResponseBodies,
+    embedResponseBodies,
     providers,
     endpoints,
     dryRun,
