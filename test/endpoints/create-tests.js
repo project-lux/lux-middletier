@@ -448,6 +448,27 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
   return getResolvedOption(primary, secondary);
 }
 
+/**
+ * Filter search test config rows to only include those from a specific provider
+ * @param {Array<Array>} searchTestRows - Array of search test data rows
+ * @param {Array<string>} searchColumns - Array of column names for search tests
+ * @param {string} providerId - ID of the provider to filter by
+ * @returns {Array<Array>} - Filtered array containing only rows from the specified provider
+ */
+function filterSearchTestConfigsByProvider(searchTestRows, searchColumns, providerId) {
+  if (!searchTestRows || !searchColumns || !providerId) {
+    return [];
+  }
+
+  const providerIdIndex = searchColumns.indexOf("provider_id");
+  if (providerIdIndex === -1) {
+    console.warn("Warning: provider_id column not found in search test configs");
+    return [];
+  }
+
+  return searchTestRows.filter(row => row[providerIdIndex] === providerId);
+}
+
 // Add provider ID to each test row
 function enrichTestDataWithProviderInfo(providerId, testData, columns) {
   if (testData && testData.length > 0) {
@@ -522,23 +543,36 @@ async function collectTestDataFromAllProviders(
         searchTestConfigs.testRows &&
         searchTestConfigs.testRows.length > 0
       ) {
-        derivedTestData = getDerivedTestConfigs(
-          endpointKey,
-          columns,
+        // Filter search test configs to only include rows from the current provider
+        const providerSearchTestRows = filterSearchTestConfigsByProvider(
           searchTestConfigs.testRows,
-          searchTestConfigs.columns
+          searchTestConfigs.columns,
+          provider.getProviderId()
         );
-        console.log(
-          `    ✓ Adding ${
-            derivedTestData.length
-          } derived test cases for ${provider.getProviderId()}...`
-        );
-        derivedTestData = enrichTestDataWithProviderInfo(
-          provider.getProviderId(),
-          derivedTestData,
-          columns
-        );
-        allTestData = allTestData.concat(derivedTestData);
+        
+        if (providerSearchTestRows.length > 0) {
+          derivedTestData = getDerivedTestConfigs(
+            endpointKey,
+            columns,
+            providerSearchTestRows,
+            searchTestConfigs.columns
+          );
+          console.log(
+            `    ✓ Adding ${
+              derivedTestData.length
+            } derived test cases for ${provider.getProviderId()}...`
+          );
+          derivedTestData = enrichTestDataWithProviderInfo(
+            provider.getProviderId(),
+            derivedTestData,
+            columns
+          );
+          allTestData = allTestData.concat(derivedTestData);
+        } else {
+          console.log(
+            `    - No search test configs from ${provider.getProviderId()} available for deriving tests`
+          );
+        }
       } else {
         console.log(
           `    - No search test configs available for deriving tests for ${provider.getProviderId()}`
