@@ -1,3 +1,17 @@
+# WARNING
+# WARNING
+# WARNING
+
+⬇️ ⬇️ ⬇️ ⬇️ ⬇️
+
+What you are reading is not in sync with the current implementation.  Lots of good stuff in here, but it needs a refresher.  Now that we have the input data we want to use to define tests, we can jump straight to the freshly minted [testing-notes.md](./testing-notes.md).
+
+⬆️ ⬆️ ⬆️ ⬆️ ⬆️
+
+# WARNING
+# WARNING
+# WARNING
+
 # LUX Endpoint Testing Framework
 
 A comprehensive automated endpoint testing framework for the LUX MarkLogic backend API. This tool automatically discovers endpoints, generates detailed specifications, and creates ready-to-run Excel test files populated with comprehensive test data from multiple sources. Tests can be executed sequentially or in parallel, generating detailed reports with response times and status codes.
