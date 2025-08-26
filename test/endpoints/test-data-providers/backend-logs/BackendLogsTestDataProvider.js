@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { TestDataProvider } from "../interface.js";
+import { ENDPOINT_KEYS } from "../../constants.js";
 
 /**
  * Backend Logs Test Data Provider
@@ -120,7 +121,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   async extractTestData(apiDef, endpointKey, columns) {
     try {
       // Check which endpoint this is for and decide if we should process
-      if (!this.shouldProcessEndpoint(endpointKey)) {
+      const deriveRelatedTests = this.options.deriveRelatedTests === true;
+      if (!this.shouldProcessEndpoint(endpointKey, deriveRelatedTests)) {
         return [];
       }
 
@@ -152,7 +154,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         console.log(`    - Analyzing log file: ${path.basename(logFilePath)}`);
 
         const logData = await this.parseLogFile(logFilePath);
-        const endpointTestCases = this.extractTestCasesForEndpoint(
+        const endpointTestCases = this.extractTestCasesFromOneLogFile(
           logData,
           endpointKey,
           relativePath
@@ -194,14 +196,21 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @param {string} endpointKey - The endpoint key to check
    * @returns {boolean} - Whether to process this endpoint
    */
-  shouldProcessEndpoint(endpointKey) {
-    const supportedEndpoints = [
-      "get-search",
-      "get-related-list",
-      "get-data",
-      // Note: get-facets, get-search-estimate, and get-search-will-match are handled by getSearchRelatedTestConfigs
-    ];
-    return supportedEndpoints.includes(endpointKey);
+  shouldProcessEndpoint(endpointKey, deriveRelatedTests) {
+    return [
+      ENDPOINT_KEYS.GET_DATA,
+      ENDPOINT_KEYS.GET_RELATED_LIST,
+      ENDPOINT_KEYS.GET_SEARCH,
+    ].concat(
+      // When related tests are not derived, include these.
+      !deriveRelatedTests
+        ? [
+            ENDPOINT_KEYS.GET_FACETS,
+            ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
+            ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
+          ]
+        : []
+    ).includes(endpointKey);
   }
 
   /**
@@ -224,12 +233,11 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const parsedData = {
       successfulSearchRequests: [],
       failedSearchRequests: [],
-      // facetRequests: [],
+      facetRequests: [],
       relatedListRequests: [],
       documentRequests: [],
-      // searchEstimates: [],
-      // searchWillMatch: [],
-      // requestsCompleted: []
+      searchEstimates: [],
+      searchWillMatch: [],
     };
 
     for (let i = 0; i < lines.length; i++) {
@@ -237,59 +245,49 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       if (!line) continue;
 
       try {
+        // We only care about trace events.
+        if (!line.includes("[Event:id")) continue;
+
         // Parse different types of log entries
-        if (line.includes("[Event:id=LuxSearch]")) {
-          // if (line.includes('requestCompleted')) {
-          //   // Parse completed search requests with parameters
-          //   const completed = this.parseRequestCompleted(line, lines, i);
-          //   if (completed) {
-          //     parsedData.requestsCompleted.push(completed);
-          //   }
-          // } else if (line.includes('requestContext:')) {
-          //   // Parse search request context entries - these contain the actual search requests
-          //   const requestContext = this.parseSearchRequest(line, lines, i);
-          //   if (requestContext) {
-          //     parsedData.successfulSearchRequests.push(requestContext);
-          //   }
-          // } else if (line.includes('Calculated estimate')) {
-          //   // Parse search estimates
-          //   const estimate = this.parseSearchEstimate(line);
-          //   if (estimate) {
-          //     parsedData.searchEstimates.push(estimate);
-          //   }
-          // } else if (line.includes('Checked') && line.includes('searches in')) {
-          //   // Parse search will match
-          //   const willMatch = this.parseSearchWillMatch(line);
-          //   if (willMatch) {
-          //     parsedData.searchWillMatch.push(willMatch);
-          //   }
-          // }
+        const isSearchTraceEvent = line.includes("[Event:id=LuxSearch]");
+        const isFacetTraceEvent = line.includes("[Event:id=LuxFacets]");
+        const isRelatedListTraceEvent = line.includes("[Event:id=LuxRelatedList]");
+        const isNamedProfilesTraceEvent = line.includes(
+          "[Event:id=LuxNamedProfiles]"
+        );
+        if (isSearchTraceEvent) {
           if (line.includes('"requestCompleted":true')) {
             // Parse search request context entries - these contain the actual search requests
             const requestContext = this.parseSearchRequest(line, lines, i);
             if (requestContext) {
               parsedData.successfulSearchRequests.push(requestContext);
             }
-            // } else if (line.includes('"requestCompleted":false')) {
-            //   // Parse failed search requests
-            //   const failedRequest = this.parseFailedRequest(line, lines, i);
-            //   if (failedRequest) {
-            //     parsedData.failedSearchRequests.push(failedRequest);
-            //   }
+          } else if (line.includes("Calculated estimate")) {
+            // Parse search estimates
+            const estimate = this.parseSearchEstimate(line);
+            if (estimate) {
+              parsedData.searchEstimates.push(estimate);
+            }
+          } else if (line.includes("Checked") && line.includes("searches in")) {
+            // Parse search will match
+            const willMatch = this.parseSearchWillMatch(line);
+            if (willMatch) {
+              parsedData.searchWillMatch.push(willMatch);
+            }
           }
-          // } else if (line.includes('[Event:id=LuxFacets]')) {
-          //   // Parse facet calculation requests
-          //   const facet = this.parseFacetRequest(line);
-          //   if (facet) {
-          //     parsedData.facetRequests.push(facet);
-          //   }
-        } else if (line.includes("[Event:id=LuxRelatedList]")) {
+        } else if (isFacetTraceEvent) {
+          // Parse facet calculation requests
+          const facet = this.parseFacetRequest(line);
+          if (facet) {
+            parsedData.facetRequests.push(facet);
+          }
+        } else if (isRelatedListTraceEvent) {
           // Parse related list requests
           const relatedList = this.parseRelatedListRequest(line);
           if (relatedList) {
             parsedData.relatedListRequests.push(relatedList);
           }
-        } else if (line.includes("[Event:id=LuxNamedProfiles]")) {
+        } else if (isNamedProfilesTraceEvent) {
           // Parse document profile requests
           const document = this.parseDocumentRequest(line);
           if (document) {
@@ -619,7 +617,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @param {string} sourceFile - Source log file relative path
    * @returns {Array<Object>} - Array of test case objects
    */
-  extractTestCasesForEndpoint(logData, endpointKey, sourceFile) {
+  extractTestCasesFromOneLogFile(logData, endpointKey, sourceFile) {
     switch (endpointKey) {
       case "get-search":
         return this.extractSearchTestCases(logData, sourceFile);
@@ -647,46 +645,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   extractSearchTestCases(logData, sourceFile) {
     const testCases = [];
     const sourceLabel = this.createSourceLabel(sourceFile);
-
-    // // Use completed search requests (original logic)
-    // for (const request of logData.requestsCompleted) {
-    //   // Determine the q parameter value
-    //   let qParam = '';
-    //   if (request.searchParams.q) {
-    //     // Simple string query
-    //     qParam = request.searchParams.q;
-    //   } else if (request.searchParams.text) {
-    //     // Text-based search
-    //     qParam = request.searchParams.text;
-    //   } else {
-    //     // Check if we have complex criteria that should be serialized as JSON
-    //     const criteriaWithoutScope = { ...request.searchParams };
-    //     delete criteriaWithoutScope.scope; // Remove scope as it's handled separately
-
-    //     if (Object.keys(criteriaWithoutScope).length > 0) {
-    //       // We have complex search criteria - serialize as JSON string
-    //       qParam = JSON.stringify(criteriaWithoutScope);
-    //     }
-    //   }
-
-    //   const testCase = {
-    //     testName: `Search (completed) ${sourceLabel} at ${request.timestamp}`,
-    //     timestamp: request.timestamp,
-    //     duration: request.duration,
-    //     expectedStatus: request.isSuccessful ? 200 : 500,
-    //     timeout: Math.max(30000, request.duration * 3), // 3x the actual duration or 30s minimum
-    //     maxResponseTime: Math.max(5000, request.duration * 2), // 2x the actual duration or 5s minimum
-    //     params: {
-    //       scope: request.searchParams.scope || 'item',
-    //       q: qParam,
-    //       ...request.searchParams
-    //     },
-    //     sourceFile,
-    //     rawLine: request.rawLine
-    //   };
-
-    //   testCases.push(testCase);
-    // }
 
     // Also use search request contexts (new logic to capture more requests)
     for (const request of logData.successfulSearchRequests) {

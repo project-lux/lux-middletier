@@ -196,7 +196,7 @@ async function createTestsForEndpoint(
   const filename = `${endpointKey}-tests.xlsx`;
   const filePath = path.join(testsDir, filename);
 
-  console.log(`Creating test file for ${endpointKey}: ${filename}`);
+  console.log(`Checking for ${endpointKey} tests`);
 
   // Build columns array
   const baseColumns = [
