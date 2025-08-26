@@ -1762,6 +1762,11 @@ class ReportGenerator {
    * Create HTML content
    */
   createHTMLContent(report) {
+    // For single endpoint reports, we don't need the "Tests by Endpoint Type" section
+    // since it would only show one endpoint type (redundant)
+    const uniqueEndpointTypes = [...new Set(report.results.map(r => r.endpoint_type))];
+    const shouldShowEndpointTypeSection = uniqueEndpointTypes.length > 1;
+    
     const endpointTypeSummary = Object.entries(
       report.summary.tests_by_endpoint_type
     )
@@ -1789,7 +1794,7 @@ class ReportGenerator {
     <h1>LUX Endpoint Test Report</h1>
     
     ${this.createSummarySection(report.summary)}
-    ${this.createEndpointTypeSection(endpointTypeSummary)}
+    ${shouldShowEndpointTypeSection ? this.createEndpointTypeSection(endpointTypeSummary) : ''}
     ${this.createTestResultsSection(report)}
     ${this.createModalSections()}
     ${this.getJavaScriptFunctions()}
@@ -1948,17 +1953,35 @@ class ReportGenerator {
    * Create test results section
    */
   createTestResultsSection(report) {
+    // Get unique statuses and providers from actual test results for smart filtering
+    const uniqueStatuses = [...new Set(report.results.map(r => r.status))].sort();
+    const uniqueProviders = [...new Set(report.results.map(r => r.provider))].sort();
+    
+    // Generate status options dynamically based on actual data
+    const statusOptions = uniqueStatuses.map(status => 
+      `<option value="${status}">${status}</option>`
+    ).join('');
+    
+    // Generate provider options dynamically based on actual data
+    const providerOptions = uniqueProviders.map(provider => 
+      `<option value="${provider}">${provider}</option>`
+    ).join('');
+    
     return `
     <h2>Individual Test Results</h2>
     <div class="filter-container">
         <div class="filter-group">
             <span class="filter-label">Filter by Status:</span>
-            <select id="statusFilter" class="filter-select" onchange="filterByStatus()">
+            <select id="statusFilter" class="filter-select" onchange="applyFilters()">
                 <option value="">All Statuses</option>
-                <option value="PASS">PASS</option>
-                <option value="FAIL">FAIL</option>
-                <option value="ERROR">ERROR</option>
-                <option value="SLOW">SLOW</option>
+                ${statusOptions}
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Filter by Provider:</span>
+            <select id="providerFilter" class="filter-select" onchange="applyFilters()">
+                <option value="">All Providers</option>
+                ${providerOptions}
             </select>
         </div>
         <div class="filter-group">
@@ -2496,17 +2519,25 @@ Timestamp: ${timestampText}`;
         }
 
         // Filtering functionality
-        function filterByStatus() {
+        function applyFilters() {
             const statusFilter = document.getElementById('statusFilter').value;
+            const providerFilter = document.getElementById('providerFilter').value;
             const allTables = document.querySelectorAll('.endpoint-table table tbody tr');
             let visibleCount = 0;
             let totalCount = allTables.length;
             
             allTables.forEach(row => {
                 const statusCell = row.cells[1]; // Status is the 2nd column (index 1)
-                if (statusCell) {
+                const providerCell = row.cells[0]; // Provider is the 1st column (index 0)
+                
+                if (statusCell && providerCell) {
                     const statusValue = statusCell.textContent.trim();
-                    if (statusFilter === '' || statusValue === statusFilter) {
+                    const providerValue = providerCell.textContent.trim();
+                    
+                    const statusMatch = statusFilter === '' || statusValue === statusFilter;
+                    const providerMatch = providerFilter === '' || providerValue === providerFilter;
+                    
+                    if (statusMatch && providerMatch) {
                         row.classList.remove('hidden');
                         visibleCount++;
                     } else {
@@ -2519,11 +2550,17 @@ Timestamp: ${timestampText}`;
             updateEndpointSectionCounts();
             
             // Update filter info
-            updateFilterInfo(statusFilter, visibleCount, totalCount);
+            updateFilterInfo(statusFilter, providerFilter, visibleCount, totalCount);
+        }
+
+        // Legacy function for backward compatibility
+        function filterByStatus() {
+            applyFilters();
         }
 
         function clearFilters() {
             document.getElementById('statusFilter').value = '';
+            document.getElementById('providerFilter').value = '';
             const allRows = document.querySelectorAll('.endpoint-table table tbody tr');
             const allSections = document.querySelectorAll('.endpoint-section');
             
@@ -2550,10 +2587,19 @@ Timestamp: ${timestampText}`;
             document.getElementById('filterInfo').textContent = '';
         }
 
-        function updateFilterInfo(statusFilter, visibleCount, totalCount) {
+        function updateFilterInfo(statusFilter, providerFilter, visibleCount, totalCount) {
             const filterInfo = document.getElementById('filterInfo');
+            const filters = [];
+            
             if (statusFilter) {
-                filterInfo.textContent = 'Showing ' + visibleCount + ' of ' + totalCount + ' tests (filtered by Status: ' + statusFilter + ')';
+                filters.push('Status: ' + statusFilter);
+            }
+            if (providerFilter) {
+                filters.push('Provider: ' + providerFilter);
+            }
+            
+            if (filters.length > 0) {
+                filterInfo.textContent = 'Showing ' + visibleCount + ' of ' + totalCount + ' tests (filtered by ' + filters.join(', ') + ')';
             } else {
                 filterInfo.textContent = '';
             }
