@@ -41,7 +41,7 @@ class ConfigurationLoader {
    * Load and parse all configuration files with filtering
    */
   loadConfigs(endpointFilter = null) {
-    const configs = [];
+    let configs = [];
     const files = this.getValidConfigFiles();
 
     for (const file of files) {
@@ -54,7 +54,7 @@ class ConfigurationLoader {
 
       try {
         const testConfigs = this.loadSingleConfig(filePath, endpointType);
-        configs.push(...testConfigs);
+        configs = configs.concat(testConfigs);
       } catch (error) {
         console.error(`Error loading ${file}: ${error.message}`);
       }
@@ -122,6 +122,7 @@ class ConfigurationLoader {
   loadSingleConfig(filePath, endpointType) {
     let data;
 
+    console.log(`Loading config from ${filePath} for the ${endpointType} endpoint...`);
     if (filePath.endsWith(".xlsx")) {
       data = this.parseExcelFile(filePath);
     } else {

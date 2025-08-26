@@ -100,7 +100,7 @@ const convertQueryToJson = (query, scope) => {
  * @returns {Array} - Array of processed results
  */
 const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
-  const results = [];
+  let results = [];
   const scopeCounts = {};
 
   // Find column indices for search test data
@@ -146,7 +146,7 @@ const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
     });
 
     if (Array.isArray(processed)) {
-      results.push(...processed);
+      results = results.concat(processed);
       scopeCounts[scope] += processed.length;
     } else if (processed) {
       results.push(processed);

@@ -137,7 +137,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         `Processing ${logFiles.length} log file(s) for ${endpointKey} endpoint...`
       );
 
-      const allTestRows = [];
+      let allTestRows = [];
       const processedDirs = new Set();
 
       // Process each log file
@@ -171,7 +171,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
             columns,
             relativePath
           );
-          allTestRows.push(...testRows);
+          allTestRows = allTestRows.concat(testRows);
         }
       }
 
