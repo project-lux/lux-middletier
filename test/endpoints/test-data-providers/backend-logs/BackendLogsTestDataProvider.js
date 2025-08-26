@@ -153,7 +153,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
         console.log(`    - Analyzing log file: ${path.basename(logFilePath)}`);
 
-        const logData = await this.parseLogFile(logFilePath);
+        const logData = await this.parseLogFile(logFilePath, endpointKey);
         const endpointTestCases = this.extractTestCasesFromOneLogFile(
           logData,
           endpointKey,
@@ -201,28 +201,31 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       ENDPOINT_KEYS.GET_DATA,
       ENDPOINT_KEYS.GET_RELATED_LIST,
       ENDPOINT_KEYS.GET_SEARCH,
-    ].concat(
-      // When related tests are not derived, include these.
-      !deriveRelatedTests
-        ? [
-            ENDPOINT_KEYS.GET_FACETS,
-            ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
-            ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
-          ]
-        : []
-    ).includes(endpointKey);
+    ]
+      .concat(
+        // When related tests are not derived, include these.
+        !deriveRelatedTests
+          ? [
+              ENDPOINT_KEYS.GET_FACETS,
+              ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
+              ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
+            ]
+          : []
+      )
+      .includes(endpointKey);
   }
 
   /**
-   * Parse a single log file and extract relevant entries
+   * Parse a single log file and extract relevant entries for a specific endpoint
    * @param {string} logFilePath - Path to the log file
+   * @param {string} endpointKey - The specific endpoint key to parse data for
    * @returns {Promise<Object>} - Parsed log data organized by type
    */
-  async parseLogFile(logFilePath) {
-    // Check cache first
+  async parseLogFile(logFilePath, endpointKey) {
+    // Check cache first - include endpoint key in cache key for endpoint-specific caching
     const cacheKey = `${logFilePath}:${fs
       .statSync(logFilePath)
-      .mtime.getTime()}`;
+      .mtime.getTime()}:${endpointKey}`;
     if (this.parsedDataCache.has(cacheKey)) {
       return this.parsedDataCache.get(cacheKey);
     }
@@ -230,15 +233,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const logContent = fs.readFileSync(logFilePath, "utf8");
     const lines = logContent.split("\n");
 
-    const parsedData = {
-      successfulSearchRequests: [],
-      failedSearchRequests: [],
-      facetRequests: [],
-      relatedListRequests: [],
-      documentRequests: [],
-      searchEstimates: [],
-      searchWillMatch: [],
-    };
+    const parsedData = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -248,50 +243,65 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         // We only care about trace events.
         if (!line.includes("[Event:id")) continue;
 
-        // Parse different types of log entries
+        // Parse different types of log entries based on what's needed for this endpoint
         const isSearchTraceEvent = line.includes("[Event:id=LuxSearch]");
-        const isFacetTraceEvent = line.includes("[Event:id=LuxFacets]");
-        const isRelatedListTraceEvent = line.includes("[Event:id=LuxRelatedList]");
-        const isNamedProfilesTraceEvent = line.includes(
-          "[Event:id=LuxNamedProfiles]"
-        );
+
         if (isSearchTraceEvent) {
-          if (line.includes('"requestCompleted":true')) {
+          if (
+            ENDPOINT_KEYS.GET_SEARCH === endpointKey &&
+            line.includes('"requestCompleted":true')
+          ) {
             // Parse search request context entries - these contain the actual search requests
             const requestContext = this.parseSearchRequest(line, lines, i);
             if (requestContext) {
-              parsedData.successfulSearchRequests.push(requestContext);
+              parsedData.push(requestContext);
             }
-          } else if (line.includes("Calculated estimate")) {
+          } else if (
+            ENDPOINT_KEYS.GET_SEARCH_ESTIMATE === endpointKey &&
+            line.includes("Calculated estimate")
+          ) {
             // Parse search estimates
             const estimate = this.parseSearchEstimate(line);
             if (estimate) {
-              parsedData.searchEstimates.push(estimate);
+              parsedData.push(estimate);
             }
-          } else if (line.includes("Checked") && line.includes("searches in")) {
+          } else if (
+            ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH === endpointKey &&
+            line.includes("Checked") &&
+            line.includes("searches in")
+          ) {
             // Parse search will match
             const willMatch = this.parseSearchWillMatch(line);
             if (willMatch) {
-              parsedData.searchWillMatch.push(willMatch);
+              parsedData.push(willMatch);
             }
           }
-        } else if (isFacetTraceEvent) {
+        } else if (
+          ENDPOINT_KEYS.GET_FACETS === endpointKey &&
+          line.includes("[Event:id=LuxFacets]")
+        ) {
           // Parse facet calculation requests
           const facet = this.parseFacetRequest(line);
           if (facet) {
-            parsedData.facetRequests.push(facet);
+            parsedData.push(facet);
           }
-        } else if (isRelatedListTraceEvent) {
+        } else if (
+          ENDPOINT_KEYS.GET_RELATED_LIST === endpointKey &&
+          line.includes("[Event:id=LuxRelatedList]")
+        ) {
           // Parse related list requests
           const relatedList = this.parseRelatedListRequest(line);
           if (relatedList) {
-            parsedData.relatedListRequests.push(relatedList);
+            parsedData.push(relatedList);
           }
-        } else if (isNamedProfilesTraceEvent) {
+        } else if (
+          ENDPOINT_KEYS.GET_DATA === endpointKey &&
+          line.includes("[Event:id=LuxNamedProfiles]")
+        ) {
           // Parse document profile requests
           const document = this.parseDocumentRequest(line);
           if (document) {
-            parsedData.documentRequests.push(document);
+            parsedData.push(document);
           }
         }
       } catch (error) {
@@ -612,24 +622,24 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract test cases for a specific endpoint from parsed log data
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} endpointKey - Endpoint key
    * @param {string} sourceFile - Source log file relative path
    * @returns {Array<Object>} - Array of test case objects
    */
   extractTestCasesFromOneLogFile(logData, endpointKey, sourceFile) {
     switch (endpointKey) {
-      case "get-search":
+      case ENDPOINT_KEYS.GET_SEARCH:
         return this.extractSearchTestCases(logData, sourceFile);
-      case "get-facets":
+      case ENDPOINT_KEYS.GET_FACETS:
         return this.extractFacetTestCases(logData, sourceFile);
-      case "get-related-list":
+      case ENDPOINT_KEYS.GET_RELATED_LIST:
         return this.extractRelatedListTestCases(logData, sourceFile);
-      case "get-data":
+      case ENDPOINT_KEYS.GET_DATA:
         return this.extractDocumentTestCases(logData, sourceFile);
-      case "get-search-estimate":
+      case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
         return this.extractSearchEstimateTestCases(logData, sourceFile);
-      case "get-search-will-match":
+      case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
         return this.extractSearchWillMatchTestCases(logData, sourceFile);
       default:
         return [];
@@ -638,7 +648,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract search test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file relative path
    * @returns {Array<Object>} - Test cases
    */
@@ -646,8 +656,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const testCases = [];
     const sourceLabel = this.createSourceLabel(sourceFile);
 
-    // Also use search request contexts (new logic to capture more requests)
-    for (const request of logData.successfulSearchRequests) {
+    // Process search request data from the array
+    for (const request of logData) {
       // Determine the q parameter value
       let qParam = "";
       if (request.searchParams.q) {
@@ -692,14 +702,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract facet test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractFacetTestCases(logData, sourceFile) {
     const testCases = [];
 
-    for (const facet of logData.facetRequests) {
+    for (const facet of logData) {
       const testCase = {
         testName: `Facet ${facet.facetName} from ${sourceFile}`,
         timestamp: facet.timestamp,
@@ -725,14 +735,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract related list test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractRelatedListTestCases(logData, sourceFile) {
     const testCases = [];
 
-    for (const relatedList of logData.relatedListRequests) {
+    for (const relatedList of logData) {
       const testCase = {
         testName: `Related list ${relatedList.relationName} for ${relatedList.scope} from ${sourceFile}`,
         timestamp: relatedList.timestamp,
@@ -759,14 +769,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract document test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractDocumentTestCases(logData, sourceFile) {
     const testCases = [];
 
-    for (const document of logData.documentRequests) {
+    for (const document of logData) {
       const testCase = {
         testName: `Document ${document.type} with ${document.profile} profile from ${sourceFile}`,
         timestamp: document.timestamp,
@@ -791,14 +801,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract search estimate test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractSearchEstimateTestCases(logData, sourceFile) {
     const testCases = [];
 
-    for (const estimate of logData.searchEstimates) {
+    for (const estimate of logData) {
       const testCase = {
         testName: `Search estimate from ${sourceFile} at ${estimate.timestamp}`,
         timestamp: estimate.timestamp,
@@ -821,14 +831,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Extract search will match test cases
-   * @param {Object} logData - Parsed log data
+   * @param {Array} logData - Parsed log data array
    * @param {string} sourceFile - Source file name
    * @returns {Array<Object>} - Test cases
    */
   extractSearchWillMatchTestCases(logData, sourceFile) {
     const testCases = [];
 
-    for (const willMatch of logData.searchWillMatch) {
+    for (const willMatch of logData) {
       const testCase = {
         testName: `Search will match (${willMatch.searchCount} searches) from ${sourceFile}`,
         timestamp: willMatch.timestamp,
