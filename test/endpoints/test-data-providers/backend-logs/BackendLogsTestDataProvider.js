@@ -28,9 +28,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   constructor(options = {}) {
     super({
-      deriveFacetTests: true,
-      deriveSearchEstimateTests: true,
-      deriveSearchWillMatchTests: true,
       ...options,
     });
 

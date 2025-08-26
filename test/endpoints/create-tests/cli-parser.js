@@ -113,7 +113,7 @@ export function parseCommandLineArgs() {
         "  --no-dedup                    Skip deduplication of test cases for faster processing"
       );
       console.log(
-        "  --derive-related-tests        Generate get-facets, get-search-estimate and"
+        "  --no-derive-related-tests     Skip generating get-facets, get-search-estimate and"
       );
       console.log(
         "                                get-search-will-match tests unless overridden by individual providers."
@@ -138,7 +138,7 @@ export function parseCommandLineArgs() {
       console.log("Examples:");
       console.log("  node create-tests.js");
       console.log("  node create-tests.js --no-dedup");
-      console.log("  node create-tests.js --derive-related-tests");
+      console.log("  node create-tests.js --no-derive-related-tests");
       console.log("  node create-tests.js --test-count=100");
       console.log(
         "  node create-tests.js --providers AdvancedSearchQueriesTestDataProvider"
@@ -201,8 +201,8 @@ export function parseCommandLineArgs() {
       options.testCaseCount = count;
     } else if (arg === "--no-dedup") {
       options.skipDeduplication = true;
-    } else if (arg === "--derive-related-tests") {
-      options.deriveRelatedTests = true;
+    } else if (arg === "--no-derive-related-tests") {
+      options.noDeriveRelatedTests = true;
     } else if (arg === "--test-count") {
       console.error("Error: --test-count requires a value");
       console.log("Example: --test-count=100");

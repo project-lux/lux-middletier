@@ -425,7 +425,8 @@ function getResolvedOption(primary, secondary) {
   if (isDefined(primary)) {
     return primary;
   }
-  return secondary === true;
+  // Default is true (derive tests) unless explicitly disabled with --no-derive-related-tests
+  return secondary !== true;
 }
 
 function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
@@ -434,15 +435,15 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
   switch (endpointKey) {
     case ENDPOINT_KEYS.GET_FACETS:
       primary = providerOptions?.deriveFacetTests;
-      secondary = options?.deriveRelatedTests;
+      secondary = options?.noDeriveRelatedTests;
       break;
     case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
       primary = providerOptions?.deriveSearchEstimateTests;
-      secondary = options?.deriveRelatedTests;
+      secondary = options?.noDeriveRelatedTests;
       break;
     case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
       primary = providerOptions?.deriveSearchWillMatchTests;
-      secondary = options?.deriveRelatedTests;
+      secondary = options?.noDeriveRelatedTests;
       break;
   }
   return getResolvedOption(primary, secondary);
@@ -735,9 +736,13 @@ if (options.skipDeduplication) {
   console.log("Deduplication disabled (--no-dedup specified)");
 }
 
-if (options.deriveRelatedTests) {
+if (options.noDeriveRelatedTests) {
   console.log(
-    "Allowed to derive related tests (--derive-related-tests specified)"
+    "Deriving related tests disabled (--no-derive-related-tests specified)"
+  );
+} else {
+  console.log(
+    "Deriving related tests enabled by default (use --no-derive-related-tests to disable)"
   );
 }
 
