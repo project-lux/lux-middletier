@@ -406,9 +406,12 @@ We want:
 3. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
 4. Not restrict by provider or endpoint.
 5. Do a dry run to verify we like our settings.
-6. Captured STDERR and STDOUT to a file --ideally with a name that is unique to the test.
+6. *Potentially* capture STDERR and STDOUT to a file
+    * We could do so by adding `> nohup.txt 2>&1` in front of the ampersand.
+    * If we do, consider using a test-specific filename.
+    * The concern is this file will get very large as the URL of every request is sent to STDOUT.
 
-Example pre-configured for the MarkLogic 1/3rd test:
+Example pre-configured for the MarkLogic 1/3rd test, but that does not write STD* to a file:
 
 ```bash
 $ nohup node run-tests.js \
@@ -416,7 +419,7 @@ $ nohup node run-tests.js \
     --description "MarkLogic with 1/3rd the resources PRD has." \
     --save-responses \
     --dry-run \
-    > ml-one-third.txt 2>&1 &
+    &
 ```
 
 Even though it is a dry run, it will still take a while to process all of the test configuration spreadsheets.
