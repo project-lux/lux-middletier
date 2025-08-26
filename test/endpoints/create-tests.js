@@ -4,16 +4,17 @@ import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { getEndpointKeyFromPath, isDefined } from "./utils.js";
-import { getSearchRelatedTestConfigs } from "./relatedTestUtils.js";
+import { getDerivedTestConfigs } from "./relatedTestUtils.js";
 import { parseCommandLineArgs } from "./create-tests/cli-parser.js";
 import { TestStatistics } from "./create-tests/statistics.js";
-import { 
-  createAllProviders, 
-  cleanupExistingFiles, 
-  prepareEndpoints, 
-  processPriorityEndpoint, 
-  processRemainingEndpoints 
+import {
+  createAllProviders,
+  cleanupExistingFiles,
+  prepareEndpoints,
+  processPriorityEndpoint,
+  processRemainingEndpoints,
 } from "./create-tests/orchestrator.js";
+import { ENDPOINT_KEYS } from "./constants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -234,29 +235,12 @@ async function createTestsForEndpoint(
     apiDef,
     endpointKey,
     columns,
+    searchTestConfigs,
     options
   );
 
   let allTestData = collectionResult.testData;
   let totalBeforeDedup = collectionResult.totalCollected;
-
-  // Add search-related test data if available and enabled
-  if (isDefined(searchTestConfigs) && options.deriveRelatedTests) {
-    const searchRelatedTestData = getSearchRelatedTestConfigs(
-      endpointKey,
-      columns,
-      searchTestConfigs.testRows,
-      searchTestConfigs.columns
-    );
-
-    if (searchRelatedTestData.length > 0) {
-      console.log(
-        `Adding ${searchRelatedTestData.length} derived test cases...`
-      );
-      allTestData = allTestData.concat(searchRelatedTestData);
-      totalBeforeDedup += searchRelatedTestData.length;
-    }
-  }
 
   // Now handle deduplication for all data (provider + derived)
   let finalTestData;
@@ -437,6 +421,56 @@ function deduplicateTestRows(testRows, columns) {
   return uniqueRows;
 }
 
+function getResolvedOption(primary, secondary) {
+  if (isDefined(primary)) {
+    return primary;
+  }
+  return secondary === true;
+}
+
+function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
+  let primary = false;
+  let secondary = false;
+  switch (endpointKey) {
+    case ENDPOINT_KEYS.GET_FACETS:
+      primary = providerOptions?.deriveFacetTests;
+      secondary = false;
+      break;
+    case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
+      primary = providerOptions?.deriveSearchEstimateTests;
+      secondary = options?.deriveRelatedTests;
+      break;
+    case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
+      primary = providerOptions?.deriveSearchWillMatchTests;
+      secondary = options?.deriveRelatedTests;
+      break;
+  }
+  console.log(`${endpointKey}: ${primary} / ${secondary}`);
+  return getResolvedOption(primary, secondary);
+}
+
+// Add provider ID to each test row
+function enrichTestDataWithProviderInfo(providerId, testData, columns) {
+  if (testData && testData.length > 0) {
+    const providerIdIndex = columns.indexOf("provider_id");
+    const enrichedTestData = testData.map((row) => {
+      // Create a copy of the row to avoid modifying the original
+      const enrichedRow = [...row];
+
+      // Set the provider ID at the correct column index
+      if (providerIdIndex !== -1) {
+        enrichedRow[providerIdIndex] = providerId;
+      }
+
+      return enrichedRow;
+    });
+
+    return enrichedTestData;
+  }
+
+  return [];
+}
+
 /**
  * Collect test data from ALL available providers and combine them
  */
@@ -445,9 +479,10 @@ async function collectTestDataFromAllProviders(
   apiDef,
   endpointKey,
   columns,
+  searchTestConfigs = null,
   options = {}
 ) {
-  const allTestData = [];
+  let allTestData = [];
 
   console.log(
     `Collecting test data from ${allProviders.length} providers for ${endpointKey}...`
@@ -456,42 +491,65 @@ async function collectTestDataFromAllProviders(
   // Collect from each provider
   for (const provider of allProviders) {
     try {
-      console.log(`  - Trying provider: ${provider.constructor.name}`);
+      console.log(`  - Trying provider: ${provider.getProviderId()}`);
 
-      const testData = await provider.extractTestData(
+      let providerTestData = await provider.extractTestData(
         apiDef,
         endpointKey,
         columns
       );
+      console.log(
+        `    ✓ Got ${
+          providerTestData.length
+        } test cases from ${provider.getProviderId()}`
+      );
+      providerTestData = enrichTestDataWithProviderInfo(
+        provider.getProviderId(),
+        providerTestData,
+        columns
+      );
+      allTestData = allTestData.concat(providerTestData);
 
-      if (testData && testData.length > 0) {
-        console.log(
-          `    ✓ Got ${testData.length} test cases from ${provider.constructor.name}`
+      // Any tests to derive?
+      let derivedTestData = [];
+      const shouldDeriveTests = shouldDeriveTestsForEndpoint(
+        endpointKey,
+        options,
+        provider.options
+      );
+      if (
+        shouldDeriveTests &&
+        isDefined(searchTestConfigs) &&
+        searchTestConfigs.testRows &&
+        searchTestConfigs.testRows.length > 0
+      ) {
+        derivedTestData = getDerivedTestConfigs(
+          endpointKey,
+          columns,
+          searchTestConfigs.testRows,
+          searchTestConfigs.columns
         );
-
-        // Add provider ID to each test row
-        const providerId = provider.getProviderId();
-        const providerIdIndex = columns.indexOf("provider_id");
-
-        const enrichedTestData = testData.map((row) => {
-          // Create a copy of the row to avoid modifying the original
-          const enrichedRow = [...row];
-
-          // Set the provider ID at the correct column index
-          if (providerIdIndex !== -1) {
-            enrichedRow[providerIdIndex] = providerId;
-          }
-
-          return enrichedRow;
-        });
-
-        allTestData.push(...enrichedTestData);
+        console.log(
+          `    ✓ Adding ${
+            derivedTestData.length
+          } derived test cases for ${provider.getProviderId()}...`
+        );
+        derivedTestData = enrichTestDataWithProviderInfo(
+          provider.getProviderId(),
+          derivedTestData,
+          columns
+        );
+        allTestData = allTestData.concat(derivedTestData);
       } else {
-        console.log(`    - No data from ${provider.constructor.name}`);
+        console.log(
+          `    - No search test configs available for deriving tests for ${provider.getProviderId()}`
+        );
       }
+
+      providerTestData = providerTestData.concat(derivedTestData);
     } catch (error) {
       console.log(
-        `    ⚠ Error from ${provider.constructor.name}: ${error.message}`
+        `    ⚠ Error from ${provider.getProviderId()}: ${error.message}`
       );
     }
   }

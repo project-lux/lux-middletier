@@ -12,8 +12,8 @@ import { ENDPOINT_KEYS } from "../../constants.js";
  * endpoint-specific test cases for various LUX API endpoints.
  *
  * Supported log patterns:
- * - LuxSearch: Search requests with timing and parameters
- * - LuxFacets: Facet calculation requests with facet names and timing
+ * - LuxSearch: get-search, get-search-estimate, and get-search-will-match;
+ *              latter two only apply when derive related tests is false.
  * - LuxRelatedList: Related list requests with URIs, scopes, and names
  * - LuxNamedProfiles: Document profile requests with URIs and profiles
  * - requestCompleted: Completed search requests with full parameters
@@ -27,6 +27,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   constructor(options = {}) {
     super({
+      deriveRelatedTests: false,
+      deriveFacetTests: true,
       encoding: "utf8",
       strictValidation: false,
       maxTestCasesPerEndpoint: 50, // Limit to avoid overwhelming test suites
@@ -126,6 +128,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         return [];
       }
 
+      console.log(`Processing the ${endpointKey} endpoint`);
+      
       const logFiles = this.discoverLogFiles();
 
       if (logFiles.length === 0) {
@@ -206,7 +210,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         // When related tests are not derived, include these.
         !deriveRelatedTests
           ? [
-              ENDPOINT_KEYS.GET_FACETS,
               ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
               ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
             ]
@@ -275,15 +278,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
             if (willMatch) {
               parsedData.push(willMatch);
             }
-          }
-        } else if (
-          ENDPOINT_KEYS.GET_FACETS === endpointKey &&
-          line.includes("[Event:id=LuxFacets]")
-        ) {
-          // Parse facet calculation requests
-          const facet = this.parseFacetRequest(line);
-          if (facet) {
-            parsedData.push(facet);
           }
         } else if (
           ENDPOINT_KEYS.GET_RELATED_LIST === endpointKey &&
@@ -543,29 +537,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Parse a facet request log entry
-   * @param {string} line - The log line
-   * @returns {Object|null} - Parsed facet request or null
-   */
-  parseFacetRequest(line) {
-    const match = line.match(
-      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated the following facet in (\d+) milliseconds?: ([^(]+)(?:\(page: (\d+); pageLength: (\d+)\))?/
-    );
-    if (!match) return null;
-
-    const [, timestamp, duration, facetName, page, pageLength] = match;
-
-    return {
-      timestamp,
-      duration: parseInt(duration),
-      facetName: facetName.trim(),
-      page: page ? parseInt(page) : 1,
-      pageLength: pageLength ? parseInt(pageLength) : 20,
-      rawLine: line,
-    };
-  }
-
-  /**
    * Parse a related list request log entry
    * @param {string} line - The log line
    * @returns {Object|null} - Parsed related list request or null
@@ -631,8 +602,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     switch (endpointKey) {
       case ENDPOINT_KEYS.GET_SEARCH:
         return this.extractSearchTestCases(logData, sourceFile);
-      case ENDPOINT_KEYS.GET_FACETS:
-        return this.extractFacetTestCases(logData, sourceFile);
       case ENDPOINT_KEYS.GET_RELATED_LIST:
         return this.extractRelatedListTestCases(logData, sourceFile);
       case ENDPOINT_KEYS.GET_DATA:
@@ -692,39 +661,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         },
         sourceFile,
         rawLine: request.rawLine,
-      };
-
-      testCases.push(testCase);
-    }
-
-    return testCases;
-  }
-
-  /**
-   * Extract facet test cases
-   * @param {Array} logData - Parsed log data array
-   * @param {string} sourceFile - Source file name
-   * @returns {Array<Object>} - Test cases
-   */
-  extractFacetTestCases(logData, sourceFile) {
-    const testCases = [];
-
-    for (const facet of logData) {
-      const testCase = {
-        testName: `Facet ${facet.facetName} from ${sourceFile}`,
-        timestamp: facet.timestamp,
-        duration: facet.duration,
-        expectedStatus: 200,
-        timeout: Math.max(15000, facet.duration * 3),
-        maxResponseTime: Math.max(3000, facet.duration * 2),
-        params: {
-          scope: "item", // Default scope for facets
-          name: facet.facetName,
-          page: facet.page,
-          pageLength: facet.pageLength,
-        },
-        sourceFile,
-        rawLine: facet.rawLine,
       };
 
       testCases.push(testCase);

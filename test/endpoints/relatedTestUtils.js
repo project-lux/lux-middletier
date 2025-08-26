@@ -20,7 +20,7 @@ const COLUMNS = {
   TAGS: "tags",
   PARAM_SCOPE: "param:scope",
   PARAM_Q: "param:q",
-  PARAM_NAME: "param:name"
+  PARAM_NAME: "param:name",
 };
 
 /**
@@ -45,14 +45,14 @@ const findColumnIndices = (columns, columnNames) => {
  */
 const createTestConfig = (columns, columnIndices, values) => {
   const testConfig = new Array(columns.length).fill("");
-  
+
   Object.entries(values).forEach(([columnName, value]) => {
     const index = columnIndices[columnName];
     if (index !== -1 && value !== undefined) {
       testConfig[index] = value;
     }
   });
-  
+
   return testConfig;
 };
 
@@ -64,31 +64,31 @@ const createTestConfig = (columns, columnIndices, values) => {
  */
 const convertQueryToJson = (query, scope) => {
   let jsonQuery;
-  
+
   if (query && typeof query === "string") {
     try {
       const parsed = JSON.parse(query);
       // If it parses to a simple string, convert it to {"text": string}
       if (typeof parsed === "string") {
-        jsonQuery = { "text": parsed };
+        jsonQuery = { text: parsed };
       } else {
         // If it's already a complex object, use it as is
         jsonQuery = parsed;
       }
     } catch (e) {
       // Query is not valid JSON at all, wrap the raw string in a "text" property
-      jsonQuery = { "text": query };
+      jsonQuery = { text: query };
     }
   } else {
     // Handle empty or non-string queries
-    jsonQuery = { "text": query || "" };
+    jsonQuery = { text: query || "" };
   }
-  
+
   // Add scope if provided
   if (scope) {
     jsonQuery._scope = scope;
   }
-  
+
   return JSON.stringify(jsonQuery);
 };
 
@@ -102,14 +102,14 @@ const convertQueryToJson = (query, scope) => {
 const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
   const results = [];
   const scopeCounts = {};
-  
+
   // Find column indices for search test data
   const searchColumnIndices = findColumnIndices(searchColumns, [
     COLUMNS.PROVIDER_ID,
     COLUMNS.TEST_NAME,
     COLUMNS.DESCRIPTION,
     COLUMNS.PARAM_SCOPE,
-    COLUMNS.PARAM_Q
+    COLUMNS.PARAM_Q,
   ]);
 
   if (searchColumnIndices[COLUMNS.PARAM_SCOPE] === -1) {
@@ -120,9 +120,10 @@ const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
   // Process each search test row
   searchTestRows.forEach((searchTestRow, rowIndex) => {
     const scope = searchTestRow[searchColumnIndices[COLUMNS.PARAM_SCOPE]];
-    const query = searchColumnIndices[COLUMNS.PARAM_Q] !== -1 
-      ? searchTestRow[searchColumnIndices[COLUMNS.PARAM_Q]] 
-      : "";
+    const query =
+      searchColumnIndices[COLUMNS.PARAM_Q] !== -1
+        ? searchTestRow[searchColumnIndices[COLUMNS.PARAM_Q]]
+        : "";
 
     if (!scope) {
       console.warn(`No scope found for search test row ${rowIndex}`);
@@ -141,7 +142,7 @@ const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
       scope,
       query,
       searchColumnIndices,
-      scopeCounts
+      scopeCounts,
     });
 
     if (Array.isArray(processed)) {
@@ -165,7 +166,13 @@ const processSearchTestRows = (searchTestRows, searchColumns, processor) => {
  * @param {Object} config - Configuration object
  * @returns {Array} - Array of test configurations
  */
-const generateTestConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns, config) => {
+const generateTestConfigs = (
+  endpointKey,
+  endpointColumns,
+  searchTestRows,
+  searchColumns,
+  config
+) => {
   const endpointColumnIndices = findColumnIndices(endpointColumns, [
     COLUMNS.PROVIDER_ID,
     COLUMNS.TEST_NAME,
@@ -178,13 +185,15 @@ const generateTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
     COLUMNS.TAGS,
     COLUMNS.PARAM_SCOPE,
     COLUMNS.PARAM_Q,
-    ...(config.additionalColumns || [])
+    ...(config.additionalColumns || []),
   ]);
 
   const processor = ({ searchTestRow, scope, query, searchColumnIndices }) => {
     // Apply query transformation if configured
-    const processedQuery = config.transformQuery ? config.transformQuery(query) : query;
-    
+    const processedQuery = config.transformQuery
+      ? config.transformQuery(query)
+      : query;
+
     // Generate test configs for this search test row
     return config.generateConfigs({
       searchTestRow,
@@ -194,11 +203,15 @@ const generateTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
       endpointColumns,
       endpointColumnIndices,
       endpointKey,
-      config
+      config,
     });
   };
 
-  const { results, scopeCounts } = processSearchTestRows(searchTestRows, searchColumns, processor);
+  const { results, scopeCounts } = processSearchTestRows(
+    searchTestRows,
+    searchColumns,
+    processor
+  );
 
   // Report counts
   config.reportResults?.(results, searchTestRows, scopeCounts, endpointKey);
@@ -208,10 +221,9 @@ const generateTestConfigs = (endpointKey, endpointColumns, searchTestRows, searc
 
 /**
  * Provide related test configurations for each of the given search test configurations.
- * @param {Array<Object>} searchTestRows - Array of search test configuration objects
  * @returns {Object} - Object where keys are from ENDPOINT_KEYS and values are arrays of test configs
  */
-export const getSearchRelatedTestConfigs = (
+export const getDerivedTestConfigs = (
   endpointKey,
   endpointColumns,
   searchTestRows,
@@ -222,112 +234,202 @@ export const getSearchRelatedTestConfigs = (
   }
 
   const configMap = {
-    [ENDPOINT_KEYS.GET_FACETS]: getFacetTestConfigs,
-    [ENDPOINT_KEYS.GET_SEARCH_ESTIMATE]: getSearchEstimateConfigs,
-    [ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH]: getSearchWillMatchConfigs
+    [ENDPOINT_KEYS.GET_FACETS]: getDerivedFacetTestConfigs,
+    [ENDPOINT_KEYS.GET_SEARCH_ESTIMATE]: getDerivedSearchEstimateConfigs,
+    [ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH]: getDerivedSearchWillMatchConfigs
   };
 
   const configFunction = configMap[endpointKey];
-  return configFunction ? configFunction(endpointKey, endpointColumns, searchTestRows, searchColumns) : [];
+  return configFunction
+    ? configFunction(
+        endpointKey,
+        endpointColumns,
+        searchTestRows,
+        searchColumns
+      )
+    : [];
 };
 
-const getFacetTestConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
-  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    additionalColumns: [COLUMNS.PARAM_NAME],
-    
-    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
-      if ('multi' === scope) {
-        return [];
-      }
+const getDerivedFacetTestConfigs = (
+  endpointKey,
+  endpointColumns,
+  searchTestRows,
+  searchColumns
+) => {
+  console.log('In getDerivedFacetTestConfigs')
+  return generateTestConfigs(
+    endpointKey,
+    endpointColumns,
+    searchTestRows,
+    searchColumns,
+    {
+      additionalColumns: [COLUMNS.PARAM_NAME],
 
-      // Get available facets for this scope
-      const availableFacets = FACETS_CONFIGS[scope];
-      if (!availableFacets || availableFacets.length === 0) {
-        console.warn(`No facets available for scope: ${scope}`);
-        return [];
-      }
+      generateConfigs: ({
+        searchTestRow,
+        scope,
+        query,
+        searchColumnIndices,
+        endpointColumns,
+        endpointColumnIndices,
+        endpointKey,
+      }) => {
+        if ("multi" === scope) {
+          return [];
+        }
 
-      // Create a facet test configuration for each available facet
-      return availableFacets.map(facetName => {
-        return createTestConfig(endpointColumns, endpointColumnIndices, {
-          [COLUMNS.PARAM_NAME]: facetName,
-          [COLUMNS.PARAM_SCOPE]: scope,
-          [COLUMNS.PARAM_Q]: query,
-          [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-          [COLUMNS.TEST_NAME]: `${facetName} facet for search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
-          [COLUMNS.DESCRIPTION]: `${facetName} facet for search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
-          [COLUMNS.ENABLED]: "true",
-          [COLUMNS.EXPECTED_STATUS]: "200",
-          [COLUMNS.TIMEOUT_MS]: "30000",
-          [COLUMNS.MAX_RESPONSE_TIME]: "5000",
-          [COLUMNS.DELAY_AFTER_MS]: "0",
-          [COLUMNS.TAGS]: `${endpointKey},derived`
+        // Get available facets for this scope
+        const availableFacets = FACETS_CONFIGS[scope];
+        if (!availableFacets || availableFacets.length === 0) {
+          console.warn(`No facets available for scope: ${scope}`);
+          return [];
+        }
+
+        // Create a facet test configuration for each available facet
+        return availableFacets.map((facetName) => {
+          return createTestConfig(endpointColumns, endpointColumnIndices, {
+            [COLUMNS.PARAM_NAME]: facetName,
+            [COLUMNS.PARAM_SCOPE]: scope,
+            [COLUMNS.PARAM_Q]: query,
+            [COLUMNS.PROVIDER_ID]:
+              searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+            [COLUMNS.TEST_NAME]: `${facetName} facet for search "${
+              searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]
+            }"`,
+            [COLUMNS.DESCRIPTION]: `${facetName} facet for search "${
+              searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]
+            }"`,
+            [COLUMNS.ENABLED]: "true",
+            [COLUMNS.EXPECTED_STATUS]: "200",
+            [COLUMNS.TIMEOUT_MS]: "30000",
+            [COLUMNS.MAX_RESPONSE_TIME]: "5000",
+            [COLUMNS.DELAY_AFTER_MS]: "0",
+            [COLUMNS.TAGS]: `${endpointKey},derived`,
+          });
         });
-      });
-    },
+      },
 
-    reportResults: (results, searchTestRows, scopeCounts) => {
-      const totalCount = results.length;
-      console.log(`Generated ${totalCount} ${endpointKey} from ${searchTestRows.length} search tests, by search scope:`);
-      Object.entries(scopeCounts)
-        .sort()
-        .forEach(([scope, count]) => {
-          console.log(`  ${scope}: ${count}`);
-        });
+      reportResults: (results, searchTestRows, scopeCounts) => {
+        const totalCount = results.length;
+        console.log(
+          `Generated ${totalCount} ${endpointKey} from ${searchTestRows.length} search tests, by search scope:`
+        );
+        Object.entries(scopeCounts)
+          .sort()
+          .forEach(([scope, count]) => {
+            console.log(`  ${scope}: ${count}`);
+          });
+      },
     }
-  });
+  );
 };
 
-const getSearchEstimateConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
-  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
-      // Transform query to JSON format
-      const processedQuery = convertQueryToJson(query);
-      
-      return [createTestConfig(endpointColumns, endpointColumnIndices, {
-        [COLUMNS.PARAM_SCOPE]: scope,
-        [COLUMNS.PARAM_Q]: processedQuery,
-        [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-        [COLUMNS.TEST_NAME]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
-        [COLUMNS.DESCRIPTION]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
-        [COLUMNS.ENABLED]: "true",
-        [COLUMNS.EXPECTED_STATUS]: "200",
-        [COLUMNS.TIMEOUT_MS]: "15000",
-        [COLUMNS.MAX_RESPONSE_TIME]: "3000",
-        [COLUMNS.DELAY_AFTER_MS]: "0",
-        [COLUMNS.TAGS]: `${endpointKey},derived`
-      })];
-    },
+const getDerivedSearchEstimateConfigs = (
+  endpointKey,
+  endpointColumns,
+  searchTestRows,
+  searchColumns
+) => {
+  return generateTestConfigs(
+    endpointKey,
+    endpointColumns,
+    searchTestRows,
+    searchColumns,
+    {
+      generateConfigs: ({
+        searchTestRow,
+        scope,
+        query,
+        searchColumnIndices,
+        endpointColumns,
+        endpointColumnIndices,
+        endpointKey,
+      }) => {
+        // Transform query to JSON format
+        const processedQuery = convertQueryToJson(query);
 
-    reportResults: (results, searchTestRows, _, endpointKey) => {
-      console.log(`Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
+        return [
+          createTestConfig(endpointColumns, endpointColumnIndices, {
+            [COLUMNS.PARAM_SCOPE]: scope,
+            [COLUMNS.PARAM_Q]: processedQuery,
+            [COLUMNS.PROVIDER_ID]:
+              searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+            [COLUMNS.TEST_NAME]: `For search "${
+              searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]
+            }"`,
+            [COLUMNS.DESCRIPTION]: `For search "${
+              searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]
+            }"`,
+            [COLUMNS.ENABLED]: "true",
+            [COLUMNS.EXPECTED_STATUS]: "200",
+            [COLUMNS.TIMEOUT_MS]: "15000",
+            [COLUMNS.MAX_RESPONSE_TIME]: "3000",
+            [COLUMNS.DELAY_AFTER_MS]: "0",
+            [COLUMNS.TAGS]: `${endpointKey},derived`,
+          }),
+        ];
+      },
+
+      reportResults: (results, searchTestRows, _, endpointKey) => {
+        console.log(
+          `Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`
+        );
+      },
     }
-  });
+  );
 };
 
-const getSearchWillMatchConfigs = (endpointKey, endpointColumns, searchTestRows, searchColumns) => {
-  return generateTestConfigs(endpointKey, endpointColumns, searchTestRows, searchColumns, {
-    generateConfigs: ({ searchTestRow, scope, query, searchColumnIndices, endpointColumns, endpointColumnIndices, endpointKey }) => {
-      // Transform query to JSON and add scope as _scope property
-      const processedQuery = convertQueryToJson(query, scope);
-      
-      return [createTestConfig(endpointColumns, endpointColumnIndices, {
-        [COLUMNS.PARAM_SCOPE]: scope,
-        [COLUMNS.PARAM_Q]: processedQuery,
-        [COLUMNS.PROVIDER_ID]: searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-        [COLUMNS.TEST_NAME]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]}"`,
-        [COLUMNS.DESCRIPTION]: `For search "${searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]}"`,
-        [COLUMNS.ENABLED]: "true",
-        [COLUMNS.EXPECTED_STATUS]: "200",
-        [COLUMNS.TIMEOUT_MS]: "10000",
-        [COLUMNS.MAX_RESPONSE_TIME]: "2000",
-        [COLUMNS.DELAY_AFTER_MS]: "0",
-        [COLUMNS.TAGS]: `${endpointKey},derived`
-      })];
-    },
+const getDerivedSearchWillMatchConfigs = (
+  endpointKey,
+  endpointColumns,
+  searchTestRows,
+  searchColumns
+) => {
+  return generateTestConfigs(
+    endpointKey,
+    endpointColumns,
+    searchTestRows,
+    searchColumns,
+    {
+      generateConfigs: ({
+        searchTestRow,
+        scope,
+        query,
+        searchColumnIndices,
+        endpointColumns,
+        endpointColumnIndices,
+        endpointKey,
+      }) => {
+        // Transform query to JSON and add scope as _scope property
+        const processedQuery = convertQueryToJson(query, scope);
 
-    reportResults: (results, searchTestRows, _, endpointKey) => {
-      console.log(`Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`);
+        return [
+          createTestConfig(endpointColumns, endpointColumnIndices, {
+            [COLUMNS.PARAM_SCOPE]: scope,
+            [COLUMNS.PARAM_Q]: processedQuery,
+            [COLUMNS.PROVIDER_ID]:
+              searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
+            [COLUMNS.TEST_NAME]: `For search "${
+              searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]
+            }"`,
+            [COLUMNS.DESCRIPTION]: `For search "${
+              searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]
+            }"`,
+            [COLUMNS.ENABLED]: "true",
+            [COLUMNS.EXPECTED_STATUS]: "200",
+            [COLUMNS.TIMEOUT_MS]: "10000",
+            [COLUMNS.MAX_RESPONSE_TIME]: "2000",
+            [COLUMNS.DELAY_AFTER_MS]: "0",
+            [COLUMNS.TAGS]: `${endpointKey},derived`,
+          }),
+        ];
+      },
+
+      reportResults: (results, searchTestRows, _, endpointKey) => {
+        console.log(
+          `Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`
+        );
+      },
     }
-  });
+  );
 };
