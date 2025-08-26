@@ -4,6 +4,7 @@
   - [Prerequisites](#prerequisites)
   - [Shared Environment](#shared-environment)
   - [Test the Setup](#test-the-setup)
+    - [Endpoint specification](#endpoint-specification)
     - [Create Subset of Tests](#create-subset-of-tests)
     - [Run the Small Test](#run-the-small-test)
     - [Files](#files)
@@ -39,6 +40,20 @@ $ npm -v
 ## Test the Setup
 
 Let's start with a small test that's quick to run while we work out any kinks.
+
+### Endpoint specification
+
+The version of `endpoints-spec.json` in the repo should be A-OK, but if you wish to regenerate it, run:
+
+`node create-endpoints-spec.js`
+
+Nothing elaborate about this script's output:
+
+```bash
+$ node create-endpoints-spec.js
+Analyzing [yourPath]\app\app.js
+Endpoints specification: [yourPath]\test\endpoints\endpoints-spec.json
+```
 
 ### Create Subset of Tests
 
@@ -114,6 +129,17 @@ put-data                                       0             0                  
 --------------------------------------------------------------------------------------------
 TOTALS                                        32            32                   0     225ms
 ```
+
+If you would like to verify the test configuration spreadsheets were created, look in `ls ./configs`.  The output directory is hard-coded --an oversight.
+
+```bash
+$ ll ./configs
+total 64
+-rw-r--r-- 1 ec2-user ec2-user 4096 40708 Aug 26 14:36 get-data-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096 24325 Aug 26 14:36 get-search-tests.xlsx
+```
+
+Still not satisfied?!  `scp` and crack 'em open!
 
 ### Run the Small Test
 
