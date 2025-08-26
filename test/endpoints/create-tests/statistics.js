@@ -180,9 +180,9 @@ export class TestStatistics {
   printSearchRelatedSummary(options) {
     console.log(
       `\nGenerated related tests: ${
-        options.deriveRelatedTests === true
-          ? true
-          : `false (the --derive-related-tests option was not specified)`
+        options.noDeriveRelatedTests === true
+          ? false
+          : `true (the --no-derive-related-tests option was not specified)`
       }`
     );
   }
