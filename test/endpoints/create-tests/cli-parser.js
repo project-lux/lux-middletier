@@ -113,8 +113,11 @@ export function parseCommandLineArgs() {
         "  --no-dedup                    Skip deduplication of test cases for faster processing"
       );
       console.log(
-        "  --derive-related-tests        Generate get-search-estimate and get-search-will-match tests"
+        "  --derive-related-tests        Generate get-facets, get-search-estimate and"
       );
+      console.log(
+        "                                get-search-will-match tests unless overridden by individual providers."
+      )
       console.log(
         "  --providers, -p <providers>   Comma-separated list of test data providers to use"
       );

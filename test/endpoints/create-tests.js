@@ -434,7 +434,7 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
   switch (endpointKey) {
     case ENDPOINT_KEYS.GET_FACETS:
       primary = providerOptions?.deriveFacetTests;
-      secondary = false;
+      secondary = options?.deriveRelatedTests;
       break;
     case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
       primary = providerOptions?.deriveSearchEstimateTests;

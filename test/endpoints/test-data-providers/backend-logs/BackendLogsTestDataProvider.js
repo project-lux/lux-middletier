@@ -12,13 +12,14 @@ import { ENDPOINT_KEYS } from "../../constants.js";
  * endpoint-specific test cases for various LUX API endpoints.
  *
  * Supported log patterns:
- * - LuxSearch: get-search, get-search-estimate, and get-search-will-match;
- *              latter two only apply when derive related tests is false.
+ * - LuxSearch: successful get-search requests.  Log entries for get-search-estimate
+ *      and get-search-will-match contain insufficient information and should be
+ *      derived from get-search requests.  Ditto for get-facet's log entries.
  * - LuxRelatedList: Related list requests with URIs, scopes, and names
  * - LuxNamedProfiles: Document profile requests with URIs and profiles
  * - requestCompleted: Completed search requests with full parameters
  *
- * Log file format expected: *.txt files in the raw/ subdirectory
+ * Log file format expected: *ErrorLog*.txt files in the raw/ subdirectory
  */
 export class BackendLogsTestDataProvider extends TestDataProvider {
   /**
@@ -27,13 +28,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   constructor(options = {}) {
     super({
-      deriveRelatedTests: false,
       deriveFacetTests: true,
-      encoding: "utf8",
-      strictValidation: false,
-      maxTestCasesPerEndpoint: 50, // Limit to avoid overwhelming test suites
-      includeFastRequests: true, // Include requests under 100ms
-      includeSlowRequests: true, // Include requests over 1000ms
+      deriveSearchEstimateTests: true,
+      deriveSearchWillMatchTests: true,
       ...options,
     });
 
@@ -123,13 +120,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   async extractTestData(apiDef, endpointKey, columns) {
     try {
       // Check which endpoint this is for and decide if we should process
-      const deriveRelatedTests = this.options.deriveRelatedTests === true;
-      if (!this.shouldProcessEndpoint(endpointKey, deriveRelatedTests)) {
+      if (!this.shouldProcessEndpoint(endpointKey)) {
         return [];
       }
 
       console.log(`Processing the ${endpointKey} endpoint`);
-      
+
       const logFiles = this.discoverLogFiles();
 
       if (logFiles.length === 0) {
@@ -200,22 +196,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @param {string} endpointKey - The endpoint key to check
    * @returns {boolean} - Whether to process this endpoint
    */
-  shouldProcessEndpoint(endpointKey, deriveRelatedTests) {
+  shouldProcessEndpoint(endpointKey) {
     return [
       ENDPOINT_KEYS.GET_DATA,
       ENDPOINT_KEYS.GET_RELATED_LIST,
       ENDPOINT_KEYS.GET_SEARCH,
-    ]
-      .concat(
-        // When related tests are not derived, include these.
-        !deriveRelatedTests
-          ? [
-              ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
-              ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
-            ]
-          : []
-      )
-      .includes(endpointKey);
+    ].includes(endpointKey);
   }
 
   /**
@@ -247,37 +233,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         if (!line.includes("[Event:id")) continue;
 
         // Parse different types of log entries based on what's needed for this endpoint
-        const isSearchTraceEvent = line.includes("[Event:id=LuxSearch]");
-
-        if (isSearchTraceEvent) {
-          if (
-            ENDPOINT_KEYS.GET_SEARCH === endpointKey &&
-            line.includes('"requestCompleted":true')
-          ) {
-            // Parse search request context entries - these contain the actual search requests
-            const requestContext = this.parseSearchRequest(line, lines, i);
-            if (requestContext) {
-              parsedData.push(requestContext);
-            }
-          } else if (
-            ENDPOINT_KEYS.GET_SEARCH_ESTIMATE === endpointKey &&
-            line.includes("Calculated estimate")
-          ) {
-            // Parse search estimates
-            const estimate = this.parseSearchEstimate(line);
-            if (estimate) {
-              parsedData.push(estimate);
-            }
-          } else if (
-            ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH === endpointKey &&
-            line.includes("Checked") &&
-            line.includes("searches in")
-          ) {
-            // Parse search will match
-            const willMatch = this.parseSearchWillMatch(line);
-            if (willMatch) {
-              parsedData.push(willMatch);
-            }
+        if (
+          ENDPOINT_KEYS.GET_SEARCH === endpointKey &&
+          line.includes("[Event:id=LuxSearch]") &&
+          line.includes('"requestCompleted":true')
+        ) {
+          const requestContext = this.parseSearchRequest(line, lines, i);
+          if (requestContext) {
+            parsedData.push(requestContext);
           }
         } else if (
           ENDPOINT_KEYS.GET_RELATED_LIST === endpointKey &&
@@ -301,7 +264,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       } catch (error) {
         // Skip malformed lines
         console.warn(
-          `Warning: Could not parse log line: ${line.substring(0, 100)}...`
+          `Warning: Could not parse log line ${i + 1}: ${line.substring(0, 100)}...`
         );
       }
     }
@@ -311,113 +274,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
     return parsedData;
   }
-
-  // /**
-  //  * Parse a completed search request log entry
-  //  * @param {string} line - The log line
-  //  * @param {Array<string>} lines - All lines for context
-  //  * @param {number} index - Current line index
-  //  * @returns {Object|null} - Parsed request or null
-  //  */
-  // parseRequestCompleted(line, lines, index) {
-  //   // Extract timestamp
-  //   const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})/);
-  //   if (!timestampMatch) return null;
-
-  //   const timestamp = timestampMatch[1];
-
-  //   // Find the JSON part of the log line
-  //   const jsonStart = line.indexOf('{"requestId":');
-  //   if (jsonStart === -1) return null;
-
-  //   try {
-  //     // The JSON might be truncated, so we need to extract what we can
-  //     let jsonPart = line.substring(jsonStart);
-
-  //     // Try to find the end of the JSON or take a reasonable portion
-  //     // Look for the end of the criteria object which is what we mainly need
-  //     const criteriaMatch = jsonPart.match(/"criteria":\{[^}]*(?:\{[^}]*\}[^}]*)*\}/);
-
-  //     let searchRequest;
-  //     try {
-  //       // First try to parse the entire JSON if it's complete
-  //       const fullJsonMatch = jsonPart.match(/^\{.*\}/);
-  //       if (fullJsonMatch) {
-  //         searchRequest = JSON.parse(fullJsonMatch[0]);
-  //       } else {
-  //         // If not complete, try to extract just the key parts we need
-  //         const partialData = {
-  //           requestCompleted: true,
-  //           milliseconds: { total: 0 },
-  //           scope: 'item',
-  //           criteria: {}
-  //         };
-
-  //         // Extract individual fields
-  //         const requestCompletedMatch = jsonPart.match(/"requestCompleted":(true|false)/);
-  //         if (requestCompletedMatch) {
-  //           partialData.requestCompleted = requestCompletedMatch[1] === 'true';
-  //         }
-
-  //         const totalTimeMatch = jsonPart.match(/"total":(\d+)/);
-  //         if (totalTimeMatch) {
-  //           partialData.milliseconds.total = parseInt(totalTimeMatch[1]);
-  //         }
-
-  //         const scopeMatch = jsonPart.match(/"scope":"([^"]+)"/);
-  //         if (scopeMatch) {
-  //           partialData.scope = scopeMatch[1];
-  //         }
-
-  //         // Extract criteria - this is the most complex part
-  //         if (criteriaMatch) {
-  //           try {
-  //             const criteriaJson = criteriaMatch[0].replace(/^"criteria":/, '');
-  //             partialData.criteria = JSON.parse(criteriaJson);
-  //           } catch (e) {
-  //             // If criteria parsing fails, extract what we can
-  //             const textMatch = jsonPart.match(/"text":"([^"]+)"/);
-  //             if (textMatch) {
-  //               partialData.criteria.text = textMatch[1];
-  //             }
-  //           }
-  //         }
-
-  //         searchRequest = partialData;
-  //       }
-  //     } catch (e) {
-  //       // Last fallback - extract basic info
-  //       searchRequest = {
-  //         requestCompleted: !line.includes('"requestCompleted":false'),
-  //         milliseconds: { total: 0 },
-  //         scope: 'item',
-  //         criteria: {}
-  //       };
-
-  //       const totalMatch = line.match(/"total":(\d+)/);
-  //       if (totalMatch) {
-  //         searchRequest.milliseconds.total = parseInt(totalMatch[1]);
-  //       }
-  //     }
-
-  //     return {
-  //       timestamp,
-  //       total: searchRequest.estimate || 0,
-  //       duration: searchRequest.milliseconds?.total || 0,
-  //       isSuccessful: searchRequest.requestCompleted !== false,
-  //       scope: searchRequest.scope || 'item',
-  //       searchParams: {
-  //         scope: searchRequest.scope || 'item',
-  //         ...searchRequest.criteria || {}
-  //       },
-  //       rawLine: line
-  //     };
-
-  //   } catch (error) {
-  //     console.warn(`Warning: Could not parse search request JSON in line: ${line.substring(0, 100)}...`);
-  //     return null;
-  //   }
-  // }
 
   /**
    * Parse a search request log entry
@@ -494,49 +350,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Parse a search estimate log entry
-   * @param {string} line - The log line
-   * @returns {Object|null} - Parsed estimate or null
-   */
-  parseSearchEstimate(line) {
-    const match = line.match(
-      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Calculated estimate in (\d+) milliseconds?/
-    );
-    if (!match) return null;
-
-    const [, timestamp, duration] = match;
-
-    return {
-      timestamp,
-      duration: parseInt(duration),
-      type: "estimate",
-      rawLine: line,
-    };
-  }
-
-  /**
-   * Parse a search will match log entry
-   * @param {string} line - The log line
-   * @returns {Object|null} - Parsed will match or null
-   */
-  parseSearchWillMatch(line) {
-    const match = line.match(
-      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Checked (\d+) searches in (\d+) milliseconds?/
-    );
-    if (!match) return null;
-
-    const [, timestamp, searchCount, duration] = match;
-
-    return {
-      timestamp,
-      searchCount: parseInt(searchCount),
-      duration: parseInt(duration),
-      type: "will-match",
-      rawLine: line,
-    };
-  }
-
-  /**
    * Parse a related list request log entry
    * @param {string} line - The log line
    * @returns {Object|null} - Parsed related list request or null
@@ -606,10 +419,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         return this.extractRelatedListTestCases(logData, sourceFile);
       case ENDPOINT_KEYS.GET_DATA:
         return this.extractDocumentTestCases(logData, sourceFile);
-      case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
-        return this.extractSearchEstimateTestCases(logData, sourceFile);
-      case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-        return this.extractSearchWillMatchTestCases(logData, sourceFile);
       default:
         return [];
     }
@@ -736,66 +545,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Extract search estimate test cases
-   * @param {Array} logData - Parsed log data array
-   * @param {string} sourceFile - Source file name
-   * @returns {Array<Object>} - Test cases
-   */
-  extractSearchEstimateTestCases(logData, sourceFile) {
-    const testCases = [];
-
-    for (const estimate of logData) {
-      const testCase = {
-        testName: `Search estimate from ${sourceFile} at ${estimate.timestamp}`,
-        timestamp: estimate.timestamp,
-        duration: estimate.duration,
-        expectedStatus: 200,
-        timeout: Math.max(10000, estimate.duration * 3),
-        maxResponseTime: Math.max(2000, estimate.duration * 2),
-        params: {
-          scope: "item", // Default scope for estimates
-        },
-        sourceFile,
-        rawLine: estimate.rawLine,
-      };
-
-      testCases.push(testCase);
-    }
-
-    return testCases;
-  }
-
-  /**
-   * Extract search will match test cases
-   * @param {Array} logData - Parsed log data array
-   * @param {string} sourceFile - Source file name
-   * @returns {Array<Object>} - Test cases
-   */
-  extractSearchWillMatchTestCases(logData, sourceFile) {
-    const testCases = [];
-
-    for (const willMatch of logData) {
-      const testCase = {
-        testName: `Search will match (${willMatch.searchCount} searches) from ${sourceFile}`,
-        timestamp: willMatch.timestamp,
-        duration: willMatch.duration,
-        expectedStatus: 200,
-        timeout: Math.max(10000, willMatch.duration * 3),
-        maxResponseTime: Math.max(2000, willMatch.duration * 2),
-        params: {
-          scope: "item", // Default scope
-        },
-        sourceFile,
-        rawLine: willMatch.rawLine,
-      };
-
-      testCases.push(testCase);
-    }
-
-    return testCases;
-  }
-
-  /**
    * Convert test cases to test rows matching the column structure
    * @param {Array<Object>} testCases - Test case objects
    * @param {Array<string>} columns - Column structure
@@ -868,28 +617,6 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       }
       return true;
     });
-
-    // // Apply limits
-    // const maxCases = this.options.maxTestCasesPerEndpoint || 50;
-    // if (filtered.length > maxCases) {
-    //   console.log(`  - Limiting ${endpointKey} test cases from ${filtered.length} to ${maxCases}`);
-
-    //   // Try to get a good distribution by sorting by various criteria and taking from different parts
-    //   filtered = filtered.sort((a, b) => {
-    //     // Sort by test name to get some variety
-    //     const nameA = a[0] || '';
-    //     const nameB = b[0] || '';
-    //     return nameA.localeCompare(nameB);
-    //   });
-
-    //   // Take every Nth item to get good coverage
-    //   const step = Math.ceil(filtered.length / maxCases);
-    //   const distributed = [];
-    //   for (let i = 0; i < filtered.length && distributed.length < maxCases; i += step) {
-    //     distributed.push(filtered[i]);
-    //   }
-    //   filtered = distributed;
-    // }
 
     return filtered;
   }
