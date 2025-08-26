@@ -432,7 +432,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const sourceLabel = this.createSourceLabel(sourceFile);
 
     // Process search request data from the array
-    for (const request of logData) {
+    for (let i = 0; i < logData.length; i++) {
+      const request = logData[i];
       // Determine the q parameter value
       let qParam = "";
       if (request.searchParams.q) {
@@ -454,7 +455,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       }
 
       const testCase = {
-        testName: `Search (context) ${sourceLabel} at ${request.timestamp}`,
+        testName: `Line ${i + 1} in ${sourceLabel} at ${request.timestamp}`,
         timestamp: request.timestamp,
         duration: request.duration || 5000, // Default duration since request context may not have timing
         expectedStatus: 200, // Assume successful
@@ -552,14 +553,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     return testCases.map((testCase, index) => {
       return columns.map((columnName) => {
         if (columnName === "test_name") {
-          return testCase.testName || `Backend log test ${index + 1}`;
+          return `Backend log test ${index + 1}`;
         } else if (columnName === "description") {
-          return (
-            `Generated from backend logs: ${testCase.rawLine?.substring(
-              0,
-              100
-            )}...` || ""
-          );
+          return testCase.testName || "";
         } else if (columnName === "enabled") {
           return true;
         } else if (columnName === "expected_status") {
