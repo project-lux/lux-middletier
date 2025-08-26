@@ -1955,7 +1955,7 @@ class ReportGenerator {
   createTestResultsSection(report) {
     // Get unique statuses and providers from actual test results for smart filtering
     const uniqueStatuses = [...new Set(report.results.map(r => r.status))].sort();
-    const uniqueProviders = [...new Set(report.results.map(r => r.provider))].sort();
+    const uniqueProviders = [...new Set(report.results.map(r => r.provider_id))].sort();
     
     // Generate status options dynamically based on actual data
     const statusOptions = uniqueStatuses.map(status => 
@@ -2121,7 +2121,7 @@ class ReportGenerator {
                     ${results
                       .map(
                         (result) => `
-                        <tr class="status-${result.status}">
+                        <tr class="status-${result.status}" data-provider="${this.escapeHtmlAttribute(result.provider_id || 'unknown')}">
                             <td><span title="${this.getTestNameTooltip(
                               result
                             )}">${this.escapeHtmlContent(
@@ -2528,11 +2528,10 @@ Timestamp: ${timestampText}`;
             
             allTables.forEach(row => {
                 const statusCell = row.cells[1]; // Status is the 2nd column (index 1)
-                const providerCell = row.cells[0]; // Provider is the 1st column (index 0)
+                const providerValue = row.getAttribute('data-provider'); // Provider from data attribute
                 
-                if (statusCell && providerCell) {
+                if (statusCell && providerValue !== null) {
                     const statusValue = statusCell.textContent.trim();
-                    const providerValue = providerCell.textContent.trim();
                     
                     const statusMatch = statusFilter === '' || statusValue === statusFilter;
                     const providerMatch = providerFilter === '' || providerValue === providerFilter;
