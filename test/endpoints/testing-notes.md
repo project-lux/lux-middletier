@@ -11,6 +11,7 @@
     - [Recap](#recap)
   - [Run the Full Test](#run-the-full-test)
     - [Create All Test Configurations](#create-all-test-configurations)
+    - [Run All Tests](#run-all-tests)
 
 
 # Middle Tier Endpoint Testing Notes
@@ -394,3 +395,94 @@ total 454484
 -rw-r--r-- 1 ec2-user ec2-user 4096  17153122 Aug 26 15:16 get-search-will-match-tests.xlsx
 ```
 
+### Run All Tests
+
+We don't know how long it is going to take to run these tests, or if it is even a good idea to do so!  Convenience and the dashboard reports may be the only reasons to do so.  Let's see if we can get away with it.  
+
+We want:
+
+1. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.
+2. Provide a name and description for the test run, which will help us be a little bit more organized.
+3. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
+4. Not restrict by provider or endpoint.
+5. Do a dry run to verify we like our settings.
+6. Captured STDERR and STDOUT to a file --ideally with a name that is unique to the test.
+
+Example pre-configured for the MarkLogic 1/3rd test:
+
+```bash
+$ nohup node run-tests.js \
+    --name "ML 1/3rd" \
+    --description "MarkLogic with 1/3rd the resources PRD has." \
+    --save-responses \
+    --dry-run \
+    > ml-one-third.txt 2>&1 &
+```
+
+Even though it is a dry run, it will still take a while to process all of the test configuration spreadsheets.
+
+Anticipated output:
+
+```bash
+Configuration directory: ./configs
+Reports directory: ./reports
+Test name: ML 1/3rd
+Test description: MarkLogic with 1/3rd the resources PRD has.
+Response bodies will be saved to disk
+
+DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
+
+Loaded 19 endpoint specifications
+Test execution directory: reports\test-run-2025-08-26_19-34-14
+
+Resolved:
+  Requested providers:
+        All
+  Requested endpoints:
+        All
+
+Filtering options:
+  Available providers:
+        AdvancedSearchQueriesTestDataProvider
+        BackendLogsTestDataProvider
+        BenchmarkQueriesTestDataProvider
+        Prd2PrdTestQueriesTestDataProvider
+        SpecificItemTestCasesTestDataProvider
+        UpdatedAdvancedSearchQueriesTestDataProvider
+  Available endpoints:
+        get-data
+        get-facets
+        get-related-list
+        get-search
+        get-search-estimate
+        get-search-will-match
+
+Loading config from configs\get-data-tests.xlsx for the get-data endpoint...
+Loading config from configs\get-facets-tests.xlsx for the get-facets endpoint...
+Loading config from configs\get-related-list-tests.xlsx for the get-related-list endpoint...
+Loading config from configs\get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
+Loading config from configs\get-search-tests.xlsx for the get-search endpoint...
+Loading config from configs\get-search-will-match-tests.xlsx for the get-search-will-match endpoint...
+Found 436889 test configurations across 6 files
+
+Test distribution by endpoint type:
+  get-data: 75183 tests (75183 enabled, 0 filtered out)
+  get-facets: 270619 tests (270619 enabled, 0 filtered out)
+  get-related-list: 37993 tests (37993 enabled, 0 filtered out)
+  get-search-estimate: 17693 tests (17693 enabled, 0 filtered out)
+  get-search: 17708 tests (17708 enabled, 0 filtered out)
+  get-search-will-match: 17693 tests (17693 enabled, 0 filtered out)
+
+=== DRY RUN SUMMARY ===
+Total tests found: 436889
+Tests that would be executed: 436889
+Tests that would be skipped: 0
+Estimated execution time: 873778s - 4368890s (rough estimate)
+
+No actual HTTP requests were made.
+To execute these tests, run the same command without --dry-run
+```
+
+Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.
+
+Ready to run the actual test?  Remove `--dry-run`'s line and go for it.
