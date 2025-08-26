@@ -772,7 +772,9 @@ class EndpointTester {
     this.reportGenerator = new ReportGenerator(
       this.executionDir,
       this.options.saveResponseBodies,
-      this.options.embedResponseBodies
+      this.options.embedResponseBodies,
+      this.options.testName,
+      this.options.testDescription
     );
   }
 
@@ -982,7 +984,7 @@ class EndpointTester {
     providerData.results.push(...results);
 
     // Update summary for this provider
-    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies);
+    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies, this.options.testName, this.options.testDescription);
     providerData.summary = reportGenerator.createSummary(
       providerData.results,
       [providerId],
@@ -1111,6 +1113,8 @@ class EndpointTester {
       providersIncluded: this.getProvidersIncluded(),
       endpointsIncluded: this.getEndpointsIncluded(),
       executionTimestamp: this.getExecutionTimestamp(),
+      testName: this.options.testName,
+      testDescription: this.options.testDescription,
     });
 
     console.log("✓ Generated consolidated dashboard reports");
@@ -1140,7 +1144,9 @@ class EndpointTester {
       const endpointReportGenerator = new ReportGenerator(
         endpointDir,
         this.responseSaver.enabled,
-        this.options.embedResponseBodies
+        this.options.embedResponseBodies,
+        this.options.testName,
+        this.options.testDescription
       );
 
       // Generate reports for this endpoint using results from all providers
@@ -1198,7 +1204,7 @@ class EndpointTester {
       const jsonReportPath = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.json");
       
       // Create summary for this endpoint
-      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies);
+      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies, this.options.testName, this.options.testDescription);
       const summary = reportGenerator.createSummary(
         endpointData.results,
         endpointData.providers,
@@ -1625,10 +1631,12 @@ class EndpointTester {
  * Handles report generation (JSON, HTML)
  */
 class ReportGenerator {
-  constructor(executionDir, saveResponseBodies = false, embedResponseBodies = false) {
+  constructor(executionDir, saveResponseBodies = false, embedResponseBodies = false, testName = null, testDescription = null) {
     this.executionDir = executionDir;
     this.saveResponseBodies = saveResponseBodies;
     this.embedResponseBodies = embedResponseBodies;
+    this.testName = testName;
+    this.testDescription = testDescription;
   }
 
   /**
@@ -1660,7 +1668,7 @@ class ReportGenerator {
   createSummary(results, providersIncluded, endpointsIncluded) {
     const statusCounts = this.getStatusCounts(results);
 
-    return {
+    const summary = {
       total_tests: results.length,
       ...statusCounts,
       average_duration: this.calculateAverageDuration(results),
@@ -1670,6 +1678,16 @@ class ReportGenerator {
       endpoints_included: endpointsIncluded,
       timestamp: new Date().toISOString(),
     };
+
+    // Add name and description if provided
+    if (this.testName) {
+      summary.test_name = this.testName;
+    }
+    if (this.testDescription) {
+      summary.test_description = this.testDescription;
+    }
+
+    return summary;
   }
 
   /**
@@ -1781,15 +1799,19 @@ class ReportGenerator {
       )
       .join("");
 
+    const title = this.testName || "LUX Endpoint Test Report";
+    const isDashboard = shouldShowEndpointTypeSection;
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LUX Endpoint Test Report</title>
+    <title>${this.escapeHtmlContent(title)}</title>
     ${this.getHTMLStyles()}
 </head>
 <body>
-    <h1>LUX Endpoint Test Report</h1>
+    ${!isDashboard ? this.createDashboardLink() : ''}
+    <h1>${this.escapeHtmlContent(title)}</h1>
     
     ${this.createSummarySection(report.summary)}
     ${shouldShowEndpointTypeSection ? this.createEndpointTypeSection(endpointTypeSummary) : ''}
@@ -1798,6 +1820,16 @@ class ReportGenerator {
     ${this.getJavaScriptFunctions()}
 </body>
 </html>`;
+  }
+
+  /**
+   * Create link back to dashboard for endpoint-specific reports
+   */
+  createDashboardLink() {
+    return `
+    <div style="margin-bottom: 20px; padding: 10px; background-color: #e7f3ff; border-left: 4px solid #0066cc; border-radius: 4px;">
+        <a href="../../dashboard-report.html" style="color: #0066cc; text-decoration: none; font-weight: bold;">← Back to Dashboard</a>
+    </div>`;
   }
 
   /**
@@ -1894,9 +1926,16 @@ class ReportGenerator {
    * Create summary section
    */
   createSummarySection(summary) {
+    const nameSection = this.testName ? 
+      `<p><strong>Name:</strong> ${this.escapeHtmlContent(this.testName)}</p>` : '';
+    const descriptionSection = this.testDescription ? 
+      `<p><strong>Description:</strong> ${this.escapeHtmlContent(this.testDescription)}</p>` : '';
+    
     return `
     <div class="summary">
         <h2>Summary</h2>
+        ${nameSection}
+        ${descriptionSection}
         <p><strong>Generated:</strong> ${summary.timestamp}</p>
         <p><strong>Providers Included:</strong> ${summary.providers_included.join(
           ", "
@@ -2890,7 +2929,13 @@ class DashboardGenerator {
    * Generate dashboard reports
    */
   async generate(endpointSummaries, options = {}) {
-    const { providersIncluded = ["All"], endpointsIncluded = ["All"], executionTimestamp } = options;
+    const { 
+      providersIncluded = ["All"], 
+      endpointsIncluded = ["All"], 
+      executionTimestamp,
+      testName = null,
+      testDescription = null 
+    } = options;
 
     // Create consolidated summary
     const consolidatedSummary = this.createConsolidatedSummary(
@@ -2902,7 +2947,7 @@ class DashboardGenerator {
 
     // Generate dashboard files
     this.generateDashboardJSON(consolidatedSummary, endpointSummaries);
-    this.generateDashboardHTML(consolidatedSummary, endpointSummaries);
+    this.generateDashboardHTML(consolidatedSummary, endpointSummaries, testName, testDescription);
     
     this.displayConsolidatedSummary(consolidatedSummary);
   }
@@ -2956,7 +3001,8 @@ class DashboardGenerator {
       providers_included: Array.from(allProviders).sort(),
       endpoints_included: endpointsIncluded,
       timestamp: executionTimestamp || new Date().toISOString(),
-      endpoint_count: endpointSummaries.length
+      endpoint_count: endpointSummaries.length,
+      provider_count: allProviders.size
     };
   }
 
@@ -2979,9 +3025,9 @@ class DashboardGenerator {
   /**
    * Generate dashboard HTML report
    */
-  generateDashboardHTML(consolidatedSummary, endpointSummaries) {
+  generateDashboardHTML(consolidatedSummary, endpointSummaries, testName = null, testDescription = null) {
     const htmlFile = path.join(this.executionDir, "dashboard-report.html");
-    const htmlContent = this.createDashboardHTMLContent(consolidatedSummary, endpointSummaries);
+    const htmlContent = this.createDashboardHTMLContent(consolidatedSummary, endpointSummaries, testName, testDescription);
     fs.writeFileSync(htmlFile, htmlContent);
     return htmlFile;
   }
@@ -2989,7 +3035,7 @@ class DashboardGenerator {
   /**
    * Create dashboard HTML content
    */
-  createDashboardHTMLContent(consolidatedSummary, endpointSummaries) {
+  createDashboardHTMLContent(consolidatedSummary, endpointSummaries, testName = null, testDescription = null) {
     const endpointTableRows = endpointSummaries
       .map(({ endpointType, summary, htmlReportPath }) => 
         `<tr>
@@ -3018,16 +3064,20 @@ class DashboardGenerator {
       )
       .join("");
 
+    const title = testName ? `${testName} - LUX Endpoint Testing Dashboard` : 'LUX Endpoint Testing Dashboard';
+    const heading = testName ? `🎯 ${testName}` : '🎯 LUX Endpoint Testing Dashboard';
+    const subtitle = testDescription ? testDescription : 'Endpoint-Based Execution Results';
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LUX Endpoint Testing Dashboard</title>
+    <title>${this.escapeHtml(title)}</title>
     ${this.getDashboardStyles()}
 </head>
 <body>
-    <h1>🎯 LUX Endpoint Testing Dashboard</h1>
-    <p class="subtitle">Endpoint-Based Execution Results</p>
+    <h1>${this.escapeHtml(heading)}</h1>
+    <p class="subtitle">${this.escapeHtml(subtitle)}</p>
     
     ${this.createOverallSummarySection(consolidatedSummary)}
     ${this.createEndpointDetailSection(endpointTableRows)}
@@ -3048,7 +3098,7 @@ class DashboardGenerator {
             <div class="summary-card">
                 <h3>Test Execution</h3>
                 <p><strong>Generated:</strong> ${summary.timestamp}</p>
-                <p><strong>Providers:</strong> ${summary.provider_count}</p>
+                <p><strong>Providers:</strong> ${summary.provider_count} ${summary.providers_included.length > 0 ? `(${summary.providers_included.join(', ')})` : ''}</p>
                 <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
             </div>
             <div class="summary-card">
@@ -3313,6 +3363,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let providers = null; // null means use all available providers
   let endpoints = null; // null means test all endpoints
   let dryRun = false; // dry-run mode - don't execute tests, just show what would be run
+  let testName = null; // custom name for the test run
+  let testDescription = null; // custom description for the test run
   let positionalArgIndex = 0;
 
   // Process command line arguments
@@ -3346,6 +3398,28 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         );
         process.exit(1);
       }
+    } else if (arg === "--name") {
+      // Next argument should be the test name
+      i++;
+      if (i < args.length) {
+        testName = args[i];
+      } else {
+        console.error("Error: --name requires a test name");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--name=")) {
+      testName = arg.substring(7);
+    } else if (arg === "--description") {
+      // Next argument should be the test description
+      i++;
+      if (i < args.length) {
+        testDescription = args[i];
+      } else {
+        console.error("Error: --description requires a test description");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--description=")) {
+      testDescription = arg.substring(14);
     } else if (arg === "--help" || arg === "-h") {
       console.log(
         "Usage: node run-tests.js [configDir] [reportsDir] [options]"
@@ -3365,6 +3439,12 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       );
       console.log(
         "  --embed-responses, -b         Embed response bodies in HTML report"
+      );
+      console.log(
+        "  --name <name>                 Custom name for the test run (appears in HTML title and summary)"
+      );
+      console.log(
+        "  --description <description>   Custom description for the test run (appears in summary)"
       );
       console.log(
         "  --dry-run, -d                 Helpful to see resolved configuration and available filtering options"
@@ -3401,6 +3481,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("  node run-tests.js --save-responses");
       console.log("  node run-tests.js --embed-responses");
       console.log("  node run-tests.js --save-responses --embed-responses");
+      console.log('  node run-tests.js --name "Production API Test" --description "Weekly API validation"');
+      console.log('  node run-tests.js --name="Nightly Tests" --description="Automated nightly validation"');
       console.log("  node run-tests.js --dry-run");
       console.log(
         "  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
@@ -3437,6 +3519,12 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   console.log(`Configuration directory: ${configDir}`);
   console.log(`Reports directory: ${reportsDir}`);
+  if (testName) {
+    console.log(`Test name: ${testName}`);
+  }
+  if (testDescription) {
+    console.log(`Test description: ${testDescription}`);
+  }
   if (saveResponseBodies) {
     console.log("Response bodies will be saved to disk");
   }
@@ -3457,6 +3545,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     providers,
     endpoints,
     dryRun,
+    testName,
+    testDescription,
   };
   const tester = new EndpointTester(configDir, reportsDir, options);
 
