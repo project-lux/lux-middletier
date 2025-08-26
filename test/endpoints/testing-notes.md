@@ -7,7 +7,7 @@
     - [Endpoint specification](#endpoint-specification)
     - [Create Subset of Tests](#create-subset-of-tests)
     - [Run the Small Test](#run-the-small-test)
-    - [Files](#files)
+    - [Reports and Response Bodies](#reports-and-response-bodies)
     - [Recap](#recap)
 
 
@@ -276,9 +276,56 @@ So far, so good?  If so let's press on.  Else, someone is trying to rain on our 
 
 Curious about that failure?  Feel free to check the JSON or HTML report but **--spoiler alert--** https://lux.collections.yale.edu/data/concept/92150a0a-4ade-494d-9554-c548c9c21bd3 doesn't exist in the current dataset.
 
-### Files
+### Reports and Response Bodies
 
-The dashboard reports should be found in TODO
+The dashboard reports should be found in `./reports/test-run-[timestamp]/`.  Example:
+
+```bash
+-rw-r--r-- 1 ec2-user ec2-user 4096 6541 Aug 26 14:39 dashboard-report.html
+-rw-r--r-- 1 ec2-user ec2-user 4096 1456 Aug 26 14:39 dashboard-report.json
+drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 endpoints/
+drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 responses/
+```
+
+The dashboard reports contain links to the individual endpoint reports: `endpoints/[endpointKey]/endpoint-test-report.*`.  Here too, `scp` will be your friend for viewing at least the HTML reports.
+
+The response bodies are within the `responses` sub-dir, with paths that identify the endpoint and provider.  For our small test:
+
+```bash
+$ ll responses/get-data-tests/SpecificItemTestCasesTestDataProvider/
+total 804
+-rw-r--r-- 1 ec2-user ec2-user 4096 13963 Aug 26 14:39 confRow02_sourceRow3.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 15812 Aug 26 14:39 confRow03_sourceRow4.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 23411 Aug 26 14:39 confRow04_sourceRow5.json
+-rw-r--r-- 1 ec2-user ec2-user 4096   843 Aug 26 14:39 confRow05_sourceRow6.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 31897 Aug 26 14:39 confRow06_sourceRow7.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 57915 Aug 26 14:39 confRow07_sourceRow8.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 45437 Aug 26 14:39 confRow08_sourceRow10.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 12554 Aug 26 14:39 confRow09_sourceRow11.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 18145 Aug 26 14:39 confRow10_sourceRow12.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 27244 Aug 26 14:39 confRow11_sourceRow13.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 12860 Aug 26 14:39 confRow12_sourceRow14.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 28164 Aug 26 14:39 confRow13_sourceRow18.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 32865 Aug 26 14:39 confRow14_sourceRow19.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 23285 Aug 26 14:39 confRow15_sourceRow20.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 28962 Aug 26 14:39 confRow16_sourceRow22.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 22826 Aug 26 14:39 confRow17_sourceRow23.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 67936 Aug 26 14:39 confRow18_sourceRow24.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 14377 Aug 26 14:39 confRow19_sourceRow25.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 13678 Aug 26 14:39 confRow20_sourceRow26.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 19328 Aug 26 14:39 confRow21_sourceRow27.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 15202 Aug 26 14:39 confRow22_sourceRow28.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 11709 Aug 26 14:39 confRow23_sourceRow29.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 22387 Aug 26 14:39 confRow24_sourceRow30.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 25670 Aug 26 14:39 confRow25_sourceRow31.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 18173 Aug 26 14:39 confRow26_sourceRow32.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 15823 Aug 26 14:39 confRow27_sourceRow34.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 38519 Aug 26 14:39 confRow28_sourceRow35.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 19390 Aug 26 14:39 confRow29_sourceRow36.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 41478 Aug 26 14:39 confRow30_sourceRow37.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 19758 Aug 26 14:39 confRow31_sourceRow38.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 17765 Aug 26 14:39 confRow32_sourceRow39.json
+```
 
 ### Recap
 
