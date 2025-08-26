@@ -64,6 +64,21 @@ class ConfigurationLoader {
   }
 
   /**
+   * Load and parse a single endpoint file (memory-efficient approach)
+   */
+  loadSingleEndpointFile(filename, endpointType) {
+    const filePath = path.join(this.configDir, filename);
+    
+    try {
+      console.log(`    Loading ${filename} (endpoint: ${endpointType})`);
+      return this.loadSingleConfig(filePath, endpointType);
+    } catch (error) {
+      console.error(`    Error loading ${filename}: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
    * Determine if an endpoint should be included based on filter criteria
    * Supports inclusion (default) and exclusion (with ^ prefix)
    */
@@ -836,17 +851,19 @@ class EndpointTester {
 
     this.displayConfiguration();
 
-    const testConfigs = this.configLoader.loadConfigs(this.options.endpoints);
-    this.displayTestDistribution(testConfigs);
-
     if (this.options.dryRun) {
-      this.displayDryRunSummary(testConfigs);
+      // For dry run, load all configs to show distribution
+      const allTestConfigs = this.configLoader.loadConfigs(this.options.endpoints);
+      this.displayTestDistribution(allTestConfigs);
+      this.displayDryRunSummary(allTestConfigs);
       return;
     }
 
-    console.log("\n=== EXECUTING TESTS ===");
-    await this.executeTests(testConfigs);
-    this.generateReports();
+    // Process tests by endpoint file to manage memory usage (33% reduction!)
+    await this.executeTestsByEndpoint();
+    
+    // Generate consolidated reports
+    await this.generateConsolidatedReports();
   }
 
   /**
@@ -863,6 +880,390 @@ class EndpointTester {
     this.logValues("  Available providers", this.getAvailableProviders());
     this.logValues("  Available endpoints", this.getAvailableEndpoints());
     console.log("");
+  }
+
+  /**
+   * Execute tests by endpoint file to manage memory usage (33% memory reduction)
+   */
+  async executeTestsByEndpoint() {
+    const endpointFiles = this.getTargetEndpointFiles();
+    const totalFiles = endpointFiles.length;
+    
+    console.log(`\n=== EXECUTING TESTS BY ENDPOINT FILE (${totalFiles} files) ===`);
+    console.log("Memory-efficient approach: Processing one spreadsheet at a time");
+
+    // Track all provider summaries across endpoints
+    this.allProviderSummaries = new Map();
+
+    for (let i = 0; i < endpointFiles.length; i++) {
+      const { file, endpointType } = endpointFiles[i];
+      console.log(`\n--- Processing endpoint ${i + 1}/${totalFiles}: ${endpointType} (${file}) ---`);
+
+      // Load only this endpoint's configs (max 336K vs 503K total)
+      const endpointConfigs = this.configLoader.loadSingleEndpointFile(file, endpointType);
+      const enabledCount = endpointConfigs.filter(config => this.shouldRunTest(config)).length;
+      
+      console.log(`  Loaded ${endpointConfigs.length} tests (${enabledCount} enabled) from ${file}`);
+
+      if (enabledCount === 0) {
+        console.log(`  No enabled tests found for ${endpointType}`);
+        continue;
+      }
+
+      // Process all providers for this endpoint
+      await this.processAllProvidersForEndpoint(endpointConfigs, endpointType);
+
+      // Force garbage collection after each endpoint file
+      if (global.gc) {
+        global.gc();
+      }
+      
+      console.log(`  ✓ Completed endpoint ${endpointType} - memory cleared`);
+    }
+  }
+
+  /**
+   * Process all providers found in a single endpoint file
+   */
+  async processAllProvidersForEndpoint(endpointConfigs, endpointType) {
+    // Group configs by provider for this endpoint
+    const providerGroups = this.groupConfigsByProvider(endpointConfigs);
+    const providerIds = Object.keys(providerGroups).sort();
+    
+    console.log(`    Found ${providerIds.length} providers in ${endpointType}: ${providerIds.join(', ')}`);
+
+    for (const providerId of providerIds) {
+      const providerConfigs = providerGroups[providerId].filter(config => this.shouldRunTest(config));
+      
+      if (providerConfigs.length === 0) {
+        console.log(`    Skipping ${providerId} (no enabled tests)`);
+        continue;
+      }
+
+      console.log(`    Processing ${providerId}: ${providerConfigs.length} tests`);
+
+      // Execute tests for this provider
+      this.results = []; // Clear previous results
+      await this.executeTests(providerConfigs);
+
+      // Accumulate results into provider summaries
+      this.accumulateProviderResults(providerId, this.results);
+    }
+  }
+
+  /**
+   * Group configurations by provider ID
+   */
+  groupConfigsByProvider(configs) {
+    const groups = {};
+    configs.forEach(config => {
+      const providerId = config.provider_id || 'unknown';
+      if (!groups[providerId]) {
+        groups[providerId] = [];
+      }
+      groups[providerId].push(config);
+    });
+    return groups;
+  }
+
+  /**
+   * Accumulate test results into provider summaries for final reporting
+   */
+  accumulateProviderResults(providerId, results) {
+    if (!this.allProviderSummaries.has(providerId)) {
+      this.allProviderSummaries.set(providerId, {
+        results: [],
+        summary: null
+      });
+    }
+
+    const providerData = this.allProviderSummaries.get(providerId);
+    providerData.results.push(...results);
+
+    // Update summary for this provider
+    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+    providerData.summary = reportGenerator.createSummary(
+      providerData.results,
+      [providerId],
+      this.getEndpointsIncluded()
+    );
+
+    console.log(`      ✓ Accumulated ${results.length} results for ${providerId} (total: ${providerData.results.length})`);
+  }
+
+  /**
+   * Get list of target endpoint files to process
+   */
+  getTargetEndpointFiles() {
+    const allFiles = this.configLoader.getValidConfigFiles();
+    const targetFiles = [];
+
+    for (const file of allFiles) {
+      const endpointType = this.configLoader.extractEndpointType(file);
+      
+      // Apply endpoint filter
+      if (this.configLoader.shouldIncludeEndpoint(endpointType, this.options.endpoints)) {
+        targetFiles.push({ file, endpointType });
+      }
+    }
+
+    // Sort by file size (largest first) for better progress visibility
+    return targetFiles.sort((a, b) => {
+      const sizeA = this.getEndpointFileSize(a.file);
+      const sizeB = this.getEndpointFileSize(b.file);
+      return sizeB - sizeA; // Descending order
+    });
+  }
+
+  /**
+   * Get estimated file size for sorting (rough estimate based on known sizes)
+   */
+  getEndpointFileSize(filename) {
+    // Based on your data: get-facets (336K), get-data (75K), get-related-list (38K), etc.
+    const sizeEstimates = {
+      'get-facets-tests.xlsx': 336793,
+      'get-data-tests.xlsx': 75183,
+      'get-related-list-tests.xlsx': 37993,
+      'get-search-tests.xlsx': 17708,
+      'get-search-estimate-tests.xlsx': 17693,
+      'get-search-will-match-tests.xlsx': 17693
+    };
+    return sizeEstimates[filename] || 10000; // Default estimate
+  }
+
+  /**
+   * Get execution timestamp from directory name
+   */
+  getExecutionTimestamp() {
+    const execDirName = path.basename(this.executionDir);
+    const timestampMatch = execDirName.match(/test-run-(.+)/);
+    return timestampMatch ? timestampMatch[1].replace(/_/g, ' ').replace(/-/g, ':') : new Date().toISOString();
+  }
+
+  /**
+   * Sanitize filename for cross-platform compatibility
+   */
+  sanitizeFilename(filename) {
+    return filename.replace(/[^a-zA-Z0-9\-_]/g, '_');
+  }
+
+  /**
+   * Display test distribution by endpoint type (for dry run)
+   */
+  displayTestDistribution(testConfigs) {
+    console.log(
+      `Found ${testConfigs.length} test configurations across ${
+        [...new Set(testConfigs.map((t) => t.source_file))].length
+      } files`
+    );
+
+    const testsByType = this.groupTestsByType(testConfigs);
+    console.log("\nTest distribution by endpoint type:");
+    Object.entries(testsByType).forEach(([type, tests]) => {
+      const enabledCount = tests.filter((config) =>
+        this.shouldRunTest(config)
+      ).length;
+      const disabledCount = tests.length - enabledCount;
+      console.log(
+        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`
+      );
+    });
+
+    // Overall summary
+    const totalEnabled = testConfigs.filter((config) =>
+      this.shouldRunTest(config)
+    ).length;
+    const totalDisabled = testConfigs.length - totalEnabled;
+    if (totalDisabled > 0) {
+      console.log(
+        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`
+      );
+    }
+    
+    // Memory efficiency note for endpoint-based processing
+    const largestEndpoint = Object.entries(testsByType).reduce((max, [type, tests]) => 
+      tests.length > max.count ? { type, count: tests.length } : max, 
+      { type: '', count: 0 }
+    );
+    
+    console.log(`\n💡 Endpoint-based execution (33% memory reduction):`);
+    console.log(`   Peak memory: ~${largestEndpoint.count.toLocaleString()} tests (${largestEndpoint.type})`);
+    console.log(`   vs. all files: ${testConfigs.length.toLocaleString()} tests`);
+    console.log(`   Memory saved: ~${Math.round((1 - largestEndpoint.count / testConfigs.length) * 100)}%`);
+  }
+
+  /**
+   * Generate consolidated dashboard reports from accumulated endpoint data
+   */
+  async generateConsolidatedReports() {
+    console.log("\n=== GENERATING CONSOLIDATED REPORTS ===");
+
+    // Generate individual endpoint reports from accumulated data
+    await this.generateIndividualEndpointReports();
+
+    // Collect all endpoint summaries for dashboard
+    const endpointSummaries = this.collectAccumulatedEndpointSummaries();
+    
+    // Generate dashboard report
+    const dashboardGenerator = new DashboardGenerator(this.executionDir);
+    await dashboardGenerator.generate(endpointSummaries, {
+      providersIncluded: this.getProvidersIncluded(),
+      endpointsIncluded: this.getEndpointsIncluded(),
+      executionTimestamp: this.getExecutionTimestamp(),
+    });
+
+    console.log("✓ Generated consolidated dashboard reports");
+    console.log(`✓ Processed ${endpointSummaries.length} endpoints across multiple providers`);
+  }
+
+  /**
+   * Generate individual endpoint reports from accumulated results
+   */
+  async generateIndividualEndpointReports() {
+    // Create endpoint-specific directories (matches endpoint-based execution architecture)
+    this.endpointResultsDir = path.join(this.executionDir, "endpoints");
+    if (!fs.existsSync(this.endpointResultsDir)) {
+      fs.mkdirSync(this.endpointResultsDir, { recursive: true });
+    }
+
+    // Group all accumulated results by endpoint instead of by provider
+    const endpointResults = this.groupResultsByEndpoint();
+
+    for (const [endpointType, endpointData] of endpointResults) {
+      const endpointDir = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType));
+      if (!fs.existsSync(endpointDir)) {
+        fs.mkdirSync(endpointDir, { recursive: true });
+      }
+
+      // Create endpoint-specific report generator
+      const endpointReportGenerator = new ReportGenerator(
+        endpointDir,
+        this.responseSaver.enabled
+      );
+
+      // Generate reports for this endpoint using results from all providers
+      endpointReportGenerator.generate(endpointData.results, {
+        providersIncluded: endpointData.providers,
+        endpointsIncluded: [endpointType],
+      });
+
+      console.log(`  ✓ Generated reports for ${endpointType} endpoint (${endpointData.results.length} total tests from ${endpointData.providers.length} providers)`);
+    }
+  }
+
+  /**
+   * Group all accumulated results by endpoint type instead of by provider
+   */
+  groupResultsByEndpoint() {
+    const endpointResults = new Map();
+
+    // Iterate through all provider summaries and group by endpoint
+    for (const [providerId, providerData] of this.allProviderSummaries) {
+      for (const result of providerData.results) {
+        const endpointType = result.endpoint_type;
+        
+        if (!endpointResults.has(endpointType)) {
+          endpointResults.set(endpointType, {
+            results: [],
+            providers: new Set()
+          });
+        }
+
+        const endpointData = endpointResults.get(endpointType);
+        endpointData.results.push(result);
+        endpointData.providers.add(providerId);
+      }
+    }
+
+    // Convert provider sets to arrays for easier handling
+    for (const [endpointType, endpointData] of endpointResults) {
+      endpointData.providers = Array.from(endpointData.providers).sort();
+    }
+
+    return endpointResults;
+  }
+
+  /**
+   * Collect endpoint summaries from generated reports
+   */
+  collectAccumulatedEndpointSummaries() {
+    const summaries = [];
+    
+    // Get the endpoint results we generated
+    const endpointResults = this.groupResultsByEndpoint();
+    
+    for (const [endpointType, endpointData] of endpointResults) {
+      const jsonReportPath = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.json");
+      
+      // Create summary for this endpoint
+      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled);
+      const summary = reportGenerator.createSummary(
+        endpointData.results,
+        endpointData.providers,
+        [endpointType]
+      );
+      
+      summaries.push({
+        endpointType: this.sanitizeFilename(endpointType),
+        summary: summary,
+        reportPath: path.relative(this.executionDir, jsonReportPath),
+        htmlReportPath: path.relative(this.executionDir, 
+          path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.html"))
+      });
+    }
+
+    return summaries.sort((a, b) => a.endpointType.localeCompare(b.endpointType));
+  }
+
+  /**
+   * Collect summaries from all provider reports
+   */
+  collectProviderSummaries() {
+    const summaries = [];
+    
+    if (!fs.existsSync(this.providerResultsDir)) {
+      return summaries;
+    }
+
+    const providerDirs = fs.readdirSync(this.providerResultsDir)
+      .filter(item => fs.statSync(path.join(this.providerResultsDir, item)).isDirectory());
+
+    for (const providerDir of providerDirs) {
+      const jsonReportPath = path.join(this.providerResultsDir, providerDir, "endpoint-test-report.json");
+      
+      if (fs.existsSync(jsonReportPath)) {
+        try {
+          const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf8'));
+          summaries.push({
+            providerId: providerDir,
+            summary: reportData.summary,
+            reportPath: path.relative(this.executionDir, jsonReportPath),
+            htmlReportPath: path.relative(this.executionDir, 
+              path.join(this.providerResultsDir, providerDir, "endpoint-test-report.html"))
+          });
+        } catch (error) {
+          console.warn(`Warning: Could not read report for provider ${providerDir}: ${error.message}`);
+        }
+      }
+    }
+
+    return summaries;
+  }
+
+  /**
+   * Get execution timestamp from directory name
+   */
+  getExecutionTimestamp() {
+    const execDirName = path.basename(this.executionDir);
+    const timestampMatch = execDirName.match(/test-run-(.+)/);
+    return timestampMatch ? timestampMatch[1].replace(/_/g, ' ').replace(/-/g, ':') : new Date().toISOString();
+  }
+
+  /**
+   * Sanitize filename for cross-platform compatibility
+   */
+  sanitizeFilename(filename) {
+    return filename.replace(/[^a-zA-Z0-9\-_]/g, '_');
   }
 
   /**
@@ -2382,6 +2783,429 @@ Timestamp: ${timestampText}`;
     if (this.saveResponseBodies) {
       console.log(`- Response bodies: responses/ directory`);
     }
+  }
+}
+
+/**
+ * Handles consolidated dashboard report generation
+ */
+class DashboardGenerator {
+  constructor(executionDir) {
+    this.executionDir = executionDir;
+  }
+
+  /**
+   * Generate dashboard reports
+   */
+  async generate(endpointSummaries, options = {}) {
+    const { providersIncluded = ["All"], endpointsIncluded = ["All"], executionTimestamp } = options;
+
+    // Create consolidated summary
+    const consolidatedSummary = this.createConsolidatedSummary(
+      endpointSummaries,
+      providersIncluded,
+      endpointsIncluded,
+      executionTimestamp
+    );
+
+    // Generate dashboard files
+    this.generateDashboardJSON(consolidatedSummary, endpointSummaries);
+    this.generateDashboardHTML(consolidatedSummary, endpointSummaries);
+    
+    this.displayConsolidatedSummary(consolidatedSummary);
+  }
+
+  /**
+   * Create consolidated summary from endpoint summaries
+   */
+  createConsolidatedSummary(endpointSummaries, providersIncluded, endpointsIncluded, executionTimestamp) {
+    let totalTests = 0;
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalErrors = 0;
+    let totalSlow = 0;
+    let totalDuration = 0;
+    const consolidatedEndpointStats = {};
+    const allProviders = new Set();
+
+    endpointSummaries.forEach(({ summary, endpointType }) => {
+      totalTests += summary.total_tests;
+      totalPassed += summary.passed;
+      totalFailed += summary.failed;
+      totalErrors += summary.errors;
+      totalSlow += summary.slow;
+      totalDuration += summary.total_duration;
+
+      // Track all providers that contributed to this endpoint
+      summary.providers_included.forEach(provider => allProviders.add(provider));
+
+      // Add endpoint statistics (each endpoint summary has stats for just that endpoint)
+      Object.entries(summary.tests_by_endpoint_type).forEach(([endpoint, stats]) => {
+        if (!consolidatedEndpointStats[endpoint]) {
+          consolidatedEndpointStats[endpoint] = { total: 0, passed: 0, failed: 0, errors: 0, slow: 0 };
+        }
+        consolidatedEndpointStats[endpoint].total += stats.total;
+        consolidatedEndpointStats[endpoint].passed += stats.passed;
+        consolidatedEndpointStats[endpoint].failed += stats.failed;
+        consolidatedEndpointStats[endpoint].errors += stats.errors;
+        consolidatedEndpointStats[endpoint].slow += stats.slow;
+      });
+    });
+
+    return {
+      total_tests: totalTests,
+      passed: totalPassed,
+      failed: totalFailed,
+      errors: totalErrors,
+      slow: totalSlow,
+      average_duration: totalTests > 0 ? totalDuration / totalTests : 0,
+      total_duration: totalDuration,
+      tests_by_endpoint_type: consolidatedEndpointStats,
+      providers_included: Array.from(allProviders).sort(),
+      endpoints_included: endpointsIncluded,
+      timestamp: executionTimestamp || new Date().toISOString(),
+      endpoint_count: endpointSummaries.length
+    };
+  }
+
+  /**
+   * Generate dashboard JSON report
+   */
+  generateDashboardJSON(consolidatedSummary, endpointSummaries) {
+    const dashboardFile = path.join(this.executionDir, "dashboard-report.json");
+    
+    const dashboardData = {
+      consolidated_summary: consolidatedSummary,
+      endpoint_summaries: endpointSummaries,
+      generated_at: new Date().toISOString()
+    };
+
+    fs.writeFileSync(dashboardFile, JSON.stringify(dashboardData, null, 2));
+    return dashboardFile;
+  }
+
+  /**
+   * Generate dashboard HTML report
+   */
+  generateDashboardHTML(consolidatedSummary, endpointSummaries) {
+    const htmlFile = path.join(this.executionDir, "dashboard-report.html");
+    const htmlContent = this.createDashboardHTMLContent(consolidatedSummary, endpointSummaries);
+    fs.writeFileSync(htmlFile, htmlContent);
+    return htmlFile;
+  }
+
+  /**
+   * Create dashboard HTML content
+   */
+  createDashboardHTMLContent(consolidatedSummary, endpointSummaries) {
+    const endpointTableRows = endpointSummaries
+      .map(({ endpointType, summary, htmlReportPath }) => 
+        `<tr>
+          <td><a href="${htmlReportPath}" class="endpoint-link">${this.escapeHtml(endpointType)}</a></td>
+          <td>${summary.total_tests}</td>
+          <td class="pass">${summary.passed}</td>
+          <td class="fail">${summary.failed}</td>
+          <td class="error">${summary.errors}</td>
+          <td class="slow">${summary.slow}</td>
+          <td>${Math.round(summary.average_duration)}ms</td>
+          <td>${summary.providers_included.join(', ')}</td>
+        </tr>`
+      )
+      .join("");
+
+    const endpointStatsRows = Object.entries(consolidatedSummary.tests_by_endpoint_type)
+      .map(([endpoint, stats]) =>
+        `<tr>
+          <td>${this.escapeHtml(endpoint)}</td>
+          <td>${stats.total}</td>
+          <td class="pass">${stats.passed}</td>
+          <td class="fail">${stats.failed}</td>
+          <td class="error">${stats.errors}</td>
+          <td class="slow">${stats.slow}</td>
+        </tr>`
+      )
+      .join("");
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LUX Endpoint Testing Dashboard</title>
+    ${this.getDashboardStyles()}
+</head>
+<body>
+    <h1>🎯 LUX Endpoint Testing Dashboard</h1>
+    <p class="subtitle">Endpoint-Based Execution Results</p>
+    
+    ${this.createOverallSummarySection(consolidatedSummary)}
+    ${this.createEndpointDetailSection(endpointTableRows)}
+    ${this.createEndpointSummarySection(endpointStatsRows)}
+    ${this.createNavigationSection(endpointSummaries)}
+</body>
+</html>`;
+  }
+
+  /**
+   * Create overall summary section
+   */
+  createOverallSummarySection(summary) {
+    return `
+    <div class="summary">
+        <h2>Overall Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <h3>Test Execution</h3>
+                <p><strong>Generated:</strong> ${summary.timestamp}</p>
+                <p><strong>Providers:</strong> ${summary.provider_count}</p>
+                <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
+            </div>
+            <div class="summary-card">
+                <h3>Results</h3>
+                <p><strong>Passed:</strong> <span class="pass">${summary.passed}</span></p>
+                <p><strong>Failed:</strong> <span class="fail">${summary.failed}</span></p>
+                <p><strong>Errors:</strong> <span class="error">${summary.errors}</span></p>
+                <p><strong>Slow:</strong> <span class="slow">${summary.slow}</span></p>
+            </div>
+            <div class="summary-card">
+                <h3>Performance</h3>
+                <p><strong>Average Duration:</strong> ${Math.round(summary.average_duration)}ms</p>
+                <p><strong>Total Duration:</strong> ${Math.round(summary.total_duration / 1000 / 60)} minutes</p>
+                <p><strong>Endpoints Covered:</strong> ${Object.keys(summary.tests_by_endpoint_type).length}</p>
+            </div>
+        </div>
+    </div>`;
+  }
+
+  /**
+   * Create endpoint detail section showing individual endpoint reports
+   */
+  createEndpointDetailSection(endpointTableRows) {
+    return `
+    <h2>Detailed Reports by Endpoint</h2>
+    <table class="results-table">
+        <thead>
+            <tr>
+                <th>Endpoint Type</th>
+                <th>Total Tests</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Errors</th>
+                <th>Slow</th>
+                <th>Avg Duration</th>
+                <th>Providers Included</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${endpointTableRows}
+        </tbody>
+    </table>`;
+  }
+
+  /**
+   * Create endpoint summary section
+   */
+  createEndpointSummarySection(endpointTableRows) {
+    return `
+    <h2>Results by Endpoint Type</h2>
+    <table class="results-table">
+        <thead>
+            <tr>
+                <th>Endpoint Type</th>
+                <th>Total Tests</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Errors</th>
+                <th>Slow</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${endpointTableRows}
+        </tbody>
+    </table>`;
+  }
+
+  /**
+   * Create navigation section
+   */
+  createNavigationSection(endpointSummaries) {
+    const endpointLinks = endpointSummaries
+      .map(({ endpointType, htmlReportPath }) =>
+        `<li><a href="${htmlReportPath}" class="nav-link">${this.escapeHtml(endpointType)} Detailed Report</a></li>`
+      )
+      .join("");
+
+    return `
+    <div class="navigation">
+        <h2>Detailed Reports</h2>
+        <p>Click on any endpoint below to view detailed test results:</p>
+        <ul class="endpoint-nav">
+            ${endpointLinks}
+        </ul>
+    </div>`;
+  }
+
+  /**
+   * Get dashboard CSS styles
+   */
+  getDashboardStyles() {
+    return `<style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f8f9fa;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .summary { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .summary-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .summary-card h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .pass { color: #28a745; font-weight: bold; }
+        .fail { color: #dc3545; font-weight: bold; }
+        .error { color: #fd7e14; font-weight: bold; }
+        .slow { color: #007bff; font-weight: bold; }
+        
+        .results-table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin-bottom: 30px; 
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .results-table th, .results-table td { 
+            border: 1px solid #dee2e6; 
+            padding: 12px; 
+            text-align: left; 
+        }
+        
+        .results-table th { 
+            background-color: #e9ecef; 
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .results-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .provider-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .provider-link:hover {
+            text-decoration: underline;
+            color: #0056b3;
+        }
+        
+        .navigation {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .provider-nav {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        
+        .provider-nav li {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 0;
+        }
+        
+        .nav-link {
+            display: block;
+            padding: 12px 16px;
+            color: #495057;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .nav-link:hover {
+            background-color: #e9ecef;
+            color: #007bff;
+        }
+        
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+    </style>`;
+  }
+
+  /**
+   * Escape HTML content
+   */
+  escapeHtml(text) {
+    if (!text) return text;
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  /**
+   * Display consolidated summary to console
+   */
+  displayConsolidatedSummary(summary) {
+    console.log("\n=== CONSOLIDATED TEST SUMMARY ===");
+    console.log(`Total endpoints processed: ${summary.endpoint_count}`);
+    console.log(`Total tests executed: ${summary.total_tests}`);
+    console.log(`✅ Passed: ${summary.passed}`);
+    console.log(`❌ Failed: ${summary.failed}`);
+    console.log(`⚠️  Errors: ${summary.errors}`);
+    console.log(`🐌 Slow: ${summary.slow}`);
+    console.log(`⏱️  Average duration: ${Math.round(summary.average_duration)}ms`);
+    console.log(`⏱️  Total duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`);
+    console.log("\n📊 Dashboard report generated: dashboard-report.html");
   }
 }
 
