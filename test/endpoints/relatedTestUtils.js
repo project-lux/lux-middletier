@@ -256,7 +256,6 @@ const getDerivedFacetTestConfigs = (
   searchTestRows,
   searchColumns
 ) => {
-  console.log('In getDerivedFacetTestConfigs')
   return generateTestConfigs(
     endpointKey,
     endpointColumns,

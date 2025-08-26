@@ -445,7 +445,6 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
       secondary = options?.deriveRelatedTests;
       break;
   }
-  console.log(`${endpointKey}: ${primary} / ${secondary}`);
   return getResolvedOption(primary, secondary);
 }
 
