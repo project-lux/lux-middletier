@@ -1588,7 +1588,7 @@ class EndpointTester {
 }
 
 /**
- * Handles report generation (JSON, CSV, HTML)
+ * Handles report generation (JSON, HTML)
  */
 class ReportGenerator {
   constructor(executionDir, saveResponseBodies = false) {
@@ -1613,8 +1613,6 @@ class ReportGenerator {
     // Generate all report formats
     console.log("Generating the JSON report...");
     this.generateJSONReport(report);
-    console.log("Generating the CSV report...");
-    this.generateCSVReport(results);
     console.log("Generating the HTML report...");
     this.generateHTMLReport(report);
 
@@ -1714,18 +1712,6 @@ class ReportGenerator {
   }
 
   /**
-   * Generate CSV report
-   */
-  generateCSVReport(results) {
-    if (results.length === 0) return null;
-
-    const csvFile = path.join(this.executionDir, "endpoint-test-report.csv");
-    const csvContent = this.convertToCSV(results);
-    fs.writeFileSync(csvFile, csvContent);
-    return csvFile;
-  }
-
-  /**
    * Generate HTML report
    */
   generateHTMLReport(report) {
@@ -1733,29 +1719,6 @@ class ReportGenerator {
     const htmlContent = this.createHTMLContent(report);
     fs.writeFileSync(htmlFile, htmlContent);
     return htmlFile;
-  }
-
-  /**
-   * Convert results to CSV format
-   */
-  convertToCSV(results) {
-    if (results.length === 0) return "";
-
-    const headers = Object.keys(results[0]).join(",");
-    const rows = results.map((result) =>
-      Object.values(result)
-        .map((value) => {
-          if (typeof value === "object") {
-            return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
-          }
-          return typeof value === "string"
-            ? `"${value.replace(/"/g, '""')}"`
-            : value;
-        })
-        .join(",")
-    );
-
-    return [headers, ...rows].join("\n");
   }
 
   /**
@@ -2823,7 +2786,6 @@ Timestamp: ${timestampText}`;
     console.log(`Total Duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`);
     console.log(`\nReports generated in: ${this.executionDir}`);
     console.log(`- JSON: endpoint-test-report.json`);
-    console.log(`- CSV: endpoint-test-report.csv`);
     console.log(`- HTML: endpoint-test-report.html`);
     if (this.saveResponseBodies) {
       console.log(`- Response bodies: responses/ directory`);
