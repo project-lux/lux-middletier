@@ -3,7 +3,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { getEndpointKeyFromPath, isDefined, parseBoolean } from "./utils.js";
+import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl } from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/interface.js";
 import { ENDPOINT_KEYS } from "./constants.js";
 
@@ -3601,6 +3601,57 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     console.error("Please specify the base URL for API requests");
     console.error("Example: node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu");
     process.exit(1);
+  }
+
+  // Validate baseUrl format and connectivity
+  console.log("Checking connectivity to base URL...");
+  const validationResult = await validateBaseUrl(baseUrl);
+  if (!validationResult.success) {
+    const error = validationResult.error;
+    console.error(`Error: ${error.message}`);
+    
+    if (error.provided) {
+      console.error(`Provided: ${error.provided}`);
+    }
+    if (error.hostname) {
+      console.error(`Hostname: ${error.hostname}`);
+    }
+    if (error.details) {
+      console.error(`Details: ${error.details}`);
+    }
+    if (error.suggestion) {
+      console.error(error.suggestion);
+    }
+    if (error.example) {
+      console.error(`Example: node run-tests.js --baseUrl ${error.example}`);
+    }
+    
+    process.exit(1);
+  }
+
+  // Display success message and any warnings
+  if (validationResult.message) {
+    console.log(`✓ ${validationResult.message}`);
+  }
+  
+  if (validationResult.warnings && validationResult.warnings.length > 0) {
+    validationResult.warnings.forEach(warning => {
+      if (warning.type === 'localhost') {
+        console.warn(`Warning: ${warning.message}`);
+      } else if (warning.type === 'connection_timeout') {
+        console.warn(`⚠ ${warning.message}`);
+        if (warning.details) {
+          console.warn(warning.details);
+        }
+      } else if (warning.type === 'connectivity_unknown') {
+        console.warn(`⚠ ${warning.message}`);
+        if (warning.details) {
+          console.warn(warning.details);
+        }
+      } else if (warning.type === 'server_error') {
+        console.warn(`⚠ ${warning.message}`);
+      }
+    });
   }
 
   const options = {

@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import axios from 'axios';
 
 export function isDefined(value) {
   return value !== undefined && value !== null;
@@ -309,4 +310,150 @@ export function extractDataParamsFromUrl(url) {
     console.warn(`Failed to parse data URL: ${url}`, error.message);
     return params;
   }
+}
+
+/**
+ * Validates a base URL for endpoint testing
+ * Performs format validation and optional connectivity testing
+ * 
+ * @param {string} baseUrl - The URL to validate
+ * @param {boolean} skipConnectivityCheck - If true, skips network connectivity test
+ * @returns {Promise<Object>} - Validation result with success/error information
+ */
+export async function validateBaseUrl(baseUrl, skipConnectivityCheck = false) {
+  const result = {
+    success: false,
+    error: null,
+    warnings: []
+  };
+
+  // Check if baseUrl is provided
+  if (!baseUrl) {
+    result.error = {
+      type: 'missing',
+      message: 'Base URL is required',
+      suggestion: 'Please specify the base URL for API requests',
+      example: 'node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu'
+    };
+    return result;
+  }
+
+  // Validate URL format
+  try {
+    const urlObj = new URL(baseUrl);
+    
+    // Check protocol
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      result.error = {
+        type: 'invalid_protocol',
+        message: 'Base URL must use http:// or https:// protocol',
+        provided: baseUrl
+      };
+      return result;
+    }
+
+    // Check that hostname is provided
+    if (!urlObj.hostname) {
+      result.error = {
+        type: 'missing_hostname',
+        message: 'Base URL must include a valid hostname',
+        provided: baseUrl
+      };
+      return result;
+    }
+
+    // Basic hostname format validation (no spaces, basic DNS format)
+    if (urlObj.hostname.includes(' ') || !/^[a-zA-Z0-9.-]+$/.test(urlObj.hostname)) {
+      result.error = {
+        type: 'invalid_hostname',
+        message: 'Base URL hostname contains invalid characters',
+        hostname: urlObj.hostname
+      };
+      return result;
+    }
+
+    // Warn about localhost/127.0.0.1 in case they meant something else
+    if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
+      result.warnings.push({
+        type: 'localhost',
+        message: 'Using localhost URL - make sure the service is running locally'
+      });
+    }
+
+  } catch (error) {
+    result.error = {
+      type: 'invalid_format',
+      message: 'Base URL is not a valid URL',
+      provided: baseUrl,
+      details: error.message,
+      example: 'https://lux-middle-dev.collections.yale.edu'
+    };
+    return result;
+  }
+
+  // If we skip connectivity check, return success here
+  if (skipConnectivityCheck) {
+    result.success = true;
+    result.message = 'Base URL format is valid (connectivity check skipped)';
+    return result;
+  }
+
+  // Validate connectivity (non-blocking, informational only)
+  try {
+    const response = await axios.get(baseUrl, {
+      timeout: 3000,
+      validateStatus: () => true, // Accept any HTTP status
+      headers: {
+        'User-Agent': 'LUX-Endpoint-Tester-Connectivity-Check/1.0'
+      }
+    });
+    
+    if (response.status < 500) {
+      result.success = true;
+      result.message = `Successfully connected to ${baseUrl} (HTTP ${response.status})`;
+    } else {
+      result.success = true;
+      result.warnings.push({
+        type: 'server_error',
+        message: `Connected to ${baseUrl} but got HTTP ${response.status} - this may indicate server issues`
+      });
+    }
+    
+  } catch (error) {
+    if (error.code === 'ENOTFOUND' || error.code === 'EAI_NONAME') {
+      result.error = {
+        type: 'dns_resolution_failed',
+        message: `Hostname resolution failed for ${baseUrl}`,
+        suggestion: 'Please check that the hostname is correct and resolvable'
+      };
+      return result;
+    } else if (error.code === 'ECONNREFUSED') {
+      result.error = {
+        type: 'connection_refused',
+        message: `Connection refused to ${baseUrl}`,
+        suggestion: 'Please check that the service is running and accessible'
+      };
+      return result;
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      result.success = true;
+      result.warnings.push({
+        type: 'connection_timeout',
+        message: `Connection timeout to ${baseUrl} - continuing anyway`,
+        details: 'This might indicate network issues or slow server response'
+      });
+    } else {
+      result.success = true;
+      result.warnings.push({
+        type: 'connectivity_unknown',
+        message: `Could not validate connectivity to ${baseUrl}: ${error.message}`,
+        details: 'Continuing with test execution...'
+      });
+    }
+  }
+
+  if (result.success && !result.message) {
+    result.message = 'Base URL format is valid';
+  }
+
+  return result;
 }
