@@ -985,7 +985,7 @@ class EndpointTester {
     }
 
     const providerData = this.allProviderSummaries.get(providerId);
-    providerData.results.push(...results);
+    providerData.results = providerData.results.concat(results);
 
     // Update summary for this provider
     const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies, this.options.testName, this.options.testDescription);
@@ -1823,7 +1823,7 @@ class ReportGenerator {
   createHTMLContent(report) {
     // For single endpoint reports, we don't need the "Tests by Endpoint Type" section
     // since it would only show one endpoint type (redundant)
-    const uniqueEndpointTypes = [...new Set(report.results.map(r => r.endpoint_type))];
+    const uniqueEndpointTypes = this.getUniqueValues(report.results, 'endpoint_type');
     const shouldShowEndpointTypeSection = uniqueEndpointTypes.length > 1;
     
     const endpointTypeSummary = Object.entries(
@@ -2034,8 +2034,8 @@ class ReportGenerator {
    */
   createTestResultsSection(report) {
     // Get unique statuses and providers from actual test results for smart filtering
-    const uniqueStatuses = [...new Set(report.results.map(r => r.status))].sort();
-    const uniqueProviders = [...new Set(report.results.map(r => r.provider_id))].sort();
+    const uniqueStatuses = this.getUniqueValues(report.results, 'status', true);
+    const uniqueProviders = this.getUniqueValues(report.results, 'provider_id', true);
     
     // Generate status options dynamically based on actual data
     const statusOptions = uniqueStatuses.map(status => 
@@ -2263,6 +2263,25 @@ class ReportGenerator {
       .replace(/&/g, "&amp;") // Must be first
       .replace(/</g, "&lt;") // Less than
       .replace(/>/g, "&gt;"); // Greater than
+  }
+
+  /**
+   * Get unique values from results array for a specific property, safe from memory/stack overflow
+   * @param {Array} results - Array of result objects
+   * @param {string} propertyName - Property name to extract unique values from
+   * @param {boolean} sorted - Whether to sort the results (default: false)
+   * @returns {Array} - Array of unique values
+   */
+  getUniqueValues(results, propertyName, sorted = false) {
+    const uniqueValues = new Set();
+    for (const result of results) {
+      const value = result[propertyName];
+      if (value !== undefined && value !== null) {
+        uniqueValues.add(value);
+      }
+    }
+    const uniqueArray = Array.from(uniqueValues);
+    return sorted ? uniqueArray.sort() : uniqueArray;
   }
 
   /**

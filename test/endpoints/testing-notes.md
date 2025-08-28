@@ -2,7 +2,8 @@
 
 - [Middle Tier Endpoint Testing Notes](#middle-tier-endpoint-testing-notes-1)
   - [Prerequisites](#prerequisites)
-  - [Shared Environment](#shared-environment)
+  - [Shared Environments](#shared-environments)
+  - [Starting Positions!](#starting-positions)
   - [Test the Setup](#test-the-setup)
     - [Endpoint specification](#endpoint-specification)
     - [Create Subset of Tests](#create-subset-of-tests)
@@ -25,20 +26,22 @@
 5. Checkout the `endpoint-testing` branch of the https://github.com/project-lux/lux-middletier.git repo.  In the shared environment, I suggest doing so within `/test-data/`, thereby creating `/test-data/lux-middletier`.
 6. Access to the middle tier of the environment/configuration that is to be tested.  This will require being on the VPN.
 
-## Shared Environment
+## Shared Environments
 
-`ssh -i ~/Apps/LUX/ML/ch-lux-ssh-dev.pem ec2-user@10.5.156.166`
+| IP Address     | EBS Volume   | Node Version | Web Access                     |
+|----------------|--------------|--------------|--------------------------------|
+| `10.5.156.166` | `/test-data` | v22.18.0     | http://10.5.156.166/endpoints/ |
+| `10.5.156.211` | `/test-data` | v22.18.0     | http://10.5.156.211/endpoints/ |
 
-EBS volume mounted at `/test-data`
+## Starting Positions!
 
-**The node version is old; we may want to upgrade.**
+Racers, get into your starting position:
 
-```bash
-$ node -v
-v18.20.8
-$ npm -v
-10.8.2
-```
+`cd /test-data/lux-middletier/test/endpoints`
+
+All endpoint testing commands are issued from this directory.
+
+If you have a different path to your clone, update accordingly.
 
 ## Test the Setup
 
@@ -61,10 +64,6 @@ Endpoints specification: [yourPath]\test\endpoints\endpoints-spec.json
 ### Create Subset of Tests
 
 While we could generate all tests at this point and specify a subset to run for our small test, we'd impose the full time it takes to open the larger test configuration spreadsheets.
-
-From your clone's root, cd into the directory we will run all of the utility's commands from:
-
-`cd test/endpoints`
 
 Let's look at all the available options:
 
@@ -142,7 +141,7 @@ total 64
 -rw-r--r-- 1 ec2-user ec2-user 4096 24325 Aug 26 14:36 get-search-tests.xlsx
 ```
 
-Still not satisfied?!  `scp` and crack 'em open!
+Still not satisfied?!  Find your shared environment's web access URL in [Shared Environments](#shared-environments) and click on the configs directory.
 
 ### Run the Small Test
 
@@ -288,7 +287,7 @@ Total tests executed: 31
 ✓ Processed 1 endpoints across multiple providers
 ```
 
-So far, so good?  If so let's press on.  If not, hopefully there is a decent error message to act on.
+If all went well, you can open your shared environment's web access URL and find your report in the reports directory.
 
 Curious about that failure?  Feel free to check the JSON or HTML report but **--spoiler alert--** https://lux.collections.yale.edu/data/concept/92150a0a-4ade-494d-9554-c548c9c21bd3 doesn't exist in the current dataset.
 
@@ -303,7 +302,7 @@ drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 endpoints/
 drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 responses/
 ```
 
-The dashboard reports contain links to the individual endpoint reports: `endpoints/[endpointKey]/endpoint-test-report.*`.  Here too, `scp` will be your friend for viewing at least the HTML reports.
+The dashboard reports contain links to the individual endpoint reports: `endpoints/[endpointKey]/endpoint-test-report.*`.  So long as the `--save-responses` option was used, the response bodies will be available in one form or another within the HTML reports.
 
 The response bodies are within the `responses` sub-dir, with paths that identify the endpoint and provider.  For our small test:
 

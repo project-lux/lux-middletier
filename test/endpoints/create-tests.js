@@ -288,7 +288,8 @@ async function createTestsForEndpoint(
 
     // Create workbook and worksheet
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([columns, ...allTestData]);
+    const sheetData = [columns].concat(allTestData);
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
     // Set column widths for better readability
     const colWidths = columns.map((col) => ({

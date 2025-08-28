@@ -585,11 +585,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    * @returns {Array<Array>} - Filtered test rows
    */
   applyFiltersAndLimits(testRows, endpointKey) {
-    let filtered = [...testRows];
-
     // Remove duplicates based on parameter combinations
     const seen = new Set();
-    filtered = filtered.filter((row, index) => {
+    let filtered = testRows.filter((row, index) => {
       // Create a key from the parameter columns to detect duplicates
       // For now, we'll be less aggressive with deduplication and mainly focus on exact parameter matches
       const paramCols = [];
