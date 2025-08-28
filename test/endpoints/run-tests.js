@@ -12,7 +12,6 @@ const __dirname = path.dirname(__filename);
 
 // Configuration constants
 const DEFAULT_CONFIG = {
-  baseUrl: "https://lux-middle-dev.collections.yale.edu",
   timeout: 10000,
   maxResponseTime: 5000,
   expectedStatus: 200,
@@ -741,9 +740,10 @@ class EndpointTester {
    * Initialize helper components
    */
   initializeComponents() {
-    // Base URL configuration
-    const baseUrl = process.env.BASE_URL || DEFAULT_CONFIG.baseUrl;
-
+    // Base URL configuration - required via command line argument
+    if (!this.options.baseUrl) {
+      throw new Error("Base URL is required. Specify using the --baseUrl argument");
+    }
     // Authentication configuration
     const authConfig = {
       type: process.env.AUTH_TYPE || "none",
@@ -763,7 +763,7 @@ class EndpointTester {
 
     // Initialize components
     this.configLoader = new ConfigurationLoader(this.configDir);
-    this.requestHandler = new RequestHandler(baseUrl, authConfig);
+    this.requestHandler = new RequestHandler(this.options.baseUrl, authConfig);
     this.responseAnalyzer = new ResponseAnalyzer();
     this.responseSaver = new ResponseSaver(
       this.responsesDir,
@@ -1332,6 +1332,11 @@ class EndpointTester {
       }s (rough estimate)`
     );
     console.log("\nNo actual HTTP requests were made.");
+    
+    console.log('');
+    console.log(`BASE URL: ${this.options.baseUrl}`);
+    console.log('');
+
     console.log(
       "To execute these tests, run the same command without --dry-run"
     );
@@ -3403,6 +3408,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let dryRun = false; // dry-run mode - don't execute tests, just show what would be run
   let testName = null; // custom name for the test run
   let testDescription = null; // custom description for the test run
+  let baseUrl = null; // custom base URL for API requests
   let positionalArgIndex = 0;
 
   // Process command line arguments
@@ -3458,9 +3464,18 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       }
     } else if (arg.startsWith("--description=")) {
       testDescription = arg.substring(14);
+    } else if (arg === "--baseUrl") {
+      // Next argument should be the base URL
+      i++;
+      if (i < args.length) {
+        baseUrl = args[i];
+      } else {
+        console.error("Error: --baseUrl requires a URL");
+        process.exit(1);
+      }
     } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: node run-tests.js [configDir] [reportsDir] [options]"
+        "Usage: node run-tests.js --baseUrl <url> [configDir] [reportsDir] [options]"
       );
       console.log("");
       console.log("Arguments:");
@@ -3472,6 +3487,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       );
       console.log("");
       console.log("Options:");
+      console.log(
+        "  --baseUrl <url>               Base URL for API requests (REQUIRED)"
+      );
       console.log(
         "  --save-responses, -r          Save response bodies to disk"
       );
@@ -3514,21 +3532,21 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("  --help, -h                    Show this help message");
       console.log("");
       console.log("Examples:");
-      console.log("  node run-tests.js");
-      console.log("  node run-tests.js ./configs ./reports");
-      console.log("  node run-tests.js --save-responses");
-      console.log("  node run-tests.js --embed-responses");
-      console.log("  node run-tests.js --save-responses --embed-responses");
-      console.log('  node run-tests.js --name "Production API Test" --description "Weekly API validation"');
-      console.log('  node run-tests.js --name="Nightly Tests" --description="Automated nightly validation"');
-      console.log("  node run-tests.js --dry-run");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu ./configs ./reports");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --save-responses");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --embed-responses");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --save-responses --embed-responses");
+      console.log('  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"');
+      console.log('  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"');
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --dry-run");
       console.log(
-        "  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+        "  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
       );
-      console.log("  node run-tests.js --endpoints get-search,get-auto-complete");
-      console.log("  node run-tests.js --endpoints ^get-facets,^get-translate");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete");
+      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate");
       console.log(
-        "  node run-tests.js --dry-run --providers csv-provider --endpoints search"
+        "  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search"
       );
       process.exit(0);
     } else if (!arg.startsWith("-")) {
@@ -3550,7 +3568,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   if (!dryRun && !fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
-    console.log("Usage: node run-tests.js [configDir] [reportsDir] [options]");
+    console.log("Usage: node run-tests.js --baseUrl <url> [configDir] [reportsDir] [options]");
     console.log("Use --help for more information");
     process.exit(1);
   }
@@ -3577,7 +3595,16 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     console.log("");
   }
 
+  // Validate required baseUrl argument
+  if (!baseUrl) {
+    console.error("Error: --baseUrl is required");
+    console.error("Please specify the base URL for API requests");
+    console.error("Example: node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu");
+    process.exit(1);
+  }
+
   const options = {
+    baseUrl,
     saveResponseBodies,
     embedResponseBodies,
     providers,
@@ -3589,6 +3616,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const tester = new EndpointTester(configDir, reportsDir, options);
 
   console.log(`Test execution directory: ${tester.executionDir}`);
+
+  console.log(`Base URL: ${baseUrl}`);
 
   // Validate providers and endpoints after async initialization
   tester.runFilteredTests().catch(async (error) => {
