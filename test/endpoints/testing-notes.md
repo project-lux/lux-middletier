@@ -13,6 +13,8 @@
   - [Run the Full Test](#run-the-full-test)
     - [Create All Test Configurations](#create-all-test-configurations)
     - [Clear Backend Caches](#clear-backend-caches)
+      - [MarkLogic](#marklogic)
+      - [QLever](#qlever)
     - [Run All Tests](#run-all-tests)
 
 
@@ -29,10 +31,18 @@
 
 ## Shared Environments
 
+Environments to run tests from:
+
 | IP Address     | EBS Volume   | Node Version | Web Access                     |
 |----------------|--------------|--------------|--------------------------------|
 | `10.5.156.166` | `/test-data` | v22.18.0     | http://10.5.156.166/endpoints/ |
 | `10.5.156.211` | `/test-data` | v22.18.0     | http://10.5.156.211/endpoints/ |
+
+Mini ML:
+
+* Admin Console: https://lux-ml-sbxb.collections.yale.edu:8001
+* Query Console: https://lux-ml-sbxb.collections.yale.edu:8000/qconsole
+* Monitoring Console: https://lux-ml-sbxb.collections.yale.edu:8002/history/
 
 ## Starting Positions!
 
@@ -410,7 +420,9 @@ total 454484
 
 ### Clear Backend Caches
 
-For MarkLogic, run the following script in Query Console:
+#### MarkLogic
+
+Look up the Query Console URL in [Shared Environments](#shared-environments), and run the following script there.
 
 ```javascript
 xdmp.programCacheClear();
@@ -421,7 +433,9 @@ xdmp.groupCacheClear(xdmp.group("Default"), [
 ]);
 ```
 
-For QLever?  Maybe restart the process?
+#### QLever
+
+Restart the process?
 
 ### Run All Tests
 
