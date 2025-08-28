@@ -2333,7 +2333,7 @@ Timestamp: ${timestampText}`;
     }
 
     try {
-      // Scenario 1: Both --embed-responses and --save-response-bodies
+      // Scenario 1: Both --embed-responses and --save-responses
       if (this.embedResponseBodies && this.saveResponseBodies) {
         // Write to disk and embed in HTML (current behavior when saveResponseBodies is true)
         if (!responseBodyFile || responseBodyFile === "N/A") {
@@ -2381,20 +2381,18 @@ Timestamp: ${timestampText}`;
         return "N/A";
       }
       
-      // Scenario 3: Only --save-response-bodies (no embedding)
+      // Scenario 3: Only --save-responses (no embedding)
       else if (this.saveResponseBodies && !this.embedResponseBodies) {
         // Write to disk but only show relative path in HTML
         if (!responseBodyFile || responseBodyFile === "N/A") {
           return "N/A";
         }
-        
-        const absolutePath = path.resolve(responseBodyFile);
-        const fileUrl = new URL(`file:///${absolutePath.replace(/\\/g, '/').replace(/^\//, '')}`).href;
 
-        const pathParts = absolutePath.split(path.sep);
-        const lastDirAndFile = pathParts.slice(-2).join(':<br>');
+        let relativePath = responseBodyFile.replaceAll('\\', '/');
+        relativePath = '../..' + relativePath.substring(relativePath.indexOf('/responses/'));
+        const lastBit = relativePath.split('/').slice(-2).join(':<br>');
 
-        return `<a href="${fileUrl}" target="_blank" class="url-link" title="Click to open the response body file">${lastDirAndFile}</a>`;
+        return `<a href="${relativePath}" target="_blank" class="url-link" title="Click to open the response body file">${lastBit}</a>`;
       }
       
     } catch (error) {
