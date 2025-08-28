@@ -822,7 +822,11 @@ class EndpointTester {
       if (this.options.providers) {
         const availableProviders = this.getAvailableProviders();
         const invalidProviders = this.options.providers.filter(
-          (p) => !availableProviders.includes(p)
+          (p) => {
+            // Strip ^ prefix for validation
+            const providerName = p.startsWith('^') ? p.substring(1) : p;
+            return !availableProviders.includes(providerName);
+          }
         );
         if (invalidProviders.length > 0) {
           throw new Error(
@@ -1551,12 +1555,11 @@ class EndpointTester {
    * Determine if test should be executed
    */
   shouldRunTest(testConfig) {
-    // Apply provider filter
-    if (
-      this.options.providers &&
-      !this.options.providers.includes(testConfig.provider_id)
-    ) {
-      return false;
+    // Apply provider filter with support for exclusion (^ prefix)
+    if (this.options.providers) {
+      if (!this.shouldIncludeProvider(testConfig.provider_id, this.options.providers)) {
+        return false;
+      }
     }
 
     // Check if test is enabled
@@ -1564,6 +1567,41 @@ class EndpointTester {
       return false;
     }
 
+    return true;
+  }
+
+  /**
+   * Determine if a provider should be included based on filter criteria
+   * Supports inclusion (default) and exclusion (with ^ prefix)
+   */
+  shouldIncludeProvider(providerId, providerFilter) {
+    if (!providerFilter || providerFilter.length === 0) {
+      return true; // No filter means include all
+    }
+
+    // Separate inclusion and exclusion filters
+    const inclusionFilters = [];
+    const exclusionFilters = [];
+
+    for (const filter of providerFilter) {
+      if (filter.startsWith('^')) {
+        exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
+      } else {
+        inclusionFilters.push(filter);
+      }
+    }
+
+    // If provider matches any exclusion filter, exclude it
+    if (exclusionFilters.length > 0 && exclusionFilters.includes(providerId)) {
+      return false;
+    }
+
+    // If there are inclusion filters, provider must match at least one
+    if (inclusionFilters.length > 0) {
+      return inclusionFilters.includes(providerId);
+    }
+
+    // If only exclusion filters exist and provider wasn't excluded, include it
     return true;
   }
 
