@@ -893,11 +893,21 @@ class EndpointTester {
    * Execute tests by endpoint file to manage memory usage (33% memory reduction)
    */
   async executeTestsByEndpoint() {
-    const endpointFiles = this.getTargetEndpointFiles();
+    const allEndpointFiles = this.getTargetEndpointFiles();
+    
+    // Separate GET_FACETS endpoint to process last
+    const getFacetsFiles = allEndpointFiles.filter(({ endpointType }) => endpointType === ENDPOINT_KEYS.GET_FACETS);
+    const otherEndpointFiles = allEndpointFiles.filter(({ endpointType }) => endpointType !== ENDPOINT_KEYS.GET_FACETS);
+    
+    // Process other endpoints first, then GET_FACETS last
+    const endpointFiles = [...otherEndpointFiles, ...getFacetsFiles];
     const totalFiles = endpointFiles.length;
     
     console.log(`\n=== EXECUTING TESTS BY ENDPOINT FILE (${totalFiles} files) ===`);
     console.log("Memory-efficient approach: Processing one spreadsheet at a time");
+    if (getFacetsFiles.length > 0) {
+      console.log(`Note: GET_FACETS endpoint will be processed last`);
+    }
 
     // Track all provider summaries across endpoints
     this.allProviderSummaries = new Map();
@@ -951,7 +961,7 @@ class EndpointTester {
 
       // Execute tests for this provider
       this.results = []; // Clear previous results
-      await this.executeTests(providerConfigs);
+      await this.executeTests(endpointType, providerConfigs);
 
       // Accumulate results into provider summaries
       this.accumulateProviderResults(providerId, this.results);
@@ -1345,7 +1355,7 @@ class EndpointTester {
   /**
    * Execute all valid tests
    */
-  async executeTests(testConfigs) {
+  async executeTests(endpointType, testConfigs) {
     const validTestConfigs = testConfigs.filter((config) =>
       this.shouldRunTest(config)
     );
@@ -1354,7 +1364,7 @@ class EndpointTester {
     for (let testIndex = 0; testIndex < validTestConfigs.length; testIndex++) {
       const testConfig = validTestConfigs[testIndex];
       console.log(
-        `Running test ${testIndex + 1} of ${totalTests}: [${
+        `Running ${endpointType} test ${testIndex + 1} of ${totalTests}: [${
           testConfig.test_name
         }] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
       );
