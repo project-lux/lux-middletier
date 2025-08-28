@@ -29,7 +29,8 @@
 3. Storage: The utility writes reports and --when requested-- response bodies to disk.  The shared environment is starting with a 100 GB EBS volume.
 4. Node.js.  Version 22.17.0 was used during development but other versions could be just fine.
 5. Checkout the `endpoint-testing` branch of the https://github.com/project-lux/lux-middletier.git repo.  In the shared environment, I suggest doing so within `/test-data/`, thereby creating `/test-data/lux-middletier`.
-6. Access to the middle tier of the environment/configuration that is to be tested.  This will require being on the VPN.
+6. Run `npm install` within the branch.
+7. Access to the middle tier of the environment/configuration that is to be tested.  This will require being on the VPN.
 
 ## Shared Environments
 
@@ -39,6 +40,13 @@
 |----------------|--------------|--------------|--------------------------------|
 | `10.5.156.166` | `/test-data` | v22.18.0     | http://10.5.156.166/endpoints/ |
 | `10.5.156.211` | `/test-data` | v22.18.0     | http://10.5.156.211/endpoints/ |
+
+To install git:
+
+```bash
+sudo dnf update
+sudo dnf install git -y
+```
 
 ### Environments to TEST
 
