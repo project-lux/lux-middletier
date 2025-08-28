@@ -333,7 +333,7 @@ export async function validateBaseUrl(baseUrl, skipConnectivityCheck = false) {
       type: 'missing',
       message: 'Base URL is required',
       suggestion: 'Please specify the base URL for API requests',
-      example: 'node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu'
+      example: 'node run-tests.js --base-url https://lux-middle-???.collections.yale.edu'
     };
     return result;
   }

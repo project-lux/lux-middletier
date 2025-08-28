@@ -742,7 +742,7 @@ class EndpointTester {
   initializeComponents() {
     // Base URL configuration - required via command line argument
     if (!this.options.baseUrl) {
-      throw new Error("Base URL is required. Specify using the --baseUrl argument");
+      throw new Error("Base URL is required. Specify using the --base-url argument");
     }
     // Authentication configuration
     const authConfig = {
@@ -3464,18 +3464,18 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       }
     } else if (arg.startsWith("--description=")) {
       testDescription = arg.substring(14);
-    } else if (arg === "--baseUrl") {
+    } else if (arg === "--base-url") {
       // Next argument should be the base URL
       i++;
       if (i < args.length) {
         baseUrl = args[i];
       } else {
-        console.error("Error: --baseUrl requires a URL");
+        console.error("Error: --base-url requires a URL");
         process.exit(1);
       }
     } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: node run-tests.js --baseUrl <url> [configDir] [reportsDir] [options]"
+        "Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]"
       );
       console.log("");
       console.log("Arguments:");
@@ -3488,7 +3488,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("");
       console.log("Options:");
       console.log(
-        "  --baseUrl <url>               Base URL for API requests (REQUIRED)"
+        "  --base-url <url>               Base URL for API requests (REQUIRED)"
       );
       console.log(
         "  --save-responses, -r          Save response bodies to disk"
@@ -3532,21 +3532,21 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("  --help, -h                    Show this help message");
       console.log("");
       console.log("Examples:");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu ./configs ./reports");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --save-responses");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --embed-responses");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --save-responses --embed-responses");
-      console.log('  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"');
-      console.log('  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"');
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --dry-run");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu ./configs ./reports");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --embed-responses");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses --embed-responses");
+      console.log('  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"');
+      console.log('  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"');
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run");
       console.log(
-        "  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
       );
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete");
-      console.log("  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate");
       console.log(
-        "  node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search"
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search"
       );
       process.exit(0);
     } else if (!arg.startsWith("-")) {
@@ -3568,7 +3568,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   if (!dryRun && !fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
-    console.log("Usage: node run-tests.js --baseUrl <url> [configDir] [reportsDir] [options]");
+    console.log("Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]");
     console.log("Use --help for more information");
     process.exit(1);
   }
@@ -3597,9 +3597,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   // Validate required baseUrl argument
   if (!baseUrl) {
-    console.error("Error: --baseUrl is required");
+    console.error("Error: --base-url is required");
     console.error("Please specify the base URL for API requests");
-    console.error("Example: node run-tests.js --baseUrl https://lux-middle-???.collections.yale.edu");
+    console.error("Example: node run-tests.js --base-url https://lux-middle-???.collections.yale.edu");
     process.exit(1);
   }
 
@@ -3623,7 +3623,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.error(error.suggestion);
     }
     if (error.example) {
-      console.error(`Example: node run-tests.js --baseUrl ${error.example}`);
+      console.error(`Example: node run-tests.js --base-url ${error.example}`);
     }
     
     process.exit(1);

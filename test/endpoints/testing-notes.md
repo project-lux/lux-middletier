@@ -150,13 +150,14 @@ Here too, we can look at the available options:
 
 ```base
 $ node run-tests.js --help
-Usage: node run-tests.js [configDir] [reportsDir] [options]
+Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]
 
 Arguments:
   configDir    Directory containing test configuration files (default: ./configs)
   reportsDir   Directory for test reports (default: ./reports)
 
 Options:
+  --base-url <url>               Base URL for API requests (REQUIRED)
   --save-responses, -r          Save response bodies to disk
   --embed-responses, -b         Embed response bodies in HTML report
   --name <name>                 Custom name for the test run (appears in HTML title and summary)
@@ -173,35 +174,44 @@ Options:
   --help, -h                    Show this help message
 
 Examples:
-  node run-tests.js
-  node run-tests.js ./configs ./reports
-  node run-tests.js --save-responses
-  node run-tests.js --embed-responses
-  node run-tests.js --save-responses --embed-responses
-  node run-tests.js --name "Production API Test" --description "Weekly API validation"
-  node run-tests.js --name="Nightly Tests" --description="Automated nightly validation"
-  node run-tests.js --dry-run
-  node run-tests.js --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider
-  node run-tests.js --endpoints get-search,get-auto-complete
-  node run-tests.js --endpoints ^get-facets,^get-translate
-  node run-tests.js --dry-run --providers csv-provider --endpoints search
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu ./configs ./reports
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --embed-responses
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses --embed-responses
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search
 ```
 
 Presuming the present working directory is `/test-config/lux-middletier/test/endpoints`, the default configs and reports directories are good.
 
-OK, let's give the following a shot.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-data endpoint.
+Time to select an environment, which must be specified using the `--base-url` argument.  Examples:
 
-`node run-tests.js --save-responses --endpoints get-data`
+* Mini ML when going through SBX's middle tier (Frontend and middle tier share the same load balancer in SBX): https://lux-front-sbx.collections.yale.edu
+* Full ML in **TST**: either https://lux-middle-blue.collections.yale.edu or https://lux-middle-green.collections.yale.edu; check [here](https://tman-api-tst.collections.yale.edu/lux-env).
+* QLever: TODO
+
+For our examples, we'll use Mini ML.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-data endpoint.
+
+`node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data`
 
 Here's the expected output:
 
 ```bash
-$ node run-tests.js --save-responses --endpoints get-data
+$ node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data
 Configuration directory: ./configs
 Reports directory: ./reports
 Response bodies will be saved to disk
+Checking connectivity to base URL...
+✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
 Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-08-26_18-39-33
+Test execution directory: reports\test-run-2025-08-28_14-34-01
+Base URL: https://lux-front-sbx.collections.yale.edu
 
 Resolved:
   Requested providers:
@@ -219,7 +229,10 @@ Filtering options:
         UpdatedAdvancedSearchQueriesTestDataProvider
   Available endpoints:
         get-data
+        get-facets
         get-search
+        get-search-estimate
+        get-search-will-match
 
 
 === EXECUTING TESTS BY ENDPOINT FILE (1 files) ===
@@ -231,11 +244,11 @@ Loading config from configs\get-data-tests.xlsx for the get-data endpoint...
   Loaded 31 tests (31 enabled) from get-data-tests.xlsx
     Found 1 providers in get-data: SpecificItemTestCasesTestDataProvider
     Processing SpecificItemTestCasesTestDataProvider: 31 tests
-Running test 1 of 31: [Source row 3] as GET https://lux-middle-dev.collections.yale.edu/data/object/437d40f0-bf57-4800-b3f4-ad8c62dc8291
+Running test 1 of 31: [Source row 3] as GET https://lux-front-sbx.collections.yale.edu/data/object/437d40f0-bf57-4800-b3f4-ad8c62dc8291
 
 ...omitted for brevity
 
-Running test 31 of 31: [Source row 39] as GET https://lux-middle-dev.collections.yale.edu/data/object/c3b35b6c-1e5b-458e-a03e-f77e77ce3a27
+Running test 31 of 31: [Source row 39] as GET https://lux-front-sbx.collections.yale.edu/data/object/c3b35b6c-1e5b-458e-a03e-f77e77ce3a27
       ✓ Accumulated 31 results for SpecificItemTestCasesTestDataProvider (total: 31)
   ✓ Completed endpoint get-data - memory cleared
 
@@ -251,10 +264,10 @@ Passed: 30
 Failed: 1
 Errors: 0
 Slow: 0
-Average Duration: 429ms
+Average Duration: 210ms
 Total Duration: 0 minutes
 
-Reports generated in: reports\test-run-2025-08-26_18-39-33\endpoints\get-data
+Reports generated in: reports\test-run-2025-08-28_14-34-01\endpoints\get-data
 - JSON: endpoint-test-report.json
 - HTML: endpoint-test-report.html
 - Response bodies: responses/ directory
@@ -267,7 +280,7 @@ Total tests executed: 31
 ❌ Failed: 1
 ⚠️  Errors: 0
 🐌 Slow: 0
-⏱️  Average duration: 429ms
+⏱️  Average duration: 210ms
 ⏱️  Total duration: 0 minutes
 
 📊 Dashboard report generated: dashboard-report.html
@@ -275,7 +288,7 @@ Total tests executed: 31
 ✓ Processed 1 endpoints across multiple providers
 ```
 
-So far, so good?  If so let's press on.  Else, someone is trying to rain on our parade :grrr:
+So far, so good?  If so let's press on.  If not, hopefully there is a decent error message to act on.
 
 Curious about that failure?  Feel free to check the JSON or HTML report but **--spoiler alert--** https://lux.collections.yale.edu/data/concept/92150a0a-4ade-494d-9554-c548c9c21bd3 doesn't exist in the current dataset.
 
@@ -401,12 +414,13 @@ We don't know how long it is going to take to run these tests, or if it is even 
 
 We want:
 
-1. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.
-2. Provide a name and description for the test run, which will help us be a little bit more organized.
-3. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
-4. Not restrict by provider or endpoint.
-5. Do a dry run to verify we like our settings.
-6. *Potentially* capture STDERR and STDOUT to a file
+1. Specify `--base-url` to _the_ environment we want to test.
+2. Specify `--name` and `--description` to values that align with the environment and configuration being tested.
+3. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.
+4. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
+5. Not restrict by provider or endpoint.
+6. Do a dry run to verify we like our settings.
+7. *Potentially* capture STDERR and STDOUT to a file
     * We could do so by adding `> nohup.txt 2>&1` in front of the ampersand.
     * If we do, consider using a test-specific filename.
     * The concern is this file will get very large as the URL of every request is sent to STDOUT.
@@ -415,6 +429,7 @@ Example pre-configured for the MarkLogic 1/3rd test, but that does not write STD
 
 ```bash
 $ nohup node run-tests.js \
+    --base-url https://lux-front-sbx.collections.yale.edu \
     --name "ML 1/3rd" \
     --description "MarkLogic with 1/3rd the resources PRD has." \
     --save-responses \
@@ -435,8 +450,11 @@ Response bodies will be saved to disk
 
 DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
 
+Checking connectivity to base URL...
+✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
 Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-08-26_19-34-14
+Test execution directory: reports\test-run-2025-08-28_14-40-41
+Base URL: https://lux-front-sbx.collections.yale.edu
 
 Resolved:
   Requested providers:
@@ -483,6 +501,9 @@ Tests that would be skipped: 0
 Estimated execution time: 873778s - 4368890s (rough estimate)
 
 No actual HTTP requests were made.
+
+BASE URL: https://lux-front-sbx.collections.yale.edu
+
 To execute these tests, run the same command without --dry-run
 ```
 
