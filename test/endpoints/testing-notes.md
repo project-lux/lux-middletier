@@ -465,16 +465,15 @@ We want:
     * If we do, consider using a test-specific filename.
     * The concern is this file will get very large as the URL of every request is sent to STDOUT.
 
-Example pre-configured for the MarkLogic 1/3rd test, but that does not write STD* to a file:
+Dry run (no `nohup`) example pre-configured for the MarkLogic 1/3rd test:
 
 ```bash
-$ nohup node run-tests.js \
+$ node run-tests.js \
     --base-url https://lux-front-sbx.collections.yale.edu \
     --name "ML 1/3rd" \
     --description "MarkLogic with 1/3rd the resources PRD has." \
     --save-responses \
-    --dry-run \
-    &
+    --dry-run
 ```
 
 Even though it is a dry run, it will still take a while to process all of the test configuration spreadsheets.
@@ -493,7 +492,7 @@ DRY RUN MODE: Tests will not be executed, only planned test execution will be sh
 Checking connectivity to base URL...
 ✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
 Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-08-28_14-40-41
+Test execution directory: reports/test-run-2025-08-28_17-31-21
 Base URL: https://lux-front-sbx.collections.yale.edu
 
 Resolved:
@@ -518,12 +517,12 @@ Filtering options:
         get-search-estimate
         get-search-will-match
 
-Loading config from configs\get-data-tests.xlsx for the get-data endpoint...
-Loading config from configs\get-facets-tests.xlsx for the get-facets endpoint...
-Loading config from configs\get-related-list-tests.xlsx for the get-related-list endpoint...
-Loading config from configs\get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
-Loading config from configs\get-search-tests.xlsx for the get-search endpoint...
-Loading config from configs\get-search-will-match-tests.xlsx for the get-search-will-match endpoint...
+Loading config from configs/get-data-tests.xlsx for the get-data endpoint...
+Loading config from configs/get-facets-tests.xlsx for the get-facets endpoint...
+Loading config from configs/get-related-list-tests.xlsx for the get-related-list endpoint...
+Loading config from configs/get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
+Loading config from configs/get-search-tests.xlsx for the get-search endpoint...
+Loading config from configs/get-search-will-match-tests.xlsx for the get-search-will-match endpoint...
 Found 436889 test configurations across 6 files
 
 Test distribution by endpoint type:
@@ -549,4 +548,18 @@ To execute these tests, run the same command without --dry-run
 
 Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.
 
-Ready to run the actual test?  Remove `--dry-run`'s line and go for it.
+Ready to run the actual test?  Here's a modified version of the last command.  It uses `nohup`, writes STDERR and STDOUT to a file, and is not in dry run mode.  It's go time!
+
+```bash
+$ nohup node run-tests.js \
+    --base-url https://lux-front-sbx.collections.yale.edu \
+    --name "ML 1/3rd" \
+    --description "Take 3: MarkLogic with 1/3rd the resources PRD has." \
+    --save-responses \
+    > take-03.out 2>&1 &
+```
+
+And now:
+
+`tail -f take-03.out`
+
