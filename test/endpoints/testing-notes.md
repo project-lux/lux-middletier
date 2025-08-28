@@ -3,6 +3,8 @@
 - [Middle Tier Endpoint Testing Notes](#middle-tier-endpoint-testing-notes-1)
   - [Prerequisites](#prerequisites)
   - [Shared Environments](#shared-environments)
+    - [Environments to RUN the tests from](#environments-to-run-the-tests-from)
+    - [Environments to TEST](#environments-to-test)
   - [Starting Positions!](#starting-positions)
   - [Test the Setup](#test-the-setup)
     - [Endpoint specification](#endpoint-specification)
@@ -31,18 +33,31 @@
 
 ## Shared Environments
 
-Environments to run tests from:
+### Environments to RUN the tests from
 
 | IP Address     | EBS Volume   | Node Version | Web Access                     |
 |----------------|--------------|--------------|--------------------------------|
 | `10.5.156.166` | `/test-data` | v22.18.0     | http://10.5.156.166/endpoints/ |
 | `10.5.156.211` | `/test-data` | v22.18.0     | http://10.5.156.211/endpoints/ |
 
-Mini ML:
+### Environments to TEST
 
-* Admin Console: https://lux-ml-sbxb.collections.yale.edu:8001
-* Query Console: https://lux-ml-sbxb.collections.yale.edu:8000/qconsole
-* Monitoring Console: https://lux-ml-sbxb.collections.yale.edu:8002/history/
+**Mini MarkLogic:**
+
+* Middle tier: https://lux-front-sbx.collections.yale.edu --We're borrowing SBX's middle tier, which shares its URL with SBX's frontend.
+* Admin Console: https://lux-ml-sbxa.collections.yale.edu:8001
+* Query Console: https://lux-ml-sbxa.collections.yale.edu:8000/qconsole
+* Monitoring Console: https://lux-ml-sbxa.collections.yale.edu:8002/history/
+
+Or you can use Mini MarkLogic's IP address for the consoles: 10.5.156.95
+
+**MarkLogic Full:**
+
+Use whichever environment is presently configured to TST.  Find out at https://tman-api-tst.collections.yale.edu/lux-env.
+
+**QLever:**
+
+TODO
 
 ## Starting Positions!
 
@@ -200,13 +215,9 @@ Examples:
 
 Presuming the present working directory is `/test-config/lux-middletier/test/endpoints`, the default configs and reports directories are good.
 
-Time to select an environment, which must be specified using the `--base-url` argument.  Examples:
+Time to select an environment, which must be specified using the `--base-url` argument.  Find the middle tier base URL you need in [Environments to TEST](#environments-to-test).
 
-* Mini ML when going through SBX's middle tier (Frontend and middle tier share the same load balancer in SBX): https://lux-front-sbx.collections.yale.edu
-* Full ML in **TST**: either https://lux-middle-blue.collections.yale.edu or https://lux-middle-green.collections.yale.edu; check [here](https://tman-api-tst.collections.yale.edu/lux-env).
-* QLever: TODO
-
-For our examples, we'll use Mini ML.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-data endpoint.
+For our examples, we'll use Mini MarkLogic.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-data endpoint.
 
 `node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data`
 
