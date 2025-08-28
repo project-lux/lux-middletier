@@ -12,6 +12,7 @@
     - [Recap](#recap)
   - [Run the Full Test](#run-the-full-test)
     - [Create All Test Configurations](#create-all-test-configurations)
+    - [Clear Backend Caches](#clear-backend-caches)
     - [Run All Tests](#run-all-tests)
 
 
@@ -406,6 +407,21 @@ total 454484
 -rw-r--r-- 1 ec2-user ec2-user 4096  20781438 Aug 26 15:15 get-search-tests.xlsx
 -rw-r--r-- 1 ec2-user ec2-user 4096  17153122 Aug 26 15:16 get-search-will-match-tests.xlsx
 ```
+
+### Clear Backend Caches
+
+For MarkLogic, run the following script in Query Console:
+
+```javascript
+xdmp.programCacheClear();
+xdmp.groupCacheClear(xdmp.group("Default"), [
+  "compressed-tree-cache",
+  "expanded-tree-cache",
+  "list-cache",
+]);
+```
+
+For QLever?  Maybe restart the process?
 
 ### Run All Tests
 
