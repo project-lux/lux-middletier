@@ -17,7 +17,9 @@
     - [Clear Backend Caches](#clear-backend-caches)
       - [MarkLogic](#marklogic)
       - [QLever](#qlever)
+    - [Start tracking the Test](#start-tracking-the-test)
     - [Run All Tests](#run-all-tests)
+    - [Post Test](#post-test)
 
 
 # Middle Tier Endpoint Testing Notes
@@ -456,6 +458,10 @@ xdmp.groupCacheClear(xdmp.group("Default"), [
 
 Restart the process?
 
+### Start tracking the Test
+
+Crack open the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet and assign a unique number to this test.  Fill out the other columns that you can at this time.  Remember the test's number as there's a couple places to use it in the next section.
+
 ### Run All Tests
 
 We don't know how long it is going to take to run these tests, or if it is even a good idea to do so!  Convenience and the dashboard reports may be the only reasons to do so.  Let's see if we can get away with it.  
@@ -463,8 +469,8 @@ We don't know how long it is going to take to run these tests, or if it is even 
 We want:
 
 1. Specify `--base-url` to _the_ environment we want to test.
-2. Specify `--name` and `--description` to values that align with the environment and configuration being tested.
-3. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.
+2. Specify `--name` and `--description` to values that align with the environment and configuration being tested.  Include the test's number in the description.
+3. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.  The emerging convention is to name the file `test-[testNumber].out`.
 4. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
 5. Not restrict by provider or endpoint.
 6. Do a dry run to verify we like our settings.
@@ -558,6 +564,15 @@ Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.
 
 Ready to run the actual test?  Here's a modified version of the last command.  It uses `nohup`, writes STDERR and STDOUT to a file, and is not in dry run mode.  It's go time!
 
+Before copying and pasting the following command:
+
+1. **Verify the value of the base URL**
+2. Update the test's name
+3. Update the description, including the test number
+4. Update the test number in the output file
+
+Double check the base URL.
+
 ```bash
 $ nohup node run-tests.js \
     --base-url https://lux-front-sbx.collections.yale.edu \
@@ -570,4 +585,16 @@ $ nohup node run-tests.js \
 And now:
 
 `tail -f take-03.out`
+
+After the test configuration spreadsheets are read, you should start seeing tests executing.  It's at this time that the test's reports directory is created and can be added to the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
+
+### Post Test
+
+Protect `test-[testNumber].out` from accidental deletion or overwrite.
+
+Fill out the rest of this test's row in the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
+
+For MarkLogic, take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
+
+Any artifacts to get from QLever?
 
