@@ -17,6 +17,7 @@
     - [Pre Flight](#pre-flight)
       - [Start Tracking the Test](#start-tracking-the-test)
       - [Check Disk Space](#check-disk-space)
+      - [Backend Settings](#backend-settings)
       - [Clear Caches](#clear-caches)
         - [MarkLogic](#marklogic)
         - [QLever](#qlever)
@@ -450,6 +451,21 @@ Crack open the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn
 #### Check Disk Space
 
 Run `df -h` and make sure `/test-data` has sufficient space.
+
+#### Backend Settings
+
+If system resource levels have changed between tests, consider if any backend settings should change.
+
+For MarkLogic:
+
+1. When adjusting the amount of memory, the group level cache settings should be reviewed.
+2. When adjusting the amount of vCPUs, the number of forests should be reviewed and, if changed:
+    * The amount of forest reserve should be recalculated.
+    * The data will either need to be reloaded or rebalanced.
+
+See [this CF 124 comment](https://git.yale.edu/lux-its/ml-cluster-formation/issues/124#issuecomment-31453) for a summary of changes made when changing the instance type.
+
+Anything for QLever?
 
 #### Clear Caches
 
