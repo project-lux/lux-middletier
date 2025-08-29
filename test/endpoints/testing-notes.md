@@ -609,7 +609,11 @@ Protect `test-[testNumber].out` from accidental deletion or overwrite.
 
 Fill out the rest of this test's row in the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
 
-For MarkLogic, take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
+For MarkLogic:
 
-Any artifacts to get from QLever?
+1. Download the logs (ErrorLog.txt and 8003*.txt for all applicable days).  Use collectBackendLogs.sh.
+2. Export the monitoring data.
+3. Take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
+
+What artifacts should we get from QLever?
 
