@@ -605,7 +605,7 @@ After the test configuration spreadsheets are read, you should start seeing test
 
 ### Post Flight
 
-Protect `test-[testNumber].out` from accidental deletion or overwrite.
+Protect `test-[testNumber].out` from accidental deletion or overwrite (e.g., `chmod 444 test-06.out`).
 
 Fill out the rest of this test's row in the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
 
@@ -614,7 +614,7 @@ For MarkLogic:
 1. Download the logs.
     * ErrorLog.txt and 8003*.txt for all applicable days.
     * collectBackendLogs.sh is useful.
-    * Use trimBackendLogs.sh to the test's start and end times before getting any stats, etc. from them.
+    * If you're planning on diving in these logs, be aware they should be trimmed to the testing period, which trimBackendLogs.sh can help with.  After that, you can also use mineBackendLogs
 2. Export the monitoring data.
 3. Take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
 
