@@ -14,12 +14,14 @@
     - [Recap](#recap)
   - [Run the Full Test](#run-the-full-test)
     - [Create All Test Configurations](#create-all-test-configurations)
-    - [Clear Backend Caches](#clear-backend-caches)
-      - [MarkLogic](#marklogic)
-      - [QLever](#qlever)
-    - [Start tracking the Test](#start-tracking-the-test)
+    - [Pre Flight](#pre-flight)
+      - [Start Tracking the Test](#start-tracking-the-test)
+      - [Check Disk Space](#check-disk-space)
+      - [Clear Caches](#clear-caches)
+        - [MarkLogic](#marklogic)
+        - [QLever](#qlever)
     - [Run All Tests](#run-all-tests)
-    - [Post Test](#post-test)
+    - [Post Flight](#post-flight)
 
 
 # Middle Tier Endpoint Testing Notes
@@ -439,9 +441,19 @@ total 454484
 -rw-r--r-- 1 ec2-user ec2-user 4096  17153122 Aug 26 15:16 get-search-will-match-tests.xlsx
 ```
 
-### Clear Backend Caches
+### Pre Flight
 
-#### MarkLogic
+#### Start Tracking the Test
+
+Crack open the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet and assign a unique number to this test.  Fill out the other columns that you can at this time.  Remember the test's number as there's a couple places to use it in the next section.
+
+#### Check Disk Space
+
+Run `df -h` and make sure `/test-data` has sufficient space.
+
+#### Clear Caches
+
+##### MarkLogic
 
 Look up the Query Console URL in [Shared Environments](#shared-environments), and run the following script there.
 
@@ -454,13 +466,9 @@ xdmp.groupCacheClear(xdmp.group("Default"), [
 ]);
 ```
 
-#### QLever
+##### QLever
 
 Restart the process?
-
-### Start tracking the Test
-
-Crack open the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet and assign a unique number to this test.  Fill out the other columns that you can at this time.  Remember the test's number as there's a couple places to use it in the next section.
 
 ### Run All Tests
 
@@ -595,7 +603,7 @@ OK, now you can see how it's going:
 
 After the test configuration spreadsheets are read, you should start seeing tests executing.  It's at this time that the test's reports directory is created and can be added to the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
 
-### Post Test
+### Post Flight
 
 Protect `test-[testNumber].out` from accidental deletion or overwrite.
 
