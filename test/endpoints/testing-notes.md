@@ -471,10 +471,11 @@ We want:
 1. Specify `--base-url` to _the_ environment we want to test.
 2. Specify `--name` and `--description` to values that align with the environment and configuration being tested.  Include the test's number in the description.
 3. Use `nohup` to prevent the process terminating upon logging off the instance / losing VPN connection.  The emerging convention is to name the file `test-[testNumber].out`.
-4. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
-5. Not restrict by provider or endpoint.
-6. Do a dry run to verify we like our settings.
-7. *Potentially* capture STDERR and STDOUT to a file
+4. Use `disown` to help prevent the process being stopped by ending or resuming a VPN session.  _Shouldn't be necessary with `nohup` but appears to be for us.
+5. Save the response bodies but *not* embed them into the HTML report as that's asking too much.
+6. Not restrict by provider or endpoint.
+7. Do a dry run to verify we like our settings.
+8. *Potentially* capture STDERR and STDOUT to a file
     * We could do so by adding `> nohup.txt 2>&1` in front of the ampersand.
     * If we do, consider using a test-specific filename.
     * The concern is this file will get very large as the URL of every request is sent to STDOUT.
@@ -582,7 +583,13 @@ $ nohup node run-tests.js \
     > take-03.out 2>&1 &
 ```
 
-And now:
+**IMPORTANT**
+
+Also disown the process:
+
+`disown`
+
+OK, now you can see how it's going:
 
 `tail -f take-03.out`
 
