@@ -611,7 +611,10 @@ Fill out the rest of this test's row in the [Endpoint Tests](https://docs.google
 
 For MarkLogic:
 
-1. Download the logs (ErrorLog.txt and 8003*.txt for all applicable days).  Use collectBackendLogs.sh.
+1. Download the logs.
+    * ErrorLog.txt and 8003*.txt for all applicable days.
+    * collectBackendLogs.sh is useful.
+    * Use trimBackendLogs.sh to the test's start and end times before getting any stats, etc. from them.
 2. Export the monitoring data.
 3. Take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
 
