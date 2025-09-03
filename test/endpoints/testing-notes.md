@@ -465,7 +465,13 @@ For MarkLogic:
 
 See [this CF 124 comment](https://git.yale.edu/lux-its/ml-cluster-formation/issues/124#issuecomment-31453) for a summary of changes made when changing the instance type.
 
-Anything for QLever?
+For Qlever:
+  * The following settings in the Qleverfile should be changed based on memory, CPU available:
+    * STXXL_MEMORY
+    * MEMORY_FOR_QUERIES
+    * CACHE_MAX_SIZE 
+    * NUM_THREADS
+
 
 #### Clear Caches
 
@@ -484,7 +490,7 @@ xdmp.groupCacheClear(xdmp.group("Default"), [
 
 ##### QLever
 
-Restart the process?
+QLever Cache can be cleared via QLever UI
 
 ### Run All Tests
 
