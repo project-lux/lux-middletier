@@ -14,11 +14,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class ReportComparator {
-  constructor(baselineFile, currentFile, outputDir = './comparisons') {
+  constructor(baselineFile, currentFile, outputDir = './comparisons', comparisonName = null) {
     this.baselineFile = baselineFile;
     this.currentFile = currentFile;
     this.outputDir = outputDir;
-    
+    this.comparisonName = comparisonName;
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -335,12 +335,12 @@ class ReportComparator {
    */
   generateHTMLReport(comparison) {
     const { metadata, summary, test_differences, endpoint_analysis } = comparison;
-
+  const title = this.comparisonName || "Test Report Comparison";
     return `
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test Report Comparison</title>
+  <title>${title}</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
@@ -362,12 +362,11 @@ class ReportComparator {
 </head>
 <body>
     <div class="header">
-        <h1>Test Report Comparison</h1>
-        <p><strong>Baseline:</strong> ${metadata.baseline_file} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
-        <p><strong>Current:</strong> ${metadata.current_file} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
+    <h1>${title}</h1>
+    <p><strong>Baseline:</strong> ${title.split("-to-")[0]} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
+    <p><strong>Current:</strong> ${title.split("-to-")[1].split(":")[0]} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
-
     <div class="section">
         <h2>Summary</h2>
         <div class="summary-grid">
@@ -385,7 +384,6 @@ class ReportComparator {
             </div>
         </div>
     </div>
-
     <div class="section">
         <h2>Changes Overview</h2>
         <div class="summary-grid">
@@ -407,7 +405,6 @@ class ReportComparator {
             </div>
         </div>
     </div>
-
     ${test_differences.regressions.length > 0 ? `
     <div class="section">
         <h2>🔴 Regressions</h2>
@@ -437,7 +434,6 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
-
     ${test_differences.improvements.length > 0 ? `
     <div class="section">
         <h2>🟢 Improvements</h2>
@@ -465,7 +461,6 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
-
     <div class="section">
         <h2>Analysis by Endpoint Type</h2>
         <table>
@@ -498,7 +493,6 @@ class ReportComparator {
             </tbody>
         </table>
     </div>
-
 </body>
 </html>`;
   }
@@ -539,7 +533,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const outputDir = args[3] || `./comparisons/${baselineName}-vs-${currentName}`;
 
   try {
-    const comparator = new ReportComparator(baselineFile, currentFile, outputDir);
+    const comparator = new ReportComparator(baselineFile, currentFile, outputDir, "Test Report Comparison");
     comparator.compareReports();
   } catch (error) {
     console.error('Comparison failed:', error.message);
