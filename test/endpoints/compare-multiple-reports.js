@@ -1,48 +1,27 @@
 import ReportComparator from "./compare-reports.js";
 import fs from 'fs';
+import path from 'path';
 
-const [node, scriptName, baselineDir, currentDir, outputDir] = process.argv;
+const baseDir = 'c:/workspaces/yale/clones/lux-middletier/test/endpoints';
 
-console.log(process.argv);
-console.log({node, scriptName, baselineDir, currentDir, outputDir});
-
-  // Validate input files exist
-  if (!baselineDir) {
-    console.error('Baseline directory must be specified as the first argument.');
-    console.error('Usage: node compare-multiple-reports.js <baseline-dir> <current-dir> <output-dir>');
-    process.exit(1);
-  }
-  
-  if (!fs.existsSync(baselineDir)) {
-    console.error(`Baseline directory not found: ${baselineDir}`);
-    process.exit(1);
-  }
-
-  if (!currentDir) {
-    console.error('Current directory must be specified as the second argument.');
-    console.error('Usage: node compare-multiple-reports.js <baseline-dir> <current-dir> <output-dir>');
-    process.exit(1);
-  }
-
-  if (!fs.existsSync(currentDir)) {
-    console.error(`Current directory not found: ${currentDir}`);
-    process.exit(1);
-  }
-
-//     if (!outputDir) {
-//     console.error('Output directory must be specified as the third argument.');
-//     console.error('Usage: node compare-multiple-reports.js <baseline-dir> <current-dir> <output-dir>');
-//     process.exit(1);
-//   }
-
-//   if (!fs.existsSync(outputDir)) {
-//     console.error(`Output directory not found: ${outputDir}`);
-//     process.exit(1);
-//   }
-
-//   const baselineDirContents = fs.readdirSync(baselineDir);
-//     const currentDirContents = fs.readdirSync(currentDir);
-//     console.dir({baselineDirContents, currentDirContents});
+// Define your combinations here
+const configurations = [
+  {
+    baselineDir: 'reports/test-06-ml-3-3rds/test-run-2025-08-28_22-26-44/endpoints',
+    currentDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
+    outputDir: 'comparisons/ml-3-3rds-to-ml-2-3rds',
+  },
+  {
+    baselineDir: 'reports/test-06-ml-3-3rds/test-run-2025-08-28_22-26-44/endpoints',
+    currentDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
+    outputDir: 'comparisons/ml-3-3rds-to-ql-pipeline',
+  },
+  {
+    baselineDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
+    currentDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
+    outputDir: 'comparisons/ml-2-3rds-to-ql-pipeline',
+  },
+];
 
 const endpointsToCompare = [
     'get-data',
@@ -52,12 +31,40 @@ const endpointsToCompare = [
     'get-search-estimate',
     'get-search-will-match'];
 
-for (const endpoint of endpointsToCompare) {
-const baselineFile = `${baselineDir}/${endpoint}/endpoint-test-report.json`;
-const currentFile = `${currentDir}/${endpoint}/endpoint-test-report.json`;
-const endpointOutputDir = `${outputDir}/${endpoint}`;
-compareFiles(baselineFile, currentFile, endpointOutputDir);
+for (const config of configurations) {
+  let { baselineDir, currentDir, outputDir } = config;
+  baselineDir = path.join(baseDir, baselineDir);
+  currentDir = path.join(baseDir, currentDir);
+  outputDir = path.join(baseDir, outputDir);
+
+  // Validate input directories
+  if (!fs.existsSync(baselineDir)) {
+    console.error(`Baseline directory not found: ${baselineDir}`);
+    continue;
+  }
+  if (!fs.existsSync(currentDir)) {
+    console.error(`Current directory not found: ${currentDir}`);
+    continue;
+  }
+  // Optionally check outputDir exists, or create it
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      console.error(`Failed to create output directory: ${outputDir}`);
+      continue;
+    }
+  }
+
+  for (const endpoint of endpointsToCompare) {
+    const baselineFile = `${baselineDir}/${endpoint}/endpoint-test-report.json`;
+    const currentFile = `${currentDir}/${endpoint}/endpoint-test-report.json`;
+    const endpointOutputDir = `${outputDir}/${endpoint}`;
+    compareFiles(baselineFile, currentFile, endpointOutputDir);
+  }
 }
+
+// ...existing code...
 
 function compareFiles(baselineFile, currentFile, outputDir) {
   // Validate input files exist
@@ -74,8 +81,10 @@ function compareFiles(baselineFile, currentFile, outputDir) {
     //process.exit(1);
   }
 
-    try {
-    const comparator = new ReportComparator(baselineFile, currentFile, outputDir);
+  try {
+    const outputDirParts = outputDir.split(/[\\\/]/); // handle both / and \
+    const comparisonName = `${outputDirParts[outputDirParts.length - 2]}: ${outputDirParts[outputDirParts.length - 1]}`;
+    const comparator = new ReportComparator(baselineFile, currentFile, outputDir, comparisonName);
     comparator.compareReports();
   } catch (error) {
     console.error(`Comparison of these files failed: ${baselineFile}, ${currentFile}`, error.message);
