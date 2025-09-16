@@ -21,6 +21,11 @@ const configurations = [
     currentDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
     outputDir: 'comparisons/ml-2-3rds-to-ql-pipeline',
   },
+  {
+    baselineDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
+    currentDir: 'reports/test-09-ql-mini/test-run-2025-09-02_21-29-11/endpoints',
+    outputDir: 'comparisons/ml-2-3rds-to-ql-mini',
+  },
 ];
 
 const endpointsToCompare = [
