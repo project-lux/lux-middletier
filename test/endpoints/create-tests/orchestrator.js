@@ -198,7 +198,3 @@ export async function processRemainingEndpoints(
     }
   }
 }
-
-// We'll need to import the createTestsForEndpoint function from the main file
-// This will be done when we refactor the main file
-// For now, we'll accept it as a parameter to maintain separation of concerns
