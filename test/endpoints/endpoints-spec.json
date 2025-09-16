@@ -1,0 +1,552 @@
+{
+  "endpoints": [
+    {
+      "path": "/api/advanced-search-config",
+      "method": "GET",
+      "description": "Get advanced search configuration",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/auto-complete",
+      "method": "GET",
+      "description": "Auto-complete functionality for search terms",
+      "parameters": {
+        "path": [],
+        "query": [
+          {
+            "name": "text",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "context",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "fullyHonorContext",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "onlyMatchOnPrimaryNames",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "onlyReturnPrimaryNames",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "page",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "pageLength",
+            "type": "integer",
+            "default": 10
+          },
+          {
+            "name": "filterIndex",
+            "type": "integer",
+            "default": 0
+          },
+          {
+            "name": "previouslyFiltered",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "timeoutInMilliseconds",
+            "type": "integer",
+            "default": 0
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/facets/:scope",
+      "method": "GET",
+      "description": "Get faceted search results for a given scope",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "q",
+            "type": "string"
+          },
+          {
+            "name": "page",
+            "type": "string"
+          },
+          {
+            "name": "pageLength",
+            "type": "string"
+          },
+          {
+            "name": "sort",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/related-list/:scope",
+      "method": "GET",
+      "description": "Get related items for a given scope and entity",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "name",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "uri",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "page",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "pageLength",
+            "type": "integer",
+            "default": null
+          },
+          {
+            "name": "filterResults",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "relationshipsPerRelation",
+            "type": "integer",
+            "default": null
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/resolve/:scope/:unit/:identifier",
+      "method": "GET",
+      "description": "Resolve an identifier within a scope and unit to a resource URL",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string",
+            "validValues": [
+              "objects",
+              "works"
+            ]
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "validValues": [
+              "lml",
+              "pmc",
+              "ycba",
+              "ypm",
+              "yuag",
+              "yul"
+            ]
+          },
+          {
+            "name": "identifier",
+            "type": "string"
+          }
+        ],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope",
+          "unit",
+          "identifier"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/search/:scope",
+      "method": "GET",
+      "description": "Perform search within a given scope",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          },
+          {
+            "name": "mayChangeScope",
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "page",
+            "type": "integer",
+            "default": 1
+          },
+          {
+            "name": "pageLength",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "name": "pageWith",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "sort",
+            "type": "string",
+            "default": ""
+          },
+          {
+            "name": "filterResults",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "facetsSoon",
+            "type": "boolean",
+            "default": true
+          },
+          {
+            "name": "synonymsEnabled",
+            "type": "boolean",
+            "default": true
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/search-estimate/:scope",
+      "method": "GET",
+      "description": "Get estimated count of search results for a given scope",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/search-info",
+      "method": "GET",
+      "description": "Get search configuration information",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/search-will-match",
+      "method": "GET",
+      "description": "Check if a search query will match any results",
+      "parameters": {
+        "path": [],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/stats",
+      "method": "GET",
+      "description": "Get system statistics",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/tenant-status",
+      "method": "GET",
+      "description": "Get tenant status information",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/translate/:scope",
+      "method": "GET",
+      "description": "Translate natural language queries or redirect to AI service for 'I want' queries",
+      "parameters": {
+        "path": [
+          {
+            "name": "scope",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "scope"
+        ],
+        "query": [
+          "q"
+        ]
+      }
+    },
+    {
+      "path": "/api/version-info",
+      "method": "GET",
+      "description": "Get version information",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/data/:type/:uuid",
+      "method": "GET",
+      "description": "Retrieve a specific document by type and UUID",
+      "parameters": {
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
+        "query": [
+          {
+            "name": "profile",
+            "type": "string"
+          },
+          {
+            "name": "lang",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "type",
+          "uuid"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/data",
+      "method": "POST",
+      "description": "Create a new document",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": {
+          "type": "object",
+          "description": "Document data in JSON format"
+        }
+      },
+      "required": {
+        "path": [],
+        "query": [],
+        "body": true
+      }
+    },
+    {
+      "path": "/data/:type/:uuid",
+      "method": "PUT",
+      "description": "Update an existing document by type and UUID",
+      "parameters": {
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
+        "query": [],
+        "body": {
+          "type": "object",
+          "description": "Updated document data in JSON format"
+        }
+      },
+      "required": {
+        "path": [
+          "type",
+          "uuid"
+        ],
+        "query": [],
+        "body": true
+      }
+    },
+    {
+      "path": "/data/:type/:uuid",
+      "method": "DELETE",
+      "description": "Delete a document by type and UUID",
+      "parameters": {
+        "path": [
+          {
+            "name": "type",
+            "type": "string"
+          },
+          {
+            "name": "uuid",
+            "type": "string"
+          }
+        ],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [
+          "type",
+          "uuid"
+        ],
+        "query": []
+      }
+    },
+    {
+      "path": "/api/_info",
+      "method": "GET",
+      "description": "Get application information including memory usage, version, and system details",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
+      "path": "/health",
+      "method": "GET",
+      "description": "Health check endpoint",
+      "parameters": {
+        "path": [],
+        "query": [],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+Name	TST			Notes
+PAGES				
+-Home page	https://lux-front-tst.collections.yale.edu/			
+-FAQ page	https://lux-front-tst.collections.yale.edu/content/simple-search			
+				
+RESULTS				
+Objects Results	https://lux-front-tst.collections.yale.edu/view/results/objects?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/objects?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&if=%7B%22AND%22%3A%5B%7B%22material%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fconcept%2F207a345b-1285-4ba0-a076-418de41e3c05%22%7D%7D%5D%7D&facetRequest=true			
+Works Results	https://lux-front-tst.collections.yale.edu/view/results/works?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/works?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&wp=1&wf=%7B%22AND%22%3A%5B%7B%22classification%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fconcept%2Ff205dced-45a6-46d4-a4c5-efec14705c55%22%7D%7D%5D%7D&facetRequest=true			
+People/Groups Results	https://lux-front-tst.collections.yale.edu/view/results/people?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/people?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&wp=1&ap=1&af=%7B%22AND%22%3A%5B%7B%22classification%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fconcept%2Fa309a746-9e51-4c34-b207-7f4773d2ac1a%22%7D%7D%5D%7D&facetRequest=true			
+Concepts Results	https://lux-front-tst.collections.yale.edu/view/results/concepts?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/concepts?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&wp=1&ap=1&cp=1&cf=%7B%22AND%22%3A%5B%7B%22influencedByConcept%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fconcept%2Ff23444ce-4170-412d-80f4-0af237736017%22%7D%7D%5D%7D&facetRequest=true			
+Places Results	https://lux-front-tst.collections.yale.edu/view/results/places?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/places?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&wp=1&ap=1&cp=1&pp=1&pf=%7B%22AND%22%3A%5B%7B%22classification%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fconcept%2F4c4443fb-d094-4de4-a5cb-5e3078d58f06%22%7D%7D%5D%7D&facetRequest=true			
+Events Results	https://lux-front-tst.collections.yale.edu/view/results/events?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog			
+Selected facet	https://lux-front-tst.collections.yale.edu/view/results/events?q=%7B%22text%22%3A%22dog%22%2C%22_lang%22%3A%22en%22%7D&sq=dog&ip=1&wp=1&ap=1&cp=1&pp=1&ep=1&ef=%7B%22AND%22%3A%5B%7B%22tookPlaceAt%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux-front-tst.collections.yale.edu%2Fdata%2Fplace%2F58a57603-f224-4cc7-ab41-f08876619e23%22%7D%7D%5D%7D&facetRequest=true			
+Collections Results	<-- need tab in place			
+Selected facet	<-- need tab in place			
+				
+ITEMS				
+Object Record	https://lux-front-tst.collections.yale.edu/view/digital/ca19613f-c615-4235-aa50-99e2c73481a6			
+Work Record	https://lux-front-tst.collections.yale.edu/view/text/8b6ca820-84f6-4994-8e0a-26bf52056032			
+Collection Record	https://lux.collections.yale.edu/view/set/16ec4dbd-f7c0-4599-8b23-36f4394f9bb7			archives
+Collection Record	https://lux.collections.yale.edu/view/set/f282d839-387f-44b6-b63a-d1170bf210ff			departmental collection
+				
+ENTITIES				
+People/Group Record	https://lux-front-tst.collections.yale.edu/view/group/19d4509b-5b16-4190-89f3-d254941b7427			
+Expand Related List	<-- this is an action, not a linkable.			
+Concept Record	https://lux-front-tst.collections.yale.edu/view/place/e936835c-69e4-48f1-becf-2f921e0711fa			
+Expand Related List	<-- this is an action, not a linkable.			
+Place Record	https://lux-front-tst.collections.yale.edu/view/concept/595a9692-8889-4101-a66f-6bb6a91ccfc1			
+Expand Related List	<-- this is an action, not a linkable.			
+Event Record	https://lux-front-tst.collections.yale.edu/view/activity/490105fa-4c4f-40c2-bae5-ad3a82dca147			
+Expand Related List	<-- this is an action, not a linkable.			
+				
+ADVANCED SEARCH	<-- how much detail for this? 			
+AS examples from FAQ	https://lux.collections.yale.edu/content/advanced-search#faq-header			
+object	https://lux.collections.yale.edu/view/results/objects?q=%7B%22AND%22:[%7B%22OR%22:[%7B%22memberOf%22:%7B%22name%22:%22peabody%22%7D%7D,%7B%22memberOf%22:%7B%22name%22:%22yale%20university%20art%20gallery%22%7D%7D]%7D,%7B%22name%22:%22ceramics%22%7D]%7D			
+works	https://lux.collections.yale.edu/view/results/works?q=%7B%22AND%22%3A%5B%7B%22OR%22%3A%5B%7B%22aboutAgent%22%3A%7B%22name%22%3A%22cleopatra%22%7D%7D%2C%7B%22aboutConcept%22%3A%7B%22name%22%3A%22cleopatra%22%7D%7D%5D%7D%2C%7B%22language%22%3A%7B%22name%22%3A%22german%22%7D%7D%5D%7D			
+collection	(will be better with Collections Tab finished,but could be seen here: https://lux.collections.yale.edu/view/results/works?q=%7B%22AND%22%3A%5B%7B%22recordType%22%3A%22Set%22%7D%5D%7D 			
+people & groups	https://lux.collections.yale.edu/view/results/people?q=%7B%22OR%22:[%7B%22produced%22:%7B%22classification%22:%7B%22name%22:%22forgery%22%7D%7D%7D,%7B%22created%22:%7B%22OR%22:[%7B%22classification%22:%7B%22name%22:%22forgery%22%7D%7D]%7D%7D]%7D			
+place	https://lux.collections.yale.edu/view/results/places?q=%7B%22AND%22%3A%5B%7B%22encounteredHere%22%3A%7B%22encounteredBy%22%3A%7B%22name%22%3A%22john+bell+hatcher%22%7D%7D%7D%5D%7D			
+concept	https://lux.collections.yale.edu/view/results/concepts?q=%7B%22OR%22%3A%5B%7B%22name%22%3A%22quercus%22%7D%2C%7B%22classification%22%3A%7B%22name%22%3A%22quercus%22%7D%7D%5D%7D			
+events	https://lux.collections.yale.edu/view/results/events?q=%7B%22AND%22%3A%5B%7B%22used%22%3A%7B%22containingItem%22%3A%7B%22AND%22%3A%5B%7B%22producedBy%22%3A%7B%22AND%22%3A%5B%7B%22activeAt%22%3A%7B%22id%22%3A%22https%3A%2F%2Flux.collections.yale.edu%2Fdata%2Fplace%2Fa52d0f47-f894-4134-b990-8291bead400f%22%7D%7D%5D%7D%7D%2C%7B%22producedDate%22%3A%221914-01-01%22%2C%22_comp%22%3A%22%3E%3D%22%7D%2C%7B%22producedDate%22%3A%221950-12-31T00%3A00%3A00.000Z%22%2C%22_comp%22%3A%22%3C%3D%22%7D%5D%7D%7D%7D%2C%7B%22classification%22%3A%7B%22name%22%3A%22exhibition%22%7D%7D%5D%7D			
