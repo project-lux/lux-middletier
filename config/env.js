@@ -28,6 +28,8 @@ const env = {
 
   logLevel: process.env.LOG_LEVEL || 'debug',
   featureMyCollections: process.env.FEATURE_MY_COLLECTIONS === 'true',
+
+  relayAndForgetTarget: process.env.RELAY_AND_FORGET_TARGET || null,
 }
 
 export default env
