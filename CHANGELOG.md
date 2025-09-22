@@ -13,6 +13,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Unreleased
+- Relay all requests to QLever withouth processsing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).
+
 ## v1.3.4
 - Fix Delete document endpoint URI formation
 

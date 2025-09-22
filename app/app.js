@@ -14,6 +14,7 @@ import {
   getSecondaryResolveQuery, ResolveError, validScopes as validResolveScopes,
   validUnits as validResolveUnits,
 } from '../lib/resolve.js'
+import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
 
 import json from '../package.json' with {type: "json"}
 
@@ -65,6 +66,7 @@ class App {
     exp.use(cors())
     exp.use(express.json({ limit: '2mb' }))
     exp.use(express.static('public'))
+    exp.use(relayAndForget)
 
     exp.options('*', (req, res) => {
       res.header('Access-Control-Allow-Origin', '*')
