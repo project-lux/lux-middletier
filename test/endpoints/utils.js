@@ -6,6 +6,39 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 
+const backendToFrontendScope = {
+  agent: 'people',
+  concept: 'concepts',
+  event: 'events',
+  item: 'objects',
+  place: 'places',
+  set: 'collections',
+  work: 'works',
+};
+
+/**
+ * Map scope values between backend and frontend representations.
+ * @param {string} scope - The scope value to map
+ * @param {"toFrontend"|"toBackend"} direction - Direction of mapping
+ *   - "toFrontend": backend -> frontend (e.g., 'agent' -> 'people')
+ *   - "toBackend": frontend -> backend (e.g., 'objects' -> 'item')
+ * @returns {string} - Mapped scope value
+ */
+export function mapScope(scope, toFrontend = true) {
+  if (!scope || typeof scope !== 'string') {
+    return '';
+  }
+  const lowerScope = scope.toLowerCase();
+  if (toFrontend === true) {
+    return backendToFrontendScope[lowerScope] || lowerScope;
+  } else {
+    const foundKey = Object.keys(backendToFrontendScope).find(
+      key => backendToFrontendScope[key] === lowerScope
+    );
+    return foundKey || lowerScope;
+  }
+}
+
 export function isDefined(value) {
   return value !== undefined && value !== null;
 }
@@ -96,8 +129,8 @@ export function parseUrlQueryString(url) {
     const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
     if (pathParts.length > 0) {
       const lastPathPart = pathParts[pathParts.length - 1];
-      // Map the extracted scope to supported values
-      params.scope = mapScopeValue(lastPathPart);
+      // Map the frontend scope to the backend scope.
+      params.scope = mapScope(lastPathPart, false);
     }
     
     // Iterate through all search parameters
@@ -130,41 +163,6 @@ export function parseUrlQueryString(url) {
     console.warn(`Failed to parse URL: ${url}`, error.message);
     return {};
   }
-}
-
-/**
- * Map URL scope value to supported API scope values
- * @param {string} urlScope - Scope extracted from URL path
- * @returns {string} - Mapped scope value
- */
-export function mapScopeValue(urlScope) {
-  if (!urlScope || typeof urlScope !== 'string') {
-    return '';
-  }
-
-  const lowerScope = urlScope.toLowerCase();
-  
-  // Special mapping for "objects" -> "item"
-  if (lowerScope === 'objects' || lowerScope === 'object') {
-    return 'item';
-  }
-
-  if (lowerScope === 'collections' || lowerScope === 'collection') {
-    return 'set';
-  }
-
-  if (lowerScope === 'people') {
-    return 'agent'
-  }
-
-  // The plural form of all other support scopes simply end with a 's', and no
-  // singular form of a supported scope does.
-  if (lowerScope.endsWith('s')) {
-    return lowerScope.slice(0, -1);
-  }
-  
-  // Return as-is if no plural pattern matches (already singular or unknown pattern)
-  return lowerScope;
 }
 
 /**

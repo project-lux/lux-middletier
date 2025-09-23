@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { getEndpointKeyFromPath, isDefined } from "./utils.js";
+import { getEndpointKeyFromPath, isDefined, mapScope } from "./utils.js";
 import { getDerivedTestConfigs } from "./relatedTestUtils.js";
 import { parseCommandLineArgs } from "./create-tests/cli-parser.js";
 import { TestStatistics } from "./create-tests/statistics.js";
@@ -199,14 +199,6 @@ async function createTestsForEndpoint(
 
   // Output format branching
   const outputFormat = options.outputFormat || 'spreadsheet';
-  let filename, filePath;
-  if (outputFormat === 'neoload') {
-    filename = `${endpointKey}-neoload.txt`;
-  } else {
-    filename = `${endpointKey}-tests.xlsx`;
-  }
-  filePath = path.join(testsDir, filename);
-
   console.log(`Checking for ${endpointKey} tests (output format: ${outputFormat})`);
 
   // Build columns array
@@ -301,7 +293,7 @@ async function createTestsForEndpoint(
         columns,
         requiredParamColumns,
         allTestData,
-        filePath
+        testsDir
       });
     } else {
       writeSpreadsheetTestFile({
@@ -310,7 +302,7 @@ async function createTestsForEndpoint(
         columns,
         requiredParamColumns,
         allTestData,
-        filePath
+        testsDir
       });
     }
   } else {
@@ -330,7 +322,7 @@ function writeSpreadsheetTestFile({
   columns,
   requiredParamColumns,
   allTestData,
-  filePath
+  testsDir
 }) {
   console.log(`Adding the ${endpointKey} tests to its spreadsheet...`);
   const wb = XLSX.utils.book_new();
@@ -362,6 +354,8 @@ function writeSpreadsheetTestFile({
     requiredParamColumns
   );
   XLSX.utils.book_append_sheet(wb, docWs, "Documentation");
+
+  const filePath = path.join(testsDir, `${endpointKey}-tests.xlsx`);
   XLSX.writeFile(wb, filePath);
   console.log(`✓ Created ${filePath} with ${allTestData.length} test cases`);
 }
@@ -375,7 +369,7 @@ function writeNeoloadTestFile({
   columns,
   requiredParamColumns,
   allTestData,
-  filePath
+  testsDir
 }) {
   // For search endpoints, output JSONL with search criteria
   if (endpointKey === ENDPOINT_KEYS.GET_SEARCH) {
@@ -385,7 +379,7 @@ function writeNeoloadTestFile({
       columns,
       requiredParamColumns,
       allTestData,
-      filePath
+      testsDir
     });
   } else {
     // TODO: implement additional endpoints for NeoLoad
@@ -399,13 +393,13 @@ function writeNeoloadSearchTestFiles({
   columns,
   requiredParamColumns,
   allTestData,
-  filePath
+  testsDir
 }) {
   const advancedSearchRows = [];
-  // Find the index of the 'param:q' column (search query)
+  const scopeIndex = columns.indexOf('param:scope');
   const qIndex = columns.indexOf('param:q');
-  if (qIndex === -1) {
-    console.warn(`No 'param:q' column found for ${endpointKey}, skipping neoload output.`);
+  if (scopeIndex === -1 || qIndex === -1) {
+    console.warn(`Skipping search as it is missing the scope or query: ${JSON.stringify(row)}`);
     return;
   }
   for (const row of allTestData) {
@@ -416,15 +410,17 @@ function writeNeoloadSearchTestFiles({
       let searchCriteria;
       try {
         searchCriteria = JSON.parse(qValue);
+        // Map backend scope to frontend scope
+        const frontendScope = mapScope(row[scopeIndex], true);
+        advancedSearchRows.push(`/view/results/${frontendScope}?q=${encodeURIComponent(qValue)}`);
       } catch {
-        searchCriteria = qValue;
+        // TODO: simple search?
       }
-      advancedSearchRows.push(JSON.stringify({ criteria: searchCriteria }));
     }
   }
   if (advancedSearchRows.length > 0) {
     writeChunkedNeoloadFiles({
-      baseFilePath: filePath.replace(/\.txt$/i, '.jsonl'),
+      baseFilePath: path.join(testsDir, `neoload-advanced-searches.txt`),
       lines: advancedSearchRows,
       description: 'search criteria (JSONL)'
     });
@@ -447,12 +443,12 @@ function writeChunkedNeoloadFiles({ baseFilePath, lines, description }) {
     const chunk = lines.slice(i, i + chunkSize);
     let outPath;
     if (lines.length > chunkSize) {
-      // Insert _N before extension
+      // Insert -N before extension
       const extIdx = baseFilePath.lastIndexOf('.');
       if (extIdx !== -1) {
-        outPath = baseFilePath.slice(0, extIdx) + `_${fileCount}` + baseFilePath.slice(extIdx);
+        outPath = baseFilePath.slice(0, extIdx) + `-${fileCount}` + baseFilePath.slice(extIdx);
       } else {
-        outPath = baseFilePath + `_${fileCount}`;
+        outPath = baseFilePath + `-${fileCount}`;
       }
     } else {
       outPath = baseFilePath;

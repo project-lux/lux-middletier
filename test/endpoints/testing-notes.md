@@ -23,7 +23,7 @@
         - [QLever](#qlever)
     - [Run All Tests](#run-all-tests)
     - [Post Flight](#post-flight)
-
+- [Creating Input for NeoLoad (Stress Test)](#creating-input-for-neoload-stress-test)
 
 # Middle Tier Endpoint Testing Notes
 
@@ -651,6 +651,8 @@ Pass `--output-format neoload` into create-scripts.js to do so.
 Depending on how many test configs are being processed, you may need to up the default amount of memory provided to the Node.js process.  6 GB was required to process the search requests from two weeks' worth of production logs:
 
 `node --max-old-space-size=6144 create-tests.js --endpoints get-search --no-derive-related-tests --output-format neoload`
+
+At some point, we may need to make create-tests.js more memory efficient.
 
 A subset of endpoints are supported.  Support for additional ones may be added within `writeNeoloadTestFile`.
 
