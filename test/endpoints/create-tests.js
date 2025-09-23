@@ -23,8 +23,10 @@ const __dirname = path.dirname(__filename);
  * Based on endpoints-spec.json file and filtered TestDataProvider implementations
  */
 async function createEndpointTests(testsDir, options = {}) {
+
+  const outputFormat = options.outputFormat || 'spreadsheet';
   console.log(
-    "Analyzing endpoints-spec.json to create individual test files..."
+    `Analyzing endpoints-spec.json to create individual test files (output format: ${outputFormat})...`
   );
 
   // Create tests directory if it doesn't exist
@@ -194,10 +196,18 @@ async function createTestsForEndpoint(
   options = {},
   searchTestConfigs = null
 ) {
-  const filename = `${endpointKey}-tests.xlsx`;
-  const filePath = path.join(testsDir, filename);
 
-  console.log(`Checking for ${endpointKey} tests`);
+  // Output format branching
+  const outputFormat = options.outputFormat || 'spreadsheet';
+  let filename, filePath;
+  if (outputFormat === 'neoload') {
+    filename = `${endpointKey}-neoload.txt`;
+  } else {
+    filename = `${endpointKey}-tests.xlsx`;
+  }
+  filePath = path.join(testsDir, filename);
+
+  console.log(`Checking for ${endpointKey} tests (output format: ${outputFormat})`);
 
   // Build columns array
   const baseColumns = [
@@ -284,56 +294,173 @@ async function createTestsForEndpoint(
   allTestData = finalTestData;
 
   if (allTestData.length > 0) {
-    console.log(`Adding the ${endpointKey} tests to its spreadsheet...`);
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const sheetData = [columns].concat(allTestData);
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Set column widths for better readability
-    const colWidths = columns.map((col) => ({
-      width: col.startsWith("param:")
-        ? 20
-        : col === "description"
-        ? 30
-        : col === "test_name"
-        ? 25
-        : col === "duplicate_count"
-        ? 15
-        : 15,
-    }));
-    ws["!cols"] = colWidths;
-
-    // Enable autoFilter for the worksheet
-    ws["!autofilter"] = {
-      ref: XLSX.utils.encode_range({
-        s: { c: 0, r: 0 },
-        e: { c: columns.length - 1, r: allTestData.length },
-      }),
-    };
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Tests");
-
-    // Add documentation sheet
-    const docWs = createDocumentationSheetForAPI(
-      apiDef,
-      endpointKey,
-      columns,
-      requiredParamColumns
-    );
-    XLSX.utils.book_append_sheet(wb, docWs, "Documentation");
-
-    // Write the file
-    XLSX.writeFile(wb, filePath);
-    console.log(`✓ Created ${filePath} with ${allTestData.length} test cases`);
+    if (outputFormat === 'neoload') {
+      writeNeoloadTestFile({
+        apiDef,
+        endpointKey,
+        columns,
+        requiredParamColumns,
+        allTestData,
+        filePath
+      });
+    } else {
+      writeSpreadsheetTestFile({
+        apiDef,
+        endpointKey,
+        columns,
+        requiredParamColumns,
+        allTestData,
+        filePath
+      });
+    }
   } else {
     console.log(`✗ No test cases found for ${endpointKey}`);
   }
 
   // Return the columns and rows as they may be used to create related test configs, plus stats.
   return { columns, testRows: allTestData, stats };
+}
+
+/**
+ * Write spreadsheet test file for an endpoint (XLSX format)
+ */
+function writeSpreadsheetTestFile({
+  apiDef,
+  endpointKey,
+  columns,
+  requiredParamColumns,
+  allTestData,
+  filePath
+}) {
+  console.log(`Adding the ${endpointKey} tests to its spreadsheet...`);
+  const wb = XLSX.utils.book_new();
+  const sheetData = [columns].concat(allTestData);
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  const colWidths = columns.map((col) => ({
+    width: col.startsWith("param:")
+      ? 20
+      : col === "description"
+      ? 30
+      : col === "test_name"
+      ? 25
+      : col === "duplicate_count"
+      ? 15
+      : 15,
+  }));
+  ws["!cols"] = colWidths;
+  ws["!autofilter"] = {
+    ref: XLSX.utils.encode_range({
+      s: { c: 0, r: 0 },
+      e: { c: columns.length - 1, r: allTestData.length },
+    }),
+  };
+  XLSX.utils.book_append_sheet(wb, ws, "Tests");
+  const docWs = createDocumentationSheetForAPI(
+    apiDef,
+    endpointKey,
+    columns,
+    requiredParamColumns
+  );
+  XLSX.utils.book_append_sheet(wb, docWs, "Documentation");
+  XLSX.writeFile(wb, filePath);
+  console.log(`✓ Created ${filePath} with ${allTestData.length} test cases`);
+}
+
+/**
+ * Write neoload test file for an endpoint (placeholder for future implementation)
+ */
+function writeNeoloadTestFile({
+  apiDef,
+  endpointKey,
+  columns,
+  requiredParamColumns,
+  allTestData,
+  filePath
+}) {
+  // For search endpoints, output JSONL with search criteria
+  if (endpointKey === ENDPOINT_KEYS.GET_SEARCH) {
+    writeNeoloadSearchTestFiles({
+      apiDef,
+      endpointKey,
+      columns,
+      requiredParamColumns,
+      allTestData,
+      filePath
+    });
+  } else {
+    // TODO: implement additional endpoints for NeoLoad
+    console.log(`NeoLoad output not implemented for the ${endpointKey} endpoint.`);
+  }
+}
+
+function writeNeoloadSearchTestFiles({
+  apiDef,
+  endpointKey,
+  columns,
+  requiredParamColumns,
+  allTestData,
+  filePath
+}) {
+  const advancedSearchRows = [];
+  // Find the index of the 'param:q' column (search query)
+  const qIndex = columns.indexOf('param:q');
+  if (qIndex === -1) {
+    console.warn(`No 'param:q' column found for ${endpointKey}, skipping neoload output.`);
+    return;
+  }
+  for (const row of allTestData) {
+    const qValue = row[qIndex];
+    // Only output if qValue is present
+    if (qValue && typeof qValue === 'string' && qValue.trim() !== '') {
+      // Try to parse as JSON, otherwise treat as string
+      let searchCriteria;
+      try {
+        searchCriteria = JSON.parse(qValue);
+      } catch {
+        searchCriteria = qValue;
+      }
+      advancedSearchRows.push(JSON.stringify({ criteria: searchCriteria }));
+    }
+  }
+  if (advancedSearchRows.length > 0) {
+    writeChunkedNeoloadFiles({
+      baseFilePath: filePath.replace(/\.txt$/i, '.jsonl'),
+      lines: advancedSearchRows,
+      description: 'search criteria (JSONL)'
+    });
+  } else {
+    console.log(`No search criteria found for ${endpointKey}, no JSONL file written.`);
+  }
+}
+
+/**
+ * Write lines to one or more files, each with a maximum of 5,000 lines, appending a counter to the filename if needed.
+ * @param {Object} params
+ * @param {string} params.baseFilePath - The base file path (should include extension)
+ * @param {string[]} params.lines - The lines to write
+ * @param {string} params.description - Description for logging
+ */
+function writeChunkedNeoloadFiles({ baseFilePath, lines, description }) {
+  const chunkSize = 5000;
+  let fileCount = 1;
+  for (let i = 0; i < lines.length; i += chunkSize) {
+    const chunk = lines.slice(i, i + chunkSize);
+    let outPath;
+    if (lines.length > chunkSize) {
+      // Insert _N before extension
+      const extIdx = baseFilePath.lastIndexOf('.');
+      if (extIdx !== -1) {
+        outPath = baseFilePath.slice(0, extIdx) + `_${fileCount}` + baseFilePath.slice(extIdx);
+      } else {
+        outPath = baseFilePath + `_${fileCount}`;
+      }
+    } else {
+      outPath = baseFilePath;
+    }
+    fs.writeFileSync(outPath, chunk.join('\n'), 'utf8');
+    console.log(`✓ Created ${outPath} with ${chunk.length} ${description}`);
+    fileCount++;
+  }
 }
 
 /**
@@ -731,6 +858,12 @@ const options = parseCommandLineArgs();
 // Print configuration summary
 if (options.dataSource) {
   console.log(`Using data source: ${options.dataSource}`);
+}
+
+if (options.outputFormat) {
+  console.log(`Output format: ${options.outputFormat}`);
+} else {
+  console.log("Output format: spreadsheet (default)");
 }
 
 if (options.skipDeduplication) {

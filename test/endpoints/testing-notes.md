@@ -642,3 +642,15 @@ For MarkLogic:
 
 What artifacts should we get from QLever?
 
+# Creating Input for NeoLoad (Stress Test)
+
+An output format argument was added to create-tests.js in support of creating test configurations formatted for NeoLoad.  A NeoLoad script can use multiple input files with up to 5,000 lines per file.
+
+Pass `--output-format neoload` into create-scripts.js to do so.
+
+Depending on how many test configs are being processed, you may need to up the default amount of memory provided to the Node.js process.  6 GB was required to process the search requests from two weeks' worth of production logs:
+
+`node --max-old-space-size=6144 create-tests.js --endpoints get-search --no-derive-related-tests --output-format neoload`
+
+A subset of endpoints are supported.  Support for additional ones may be added within `writeNeoloadTestFile`.
+

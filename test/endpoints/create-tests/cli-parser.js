@@ -102,7 +102,7 @@ export function parseCommandLineArgs() {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    if (arg === "--help" || arg === "-h") {
+  if (arg === "--help" || arg === "-h") {
       console.log("Usage: node create-tests.js [options]");
       console.log("");
       console.log("Options:");
@@ -117,7 +117,10 @@ export function parseCommandLineArgs() {
       );
       console.log(
         "                                get-search-will-match tests unless overridden by individual providers."
-      )
+      );
+      console.log(
+        "  --output-format <format>      Output format: spreadsheet (default) or neoload"
+      );
       console.log(
         "  --providers, -p <providers>   Comma-separated list of test data providers to use"
       );
@@ -140,6 +143,7 @@ export function parseCommandLineArgs() {
       console.log("  node create-tests.js --no-dedup");
       console.log("  node create-tests.js --no-derive-related-tests");
       console.log("  node create-tests.js --test-count=100");
+      console.log("  node create-tests.js --output-format neoload");
       console.log(
         "  node create-tests.js --providers AdvancedSearchQueriesTestDataProvider"
       );
@@ -157,6 +161,20 @@ export function parseCommandLineArgs() {
       );
       console.log("  node create-tests.js --list-options");
       process.exit(0);
+    } else if (arg === "--output-format") {
+      // Next argument should be the format (spreadsheet or neoload)
+      i++;
+      if (i < args.length) {
+        const val = args[i].toLowerCase();
+        if (val !== 'spreadsheet' && val !== 'neoload') {
+          console.error("Error: --output-format must be either 'spreadsheet' or 'neoload'");
+          process.exit(1);
+        }
+        options.outputFormat = val;
+      } else {
+        console.error("Error: --output-format requires a value (spreadsheet or neoload)");
+        process.exit(1);
+      }
     } else if (arg === "--list-options") {
       showAvailableOptions = true;
     } else if (arg === "--providers" || arg === "-p") {
