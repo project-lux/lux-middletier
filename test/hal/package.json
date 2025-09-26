@@ -1,0 +1,20 @@
+{
+  "name": "lux-hal-tester",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Testing for LUX HAL links",
+  "main": "test-hal-links.js",
+  "scripts": {
+    "test": "node test-hal-links.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/project-lux/lux-middletier.git"
+  },
+  "author": "Peter Clarke <clarke.peterf@gmail.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/project-lux/lux-middletier/issues"
+  },
+  "homepage": "https://github.com/project-lux/lux-middletier#readme"
+}
