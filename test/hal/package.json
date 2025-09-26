@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/project-lux/lux-middletier/issues"
   },
-  "homepage": "https://github.com/project-lux/lux-middletier#readme"
+  "homepage": "https://github.com/project-lux/lux-middletier#readme",
+  "dependencies": {
+    "commander": "^14.0.1"
+  }
 }
