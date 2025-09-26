@@ -3,8 +3,7 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable import/extensions */
 /* eslint-disable no-restricted-syntax */
-import * as fs from 'fs'
-import { keyFuncNameMap } from './build-query/builder.js'
+import { keyFuncNameMap } from '../../lib/build-query/builder.js'
 
 // -------------------------------------------------------------------------------------------------
 // DESCRIPTION:
@@ -24,8 +23,6 @@ import { keyFuncNameMap } from './build-query/builder.js'
 // -------------------------------------------------------------------------------------------------
 const env = 'tst'
 const dataPrefix = `https://lux-front-${env}.collections.yale.edu/data/`
-const viewPrefix = `https://lux-front-${env}.collections.yale.edu/view/`
-const searchWillMatchPrefix = `https://lux-front-${env}.collections.yale.edu/api/search-will-match`
 
 // URIs are subject to change, so I included their names / equivelent identifiers
 // all entries that have an equivalent URL in the comment can be searched for
