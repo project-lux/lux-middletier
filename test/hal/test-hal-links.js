@@ -1,8 +1,3 @@
-/* eslint-disable no-console */
-/* eslint-disable no-continue */
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
-/* eslint-disable no-restricted-syntax */
 import { keyFuncNameMap } from '../../lib/build-query/builder.js'
 import { program } from 'commander'
 
