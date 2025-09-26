@@ -16,11 +16,7 @@ import { program } from 'commander'
 // Please try updating the document URIs first if there is a missing link
 // -------------------------------------------------------------------------------------------------
 // USAGE:
-// This file is meant to be run with node version >= v18 (node test/hal/test-hal-links.js)
-// Earlier versions may work as follows: (node --experimental-fetch test/hal/test-hal-links.js)
-// -------------------------------------------------------------------------------------------------
-// BEFORE RUNNING:
-// 1. Update dataPrefix below if needed
+// See README.md for usage instructions
 // -------------------------------------------------------------------------------------------------
 
 
