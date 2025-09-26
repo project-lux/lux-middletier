@@ -4,6 +4,7 @@
 /* eslint-disable import/extensions */
 /* eslint-disable no-restricted-syntax */
 import { keyFuncNameMap } from '../../lib/build-query/builder.js'
+import { program } from 'commander'
 
 // -------------------------------------------------------------------------------------------------
 // DESCRIPTION:
@@ -15,14 +16,34 @@ import { keyFuncNameMap } from '../../lib/build-query/builder.js'
 // Please try updating the document URIs first if there is a missing link
 // -------------------------------------------------------------------------------------------------
 // USAGE:
-// This file is meant to be run with node version >= v18 (node lib/hal-link-test-builder.mjs)
-// Earlier versions may work as follows: (node --experimental-fetch lib/hal-link-test-builder.mjs)
+// This file is meant to be run with node version >= v18 (node test/hal/test-hal-links.js)
+// Earlier versions may work as follows: (node --experimental-fetch test/hal/test-hal-links.js)
 // -------------------------------------------------------------------------------------------------
-// ENV:
-// The env below is defaulted to tst, but that can be changed
+// BEFORE RUNNING:
+// 1. Update dataPrefix below if needed
 // -------------------------------------------------------------------------------------------------
-const env = 'tst'
-const dataPrefix = `https://lux-front-${env}.collections.yale.edu/data/`
+
+
+const defaultEnv = 'https://lux-front-tst.collections.yale.edu'
+
+program
+  .name('node test-hal-links.js')
+  .description('Tests that all HAL links in the middle tier have some matches and are being returned successfully')
+  .option('-e, --env <URL>', 'environment to run the test against')
+  .option('-i, --ignore <link...>',  'space separated list of HAL links to ignore')
+  .showHelpAfterError()
+program.parse()
+
+const options = program.opts()
+
+const env = options.env || defaultEnv
+const dataPrefix = `${env}/data/`
+const ignoreLinks = options.ignore || []
+
+console.log(`Running HAL link tests against environment: ${env}`)
+if(options.ignore){
+  console.log('Ignoring the following HAL links:', ignoreLinks)
+}
 
 // URIs are subject to change, so I included their names / equivelent identifiers
 // all entries that have an equivalent URL in the comment can be searched for
@@ -80,11 +101,14 @@ const exampleDocs = {
 }
 // create a set of missing HAL links to track what isn't completed at the end of the script
 const missingHalLinks = {}
-//create a list of missing docs to see if any documents are not being returned successfully
+// create a list of missing docs to see if any documents are not being returned successfully
 const missingDocs = new Set();
 
 Object.keys(keyFuncNameMap).forEach((scope) => {
   Object.keys(keyFuncNameMap[scope]).forEach((halLinkName) => {
+    if(ignoreLinks.includes(halLinkName)) {
+      return;
+    }
     const actualScope = (scope === 'work' || scope === 'set') ? 'workset' : scope
     if (!missingHalLinks[actualScope]) {
       missingHalLinks[actualScope] = new Set()
@@ -102,10 +126,10 @@ for (const [scope, docArray] of Object.entries(exampleDocs)) {
       missingDocs.add(uriSuffix)
     }
     const doc = await dataResponse.json()
-    // If we succesfully grabbed the document, add its hal links to the list of successful links.
-    // and remove its hal links from the list of missing links.
+    // If we succesfully grabbed the document remove its hal links from the list of missing links.
         if (doc && doc._links) {
       for (const halLinkName of Object.keys(doc._links)) {
+        // skip curies and self links
         if (['curies', 'self'].includes(halLinkName)) {
           continue
         }
@@ -114,6 +138,7 @@ for (const [scope, docArray] of Object.entries(exampleDocs)) {
     }
   }
 }
+
 for (const [scope, set] of Object.entries(missingHalLinks)) {
   if (set.size > 0) {
     console.error(`There are missing HAL links for scope '${scope}':`)
