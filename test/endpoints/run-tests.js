@@ -2,6 +2,7 @@ import XLSX from "xlsx";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import https from "https";
 import { fileURLToPath, pathToFileURL } from "url";
 import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl } from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/interface.js";
@@ -317,6 +318,9 @@ class RequestHandler {
       headers,
       timeout: testConfig.timeout_ms,
       validateStatus: () => true, // Accept all status codes
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false // Ignore SSL certificate errors
+      }),
       ...(body && { data: body }),
       ...(auth && { auth }),
     };
