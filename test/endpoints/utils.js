@@ -5,6 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import https from 'https';
 
 export function isDefined(value) {
   return value !== undefined && value !== null;
@@ -403,6 +404,9 @@ export async function validateBaseUrl(baseUrl, skipConnectivityCheck = false) {
     const response = await axios.get(baseUrl, {
       timeout: 3000,
       validateStatus: () => true, // Accept any HTTP status
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false // Ignore SSL certificate errors
+      }),
       headers: {
         'User-Agent': 'LUX-Endpoint-Tester-Connectivity-Check/1.0'
       }
