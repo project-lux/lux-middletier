@@ -53,7 +53,6 @@ const exampleDocs = {
     'concept/1c55fa7d-6f27-481e-98c5-50ea4fad0a6e', // American - http://vocab.getty.edu/aat/300107956
     'concept/bd3d7725-b517-459c-9339-3553b2d0fe9b', // biological specimens - http://vocab.getty.edu/aat/300420186
     'concept/50b4ee76-9a1d-42dd-a9a1-a0bbd51ff786', // photographs - http://vocab.getty.edu/aat/300054225
-    'concept/0588f9d1-03e3-4b52-b2bf-dd41e601dcdc', // artist - http://vocab.getty.edu/aat/300025103
     'concept/6f652917-4c07-4d51-8209-fcdd4f285343', // male - http://vocab.getty.edu/aat/300189559
     'concept/ce2af8c9-1d34-46be-a3cb-434f332d678b', // nations - http://vocab.getty.edu/aat/300128207
     'concept/86e2cdb0-e84a-46fe-89cd-fb344228f359', // exhibitions - http://vocab.getty.edu/aat/300054766
