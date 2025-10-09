@@ -203,6 +203,7 @@ async function createTestsForEndpoint(
   const baseColumns = [
     "provider_id",
     "test_name",
+    "test_hash",
     "description",
     "enabled",
     "expected_status",
@@ -299,6 +300,8 @@ async function createTestsForEndpoint(
         ? 30
         : col === "test_name"
         ? 25
+        : col === "test_hash"
+        ? 18
         : col === "duplicate_count"
         ? 15
         : 15,
@@ -472,9 +475,46 @@ function filterSearchTestConfigsByProvider(searchTestRows, searchColumns, provid
 }
 
 // Add provider ID to each test row
+/**
+ * Generate a unique hash for a test based on its request parameters
+ * This creates a stable identifier that can be used to match the same logical test
+ * across different test runs, even if test_name is not unique.
+ */
+function generateTestHash(testRow, columns) {
+  // Find all parameter columns (those starting with "param:")
+  const paramColumns = columns
+    .map((col, index) => ({ col, index }))
+    .filter(({ col }) => col.startsWith("param:"));
+  
+  // Build hash input from endpoint-defining characteristics
+  const hashComponents = [];
+  
+  // Include all parameter values in a consistent order
+  paramColumns
+    .sort((a, b) => a.col.localeCompare(b.col)) // Sort by column name for consistency
+    .forEach(({ col, index }) => {
+      const value = testRow[index];
+      if (value !== undefined && value !== null && value !== '') {
+        hashComponents.push(`${col}=${value}`);
+      }
+    });
+  
+  // Include provider_id to distinguish tests from different providers
+  const providerIdIndex = columns.indexOf("provider_id");
+  if (providerIdIndex !== -1 && testRow[providerIdIndex]) {
+    hashComponents.push(`provider=${testRow[providerIdIndex]}`);
+  }
+  
+  // Create hash from all components
+  const hashInput = hashComponents.join('|');
+  return crypto.createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
+}
+
 function enrichTestDataWithProviderInfo(providerId, testData, columns) {
   if (testData && testData.length > 0) {
     const providerIdIndex = columns.indexOf("provider_id");
+    const testHashIndex = columns.indexOf("test_hash");
+    
     const enrichedTestData = testData.map((row) => {
       // Create a copy of the row to avoid modifying the original
       const enrichedRow = [...row];
@@ -482,6 +522,11 @@ function enrichTestDataWithProviderInfo(providerId, testData, columns) {
       // Set the provider ID at the correct column index
       if (providerIdIndex !== -1) {
         enrichedRow[providerIdIndex] = providerId;
+      }
+
+      // Generate and set test hash for unique identification
+      if (testHashIndex !== -1) {
+        enrichedRow[testHashIndex] = generateTestHash(enrichedRow, columns);
       }
 
       return enrichedRow;
@@ -613,7 +658,8 @@ function createDocumentationSheetForAPI(
     [""],
     ["Column Descriptions:"],
     ["provider_id", "Identifier of the data provider that generated this test"],
-    ["test_name", "Unique identifier for the test"],
+    ["test_name", "Human-readable name for the test (may not be unique)"],
+    ["test_hash", "Unique hash based on request parameters for test comparison"],
     ["description", "Human-readable description of what the test does"],
     ["enabled", "Whether to run this test (true/false)"],
     ["expected_status", "Expected HTTP status code (200, 404, etc.)"],

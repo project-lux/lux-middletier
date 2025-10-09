@@ -71,12 +71,14 @@ class ReportComparator {
   }
 
   /**
-   * Create a map of tests keyed by test name for efficient lookup
+   * Create a map of tests keyed by test hash for efficient lookup
+   * Falls back to test_name if test_hash is not available (for backward compatibility)
    */
   createTestMap(results) {
     const map = new Map();
     results.forEach(test => {
-      map.set(test.test_name, test);
+      const key = test.test_hash || test.test_name;
+      map.set(key, test);
     });
     return map;
   }
@@ -128,12 +130,13 @@ class ReportComparator {
     };
 
     // Check tests in current report
-    for (const [testName, currentTest] of currentTests) {
-      const baselineTest = baselineTests.get(testName);
+    for (const [testKey, currentTest] of currentTests) {
+      const baselineTest = baselineTests.get(testKey);
 
       if (!baselineTest) {
         differences.new_tests.push({
-          test_name: testName,
+          test_name: currentTest.test_name,
+          test_hash: currentTest.test_hash,
           status: currentTest.status,
           endpoint_type: currentTest.endpoint_type
         });
@@ -157,10 +160,11 @@ class ReportComparator {
     }
 
     // Check for missing tests (in baseline but not current)
-    for (const [testName, baselineTest] of baselineTests) {
-      if (!currentTests.has(testName)) {
+    for (const [testKey, baselineTest] of baselineTests) {
+      if (!currentTests.has(testKey)) {
         differences.missing_tests.push({
-          test_name: testName,
+          test_name: baselineTest.test_name,
+          test_hash: baselineTest.test_hash,
           status: baselineTest.status,
           endpoint_type: baselineTest.endpoint_type
         });
@@ -236,7 +240,8 @@ class ReportComparator {
       stats.current_total++;
       if (test.status === 'PASS') stats.current_passed++;
 
-      const baselineTest = baselineTests.get(test.test_name);
+      const testKey = test.test_hash || test.test_name;
+      const baselineTest = baselineTests.get(testKey);
       if (baselineTest) {
         if (baselineTest.status === 'PASS' && test.status !== 'PASS') {
           stats.regressions++;
@@ -258,7 +263,8 @@ class ReportComparator {
         let typeCount = 0;
 
         typeTests.forEach(test => {
-          const baselineTest = baselineTests.get(test.test_name);
+          const testKey = test.test_hash || test.test_name;
+          const baselineTest = baselineTests.get(testKey);
           if (baselineTest) {
             typeDurationChange += (test.duration_ms || 0) - (baselineTest.duration_ms || 0);
             typeCount++;
@@ -363,8 +369,8 @@ class ReportComparator {
 <body>
     <div class="header">
     <h1>${title}</h1>
-    <p><strong>Baseline:</strong> ${title.split("-to-")[0]} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
-    <p><strong>Current:</strong> ${title.split("-to-")[1].split(":")[0]} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
+    <p><strong>Baseline:</strong> ${metadata.baseline_file} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
+    <p><strong>Current:</strong> ${metadata.current_file} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
     <div class="section">

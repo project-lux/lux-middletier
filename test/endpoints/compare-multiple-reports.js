@@ -1,40 +1,27 @@
 import ReportComparator from "./compare-reports.js";
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-const baseDir = 'c:/workspaces/yale/clones/lux-middletier/test/endpoints';
+const baseDir = "c:/workspaces/yale/clones/lux-middletier/test/endpoints";
 
 // Define your combinations here
 const configurations = [
   {
-    baselineDir: 'reports/test-06-ml-3-3rds/test-run-2025-08-28_22-26-44/endpoints',
-    currentDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
-    outputDir: 'comparisons/ml-3-3rds-to-ml-2-3rds',
-  },
-  {
-    baselineDir: 'reports/test-06-ml-3-3rds/test-run-2025-08-28_22-26-44/endpoints',
-    currentDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
-    outputDir: 'comparisons/ml-3-3rds-to-ql-pipeline',
-  },
-  {
-    baselineDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
-    currentDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
-    outputDir: 'comparisons/ml-2-3rds-to-ql-pipeline',
-  },
-  {
-    baselineDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
-    currentDir: 'reports/test-09-ql-mini/test-run-2025-09-02_21-29-11/endpoints',
-    outputDir: 'comparisons/ml-2-3rds-to-ql-mini',
+    baselineDir:
+      "reports/test-10-4f-baseline/test-run-2025-09-30_00-54-17/endpoints",
+    currentDir: "reports/test-11-2f/test-run-2025-10-01_01-00-33/endpoints",
+    outputDir: "comparisons/ml-4f-baseline-to-2f",
   },
 ];
 
 const endpointsToCompare = [
-    'get-data',
-    'get-facets',
-    'get-related-list',
-    'get-search',
-    'get-search-estimate',
-    'get-search-will-match'];
+  "get-data",
+  "get-facets",
+  "get-related-list",
+  "get-search",
+  "get-search-estimate",
+  "get-search-will-match",
+];
 
 for (const config of configurations) {
   let { baselineDir, currentDir, outputDir } = config;
@@ -69,8 +56,6 @@ for (const config of configurations) {
   }
 }
 
-// ...existing code...
-
 function compareFiles(baselineFile, currentFile, outputDir) {
   // Validate input files exist
 
@@ -88,11 +73,21 @@ function compareFiles(baselineFile, currentFile, outputDir) {
 
   try {
     const outputDirParts = outputDir.split(/[\\\/]/); // handle both / and \
-    const comparisonName = `${outputDirParts[outputDirParts.length - 2]}: ${outputDirParts[outputDirParts.length - 1]}`;
-    const comparator = new ReportComparator(baselineFile, currentFile, outputDir, comparisonName);
+    const comparisonName = `${outputDirParts[outputDirParts.length - 2]}: ${
+      outputDirParts[outputDirParts.length - 1]
+    }`;
+    const comparator = new ReportComparator(
+      baselineFile,
+      currentFile,
+      outputDir,
+      comparisonName
+    );
     comparator.compareReports();
   } catch (error) {
-    console.error(`Comparison of these files failed: ${baselineFile}, ${currentFile}`, error.message);
+    console.error(
+      `Comparison of these files failed: ${baselineFile}, ${currentFile}`,
+      error.message
+    );
     // opt not to exit so that other comparisons can continue
     //process.exit(1);
   }
