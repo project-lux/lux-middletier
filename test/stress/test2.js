@@ -1,6 +1,7 @@
-// One call per iteration
+// test multiple calls per iteration
 import http from 'k6/http';
 import { SharedArray } from 'k6/data';
+import { sleep } from 'k6';
 import exec from 'k6/execution';
 
 const data = new SharedArray('some name', function () {
@@ -30,7 +31,7 @@ export const options = {
       duration: '30s',
 
       // How many iterations per timeUnit
-      rate: 20,
+      rate: 3,
 
       // Start `rate` iterations per second
       timeUnit: '1s',
@@ -46,7 +47,14 @@ export const options = {
   },
 };
 
+async function asyncGet(url) {
+  console.log("VU:", __VU, "iteration:", exec.scenario.iterationInTest, "asyncGetting url:", url)
+  http.get(url);
+}
+
 export default function() {
-  console.log('VU:', __VU, 'iteration:', exec.scenario.iterationInTest, "data entry:", data[(exec.scenario.iterationInTest)  % data.length]);
-  let res = http.get(data[(exec.scenario.iterationInTest)  % data.length]);
+  for (let i = 0; i < data.length; i++) {
+    asyncGet(data[i]);
+    sleep(0.1)
+  }
 }
