@@ -15,6 +15,7 @@ import {
   validUnits as validResolveUnits,
 } from '../lib/resolve.js'
 import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
+import { belongsToAltRoute } from '../lib/util.js'
 
 import json from '../package.json' with {type: "json"}
 
@@ -55,6 +56,7 @@ class App {
     this.useOAuth = config.useOAuth
     this.port = config.port // port on which the Express app listens
     this.mlProxy = config.mlProxy
+    this.mlProxy2 = config.mlProxy2 || null
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
     this.aiHost = env.aiHost || null
@@ -127,7 +129,7 @@ class App {
       this.mlProxy.initOAuth(accessToken, username)
       return this.mlProxy
     }
-    return this.mlProxy
+    return belongsToAltRoute(req) ? this.mlProxy2 : this.mlProxy
   }
 
   async handleAdvancedSearchConfig(req, res) {
@@ -673,6 +675,8 @@ class App {
     res.json({
       version: json.version,
       backend: `${env.mlHost}:${env.mlPort}`,
+      backendAlt: `${env.mlHost}:${env.mlPort2}`,
+      altRouteTypes: Object.keys(env.altRouteKeyMap),
       numInstances: env.numInstances,
       mem: memUsage,
       rsrc: process.resourceUsage(),
@@ -694,10 +698,19 @@ function newAppWithDigestAuth() {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
+  const mlProxy2 = new MLProxy().initDigestAuth({
+    host: env.mlHost,
+    port: env.mlPort2,
+    user: env.mlUser,
+    password: env.mlPass,
+    authType: env.mlAuthType,
+    ssl: env.mlSsl,
+  })
   const app = new App({
     useOAuth: false,
     port: env.appPort,
     mlProxy,
+    mlProxy2,
   })
   return app
 }

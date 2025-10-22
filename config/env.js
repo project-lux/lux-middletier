@@ -5,6 +5,18 @@ function getInt(s) {
   return parseInt(s, 10)
 }
 
+function getAltRouteKeyMap() {
+  const envStr = process.env.ALT_ROUTE_REQ_TYPES || ''
+  const keys = (envStr ? envStr.split(',') : [])
+    .map(k => k.trim()).filter(k => k.length > 0)
+  const keyMap = {}
+
+  keys.forEach(k => {
+    keyMap[k] = true
+  })
+  return keyMap
+}
+
 // All environment variables should be imported here.
 const env = {
   appPort: process.env.APP_PORT === undefined ? 8080 : parseInt(process.env.APP_PORT, 10),
@@ -20,6 +32,10 @@ const env = {
   mlPort: process.env.ML_PORT,
   mlUser: process.env.ML_USER,
   mlPass: process.env.ML_PASS,
+
+  mlPort2: process.env.ML_PORT2,
+
+  altRouteKeyMap: getAltRouteKeyMap(),
 
   cognitoJwksUri: process.env.COGNITO_JWKS_URI,
   cognitoClientId: process.env.COGNITO_CLIENT_ID,
