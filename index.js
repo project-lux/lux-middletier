@@ -14,6 +14,8 @@ if (cluster.isMaster) {
     numCores,
     numInstances,
     mlEndpoint: `${env.mlHost}:${env.mlPort}`,
+    mlEndpoint2: `${env.mlHost}:${env.mlPort2}`,
+    altRouteTypes: Object.keys(env.altRouteKeyMap),
   })
 }
 
