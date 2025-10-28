@@ -210,8 +210,10 @@ class App {
         } else {
           let links = null
           if (!profile) {
+            //HAL links use search-will-match, use the mlProxy for that kind of request:
+            const halProxy = await this.getMLProxy({url: '/api/search-will-match'})
             // Create HAL links only when no profile has been requested
-            const linksBuilder = new HalLinksBuilder(mlProxy, env.unitName)
+            const linksBuilder = new HalLinksBuilder(halProxy, env.unitName)
             links = await linksBuilder.getLinks(doc)
           }
           const doc2 = transformEntityDoc(
