@@ -18,7 +18,7 @@
     "express": "^4.20.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
-    "marklogic": "^3.5.0",
+    "marklogic": "file:./marklogic-3.6.0-no-retry.tgz",
     "openid-client": "^6.5.0",
     "winston": "^3.3.3"
   },
