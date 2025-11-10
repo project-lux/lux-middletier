@@ -5661,7 +5661,7 @@ map-visit@^1.0.0:
 
 "marklogic@file:./marklogic-3.6.0-retry-mod-01.tgz":
   version "3.6.0-retry-mod-01"
-  resolved "file:./marklogic-3.6.0-retry-mod-01.tgz"
+  resolved "file:./marklogic-3.6.0-retry-mod-01.tgz#90cb03485125e44212befbff78ddc18c3c79f6cc"
   dependencies:
     "@fastify/busboy" "^1.1.0"
     big-integer "^1.6.51"
