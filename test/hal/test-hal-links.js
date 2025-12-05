@@ -93,6 +93,8 @@ const exampleDocs = {
 const missingHalLinks = {}
 // create a list of missing docs to see if any documents are not being returned successfully
 const missingDocs = new Set();
+// create a list of found links to report at the end
+const foundLinks = {}
 
 Object.keys(keyFuncNameMap).forEach((scope) => {
   Object.keys(keyFuncNameMap[scope]).forEach((halLinkName) => {
@@ -124,10 +126,14 @@ for (const [scope, docArray] of Object.entries(exampleDocs)) {
           continue
         }
         missingHalLinks[scope].delete(halLinkName)
+        foundLinks[halLinkName] = doc.id
       }
     }
   }
 }
+
+console.log('Found the following HAL links in the tested documents:')
+console.dir(foundLinks, { depth: null });
 
 for (const [scope, set] of Object.entries(missingHalLinks)) {
   if (set.size > 0) {
