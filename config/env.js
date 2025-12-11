@@ -5,6 +5,13 @@ function getInt(s) {
   return parseInt(s, 10)
 }
 
+function getStringArray(s) {
+  if (s === undefined || s.trim() === '') {
+    return []
+  }
+  return s.trim().split(',').map((item) => item.trim())
+}
+
 // All environment variables should be imported here.
 const env = {
   appPort: process.env.APP_PORT === undefined ? 8080 : parseInt(process.env.APP_PORT, 10),
@@ -29,7 +36,7 @@ const env = {
   logLevel: process.env.LOG_LEVEL || 'debug',
   featureMyCollections: process.env.FEATURE_MY_COLLECTIONS === 'true',
 
-  relayAndForgetTarget: process.env.RELAY_AND_FORGET_TARGET || null,
+  relayAndForgetTargets: getStringArray(process.env.RELAY_AND_FORGET_TARGETS),
 }
 
 export default env

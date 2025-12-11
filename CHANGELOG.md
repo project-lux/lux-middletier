@@ -13,7 +13,10 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
-## Unreleased
+## v1.3.8
+- Enable multiple replay targets ([198](https://github.com/project-lux/lux-middletier/issues/198)).
+
+## v1.3.5
 - Relay all requests to QLever withouth processsing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).
 
 ## v1.3.4
