@@ -14,7 +14,7 @@
 
 ---
 ## v1.3.8
-- Enable multiple replay targets ([198](https://github.com/project-lux/lux-middletier/issues/198)).
+- Enable multiple relay targets ([198](https://github.com/project-lux/lux-middletier/issues/198)).
 
 ## v1.3.5
 - Relay all requests to QLever withouth processsing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).

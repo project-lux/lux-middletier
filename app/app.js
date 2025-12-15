@@ -674,7 +674,7 @@ class App {
       version: json.version,
       backend: `${env.mlHost}:${env.mlPort}`,
       numInstances: env.numInstances,
-      replayTargets: env.relayAndForgetTargets,
+      relayTargets: env.relayAndForgetTargets,
       mem: memUsage,
       rsrc: process.resourceUsage(),
       node: process.version,
