@@ -57,6 +57,8 @@ class ReportComparator {
       metadata: {
         baseline_file: path.basename(this.baselineFile),
         current_file: path.basename(this.currentFile),
+        baseline_dir: this.extractReportDirName(this.baselineFile),
+        current_dir: this.extractReportDirName(this.currentFile),
         baseline_timestamp: baseline.summary.timestamp,
         current_timestamp: current.summary.timestamp,
         comparison_timestamp: new Date().toISOString()
@@ -79,6 +81,28 @@ class ReportComparator {
       map.set(test.test_name, test);
     });
     return map;
+  }
+
+  /**
+   * Extract the report directory name from a file path
+   * For path like "reports/ML-Mini-16-2025-11-14_19-14-58/endpoints/get-facets/endpoint-test-report.json"
+   * Returns "ML-Mini-16-2025-11-14_19-14-58"
+   */
+  extractReportDirName(filePath) {
+    const pathParts = filePath.split(/[\\/]/);
+    // Find the LAST occurrence of 'endpoints' since there might be multiple
+    let endpointsIndex = -1;
+    for (let i = pathParts.length - 1; i >= 0; i--) {
+      if (pathParts[i] === 'endpoints') {
+        endpointsIndex = i;
+        break;
+      }
+    }
+    if (endpointsIndex > 0) {
+      return pathParts[endpointsIndex - 1];
+    }
+    // Fallback to directory containing the file
+    return path.basename(path.dirname(filePath));
   }
 
   /**
@@ -363,8 +387,8 @@ class ReportComparator {
 <body>
     <div class="header">
     <h1>${title}</h1>
-    <p><strong>Baseline:</strong> ${title.includes('-to-') ? title.split("-to-")[0] : metadata.baseline_file} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
-    <p><strong>Current:</strong> ${title.includes('-to-') ? title.split("-to-")[1].split(":")[0] : metadata.current_file} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
+    <p><strong>Baseline:</strong> ${title.includes('-to-') ? title.split("-to-")[0] : metadata.baseline_dir}</p>
+    <p><strong>Current:</strong> ${title.includes('-to-') ? title.split("-to-")[1].split(":")[0] : metadata.current_dir}</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
     <div class="section">
