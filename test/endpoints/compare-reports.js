@@ -300,8 +300,9 @@ class ReportComparator {
    * Generate comparison reports in multiple formats
    */
   generateReports(comparison) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const baseFileName = `comparison-${timestamp}`;
+    // Extract endpoint type from output directory path for consistent naming
+    const endpointType = path.basename(this.outputDir);
+    const baseFileName = `${endpointType}-comparison`;
 
     // JSON Report
     const jsonFile = path.join(this.outputDir, `${baseFileName}.json`);
