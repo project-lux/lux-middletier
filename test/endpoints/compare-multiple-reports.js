@@ -2,7 +2,7 @@ import ReportComparator from "./compare-reports.js";
 import fs from 'fs';
 import path from 'path';
 
-const baseDir = 'c:/workspaces/yale/clones/lux-middletier/test/endpoints';
+const baseDir = '/test-data/lux-middletier/test/endpoints';
 
 // Define your combinations here
 const configurations = [
