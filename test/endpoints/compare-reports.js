@@ -363,8 +363,8 @@ class ReportComparator {
 <body>
     <div class="header">
     <h1>${title}</h1>
-    <p><strong>Baseline:</strong> ${title.split("-to-")[0]} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
-    <p><strong>Current:</strong> ${title.split("-to-")[1].split(":")[0]} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
+    <p><strong>Baseline:</strong> ${title.includes('-to-') ? title.split("-to-")[0] : metadata.baseline_file} (${new Date(metadata.baseline_timestamp).toLocaleString()})</p>
+    <p><strong>Current:</strong> ${title.includes('-to-') ? title.split("-to-")[1].split(":")[0] : metadata.current_file} (${new Date(metadata.current_timestamp).toLocaleString()})</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
     <div class="section">
