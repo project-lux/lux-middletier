@@ -10,23 +10,20 @@ const configurations = [
     baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
     currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
     baseOutputDir: 'comparisons',
-    comparisonName: 'ML-PRD-to-ML-Mini'
+    comparisonName: 'ML Full to ML-Mini-16'
   },
-  // {
-  //   baselineEndpointsDir: 'reports/test-06-ml-3-3rds/test-run-2025-08-28_22-26-44/endpoints',
-  //   currentEndpointsDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
-  //   baseOutputDir: 'comparisons/ml-3-3rds-to-ql-pipeline',
-  // },
-  // {
-  //   baselineEndpointsDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
-  //   currentEndpointsDir: 'reports/test-08-ql-pipeline/test-run-2025-09-02_20-12-23/endpoints',
-  //   baseOutputDir: 'comparisons/ml-2-3rds-to-ql-pipeline',
-  // },
-  // {
-  //   baselineEndpointsDir: 'reports/test-07-ml-2-3rds/test-run-2025-08-29_17-53-49/endpoints',
-  //   currentEndpointsDir: 'reports/test-09-ql-mini/test-run-2025-09-02_21-29-11/endpoints',
-  //   baseOutputDir: 'comparisons/ml-2-3rds-to-ql-mini',
-  // },
+  {
+    baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
+    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+    baseOutputDir: 'comparisons',
+    comparisonName: 'ML Full to QL-Dev-2'
+  },
+  {
+    baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
+    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+    baseOutputDir: 'comparisons',
+    comparisonName: 'ML-Mini-16 to QL-Dev-2'
+  },
 ];
 
 const endpointsToCompare = [
