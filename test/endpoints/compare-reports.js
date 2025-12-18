@@ -729,10 +729,10 @@ class ReportComparator {
                 <canvas id="providerChart" width="400" height="200"></canvas>
             </div>
         </div>
-        <div style="max-width: 600px; margin: 0 auto;" id="size-chart">
+        <div style="margin-bottom: 30px;" id="size-chart">
             <h3>📏 Response Size Impact Analysis</h3>
             <p><small><strong>Shows:</strong> How response size correlates with performance degradation | <em>Higher = worse impact</em></small></p>
-            <canvas id="sizeChart" width="600" height="300"></canvas>
+            <canvas id="sizeChart" height="85"></canvas>
         </div>
     </div>
     ${detailed_performance && !detailed_performance.error ? `
