@@ -78,12 +78,12 @@ class ReportComparator {
   }
 
   /**
-   * Create a map of tests keyed by test name for efficient lookup
+   * Create a map of tests keyed by test description for efficient lookup
    */
   createTestMap(results) {
     const map = new Map();
     results.forEach(test => {
-      map.set(test.test_name, test);
+      map.set(test.description, test);
     });
     return map;
   }
@@ -295,12 +295,12 @@ class ReportComparator {
     };
 
     // Check tests in current report
-    for (const [testName, currentTest] of currentTests) {
-      const baselineTest = baselineTests.get(testName);
+    for (const [testDescription, currentTest] of currentTests) {
+      const baselineTest = baselineTests.get(testDescription);
 
       if (!baselineTest) {
         differences.new_tests.push({
-          test_name: testName,
+          test_name: currentTest.test_name,
           status: currentTest.status,
           endpoint_type: currentTest.endpoint_type
         });
@@ -324,10 +324,10 @@ class ReportComparator {
     }
 
     // Check for missing tests (in baseline but not current)
-    for (const [testName, baselineTest] of baselineTests) {
-      if (!currentTests.has(testName)) {
+    for (const [testDescription, baselineTest] of baselineTests) {
+      if (!currentTests.has(testDescription)) {
         differences.missing_tests.push({
-          test_name: testName,
+          test_name: baselineTest.test_name,
           status: baselineTest.status,
           endpoint_type: baselineTest.endpoint_type
         });
@@ -443,32 +443,35 @@ class ReportComparator {
   }
 
   /**
-   * Generate slowest 20 tests from baseline and how current test performed on those same tests
+   * Generate slowest 100 tests from baseline and how current test performed on those same tests
    */
   generateSlowestBaselineAnalysis(baselineResults, currentResults) {
     // Filter out non-PASS tests and sort by duration descending
     const slowestBaseline = baselineResults
       .filter(test => test.status === 'PASS' && test.duration_ms)
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
-      .slice(0, 20);
+      .slice(0, 100);
 
     // Create lookup map for current test results
     const currentTestsMap = new Map();
     currentResults.forEach(test => {
-      currentTestsMap.set(test.test_name, test);
+      currentTestsMap.set(test.description, test);
     });
 
     // Create analysis with baseline slowest and corresponding current performance
     return slowestBaseline.map(baselineTest => {
-      const currentTest = currentTestsMap.get(baselineTest.test_name);
+      const currentTest = currentTestsMap.get(baselineTest.description);
       const currentDuration = currentTest ? (currentTest.duration_ms || 0) : null;
       const currentStatus = currentTest ? currentTest.status : 'MISSING';
       
       return {
         test_name: baselineTest.test_name,
-        endpoint_type: baselineTest.endpoint_type,
         baseline_duration: baselineTest.duration_ms || 0,
+        baseline_url: baselineTest.url || '',
+        baseline_description: baselineTest.description || '',
         current_duration: currentDuration,
+        current_url: currentTest ? (currentTest.url || '') : '',
+        current_description: currentTest ? (currentTest.description || '') : '',
         current_status: currentStatus,
         duration_change: currentDuration !== null ? (currentDuration - (baselineTest.duration_ms || 0)) : null,
         relative_change: (baselineTest.duration_ms || 0) > 0 && currentDuration !== null 
@@ -479,32 +482,35 @@ class ReportComparator {
   }
 
   /**
-   * Generate slowest 20 tests from current and how baseline test performed on those same tests
+   * Generate slowest 100 tests from current and how baseline test performed on those same tests
    */
   generateSlowestCurrentAnalysis(baselineResults, currentResults) {
     // Filter out non-PASS tests and sort by duration descending
     const slowestCurrent = currentResults
       .filter(test => test.status === 'PASS' && test.duration_ms)
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
-      .slice(0, 20);
+      .slice(0, 100);
 
     // Create lookup map for baseline test results
     const baselineTestsMap = new Map();
     baselineResults.forEach(test => {
-      baselineTestsMap.set(test.test_name, test);
+      baselineTestsMap.set(test.description, test);
     });
 
     // Create analysis with current slowest and corresponding baseline performance
     return slowestCurrent.map(currentTest => {
-      const baselineTest = baselineTestsMap.get(currentTest.test_name);
+      const baselineTest = baselineTestsMap.get(currentTest.description);
       const baselineDuration = baselineTest ? (baselineTest.duration_ms || 0) : null;
       const baselineStatus = baselineTest ? baselineTest.status : 'MISSING';
       
       return {
         test_name: currentTest.test_name,
-        endpoint_type: currentTest.endpoint_type,
         current_duration: currentTest.duration_ms || 0,
+        current_url: currentTest.url || '',
+        current_description: currentTest.description || '',
         baseline_duration: baselineDuration,
+        baseline_url: baselineTest ? (baselineTest.url || '') : '',
+        baseline_description: baselineTest ? (baselineTest.description || '') : '',
         baseline_status: baselineStatus,
         duration_change: baselineDuration !== null ? ((currentTest.duration_ms || 0) - baselineDuration) : null,
         relative_change: baselineDuration !== null && baselineDuration > 0 
@@ -799,13 +805,23 @@ class ReportComparator {
     ` : ''}
     ${slowest_baseline_analysis && slowest_baseline_analysis.length > 0 ? `
     <div class="section">
-        <h2>🐌 Slowest 20 Baseline Tests Analysis</h2>
-        <p>This table shows the 20 slowest tests from the baseline run and how they performed in the current test.</p>
+        <h2>🐌 Slowest 100 Baseline Tests Analysis</h2>
+        <p>This table shows the 100 slowest tests from the baseline run and how they performed in the current test.</p>
+        <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; gap: 15px;">
+            <label for="baselinePageSize" style="font-weight: bold;">Show:</label>
+            <select id="baselinePageSize" onchange="updateBaselinePagination()" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                <option value="10">10 per page</option>
+                <option value="20" selected>20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            <div id="baselinePaginationInfo" style="font-style: italic; color: #666;"></div>
+            <div id="baselinePaginationControls" style="margin-left: auto;"></div>
+        </div>
         <table>
             <thead>
                 <tr>
                     <th>Test Name</th>
-                    <th>Endpoint Type</th>
                     <th>Baseline Duration</th>
                     <th>Current Duration</th>
                     <th>Current Status</th>
@@ -813,20 +829,29 @@ class ReportComparator {
                     <th>Relative Change</th>
                 </tr>
             </thead>
-            <tbody>
-                ${slowest_baseline_analysis.map(test => {
+            <tbody id="baselineTableBody">
+                ${slowest_baseline_analysis.map((test, index) => {
                   const durationChange = test.duration_change;
                   const relativeChange = test.relative_change;
                   const isImproved = durationChange !== null && durationChange < 0;
                   const isRegressed = durationChange !== null && durationChange > 0;
                   const isMissing = test.current_status === 'MISSING';
                   
+                  const baselineLink = test.baseline_url 
+                    ? `<a href="${test.baseline_url}" target="_blank" title="${(test.baseline_description || '').replace(/"/g, '&quot;')}">${test.baseline_duration}ms</a>`
+                    : `<span title="${(test.baseline_description || '').replace(/"/g, '&quot;')}">${test.baseline_duration}ms</span>`;
+                  
+                  const currentLink = test.current_duration !== null && test.current_url
+                    ? `<a href="${test.current_url}" target="_blank" title="${(test.current_description || '').replace(/"/g, '&quot;')}">${test.current_duration}ms</a>`
+                    : test.current_duration !== null 
+                      ? `<span title="${(test.current_description || '').replace(/"/g, '&quot;')}">${test.current_duration}ms</span>`
+                      : 'N/A';
+                  
                   return `
-                    <tr class="${isMissing ? 'missing-test' : isImproved ? 'improvement' : isRegressed ? 'regression' : ''}">
+                    <tr class="baseline-table-row ${isMissing ? 'missing-test' : isImproved ? 'improvement' : isRegressed ? 'regression' : ''}" data-index="${index}" style="display: none;">
                         <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
-                        <td>${test.endpoint_type}</td>
-                        <td>${test.baseline_duration}ms</td>
-                        <td>${test.current_duration !== null ? test.current_duration + 'ms' : 'N/A'}</td>
+                        <td>${baselineLink}</td>
+                        <td>${currentLink}</td>
                         <td class="${test.current_status === 'PASS' ? 'positive' : test.current_status === 'MISSING' ? 'neutral' : 'negative'}">${test.current_status}</td>
                         <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
                         <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
@@ -839,13 +864,23 @@ class ReportComparator {
     ` : ''}
     ${slowest_current_analysis && slowest_current_analysis.length > 0 ? `
     <div class="section">
-        <h2>🐌 Slowest 20 Current Tests Analysis</h2>
-        <p>This table shows the 20 slowest tests from the current run and how they performed in the baseline test.</p>
+        <h2>🐌 Slowest 100 Current Tests Analysis</h2>
+        <p>This table shows the 100 slowest tests from the current run and how they performed in the baseline test.</p>
+        <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; gap: 15px;">
+            <label for="currentPageSize" style="font-weight: bold;">Show:</label>
+            <select id="currentPageSize" onchange="updateCurrentPagination()" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                <option value="10">10 per page</option>
+                <option value="20" selected>20 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+            <div id="currentPaginationInfo" style="font-style: italic; color: #666;"></div>
+            <div id="currentPaginationControls" style="margin-left: auto;"></div>
+        </div>
         <table>
             <thead>
                 <tr>
                     <th>Test Name</th>
-                    <th>Endpoint Type</th>
                     <th>Current Duration</th>
                     <th>Baseline Duration</th>
                     <th>Baseline Status</th>
@@ -853,20 +888,29 @@ class ReportComparator {
                     <th>Relative Change</th>
                 </tr>
             </thead>
-            <tbody>
-                ${slowest_current_analysis.map(test => {
+            <tbody id="currentTableBody">
+                ${slowest_current_analysis.map((test, index) => {
                   const durationChange = test.duration_change;
                   const relativeChange = test.relative_change;
                   const isImproved = durationChange !== null && durationChange < 0;
                   const isRegressed = durationChange !== null && durationChange > 0;
                   const isMissing = test.baseline_status === 'MISSING';
                   
+                  const currentLink = test.current_url 
+                    ? `<a href="${test.current_url}" target="_blank" title="${(test.current_description || '').replace(/"/g, '&quot;')}">${test.current_duration}ms</a>`
+                    : `<span title="${(test.current_description || '').replace(/"/g, '&quot;')}">${test.current_duration}ms</span>`;
+                  
+                  const baselineLink = test.baseline_duration !== null && test.baseline_url
+                    ? `<a href="${test.baseline_url}" target="_blank" title="${(test.baseline_description || '').replace(/"/g, '&quot;')}">${test.baseline_duration}ms</a>`
+                    : test.baseline_duration !== null
+                      ? `<span title="${(test.baseline_description || '').replace(/"/g, '&quot;')}">${test.baseline_duration}ms</span>`
+                      : 'N/A';
+                  
                   return `
-                    <tr class="${isMissing ? 'missing-test' : isRegressed ? 'regression' : isImproved ? 'improvement' : ''}">
+                    <tr class="current-table-row ${isMissing ? 'missing-test' : isRegressed ? 'regression' : isImproved ? 'improvement' : ''}" data-index="${index}" style="display: none;">
                         <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
-                        <td>${test.endpoint_type}</td>
-                        <td>${test.current_duration}ms</td>
-                        <td>${test.baseline_duration !== null ? test.baseline_duration + 'ms' : 'N/A'}</td>
+                        <td>${currentLink}</td>
+                        <td>${baselineLink}</td>
                         <td class="${test.baseline_status === 'PASS' ? 'positive' : test.baseline_status === 'MISSING' ? 'neutral' : 'negative'}">${test.baseline_status}</td>
                         <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
                         <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
@@ -1363,6 +1407,146 @@ class ReportComparator {
                 }
             });
         }` : ''}
+        
+        // Pagination for Slowest Baseline Tests
+        let baselineCurrentPage = 1;
+        let baselinePageSize = 20;
+        
+        window.updateBaselinePagination = function() {
+            baselinePageSize = parseInt(document.getElementById('baselinePageSize').value);
+            baselineCurrentPage = 1;
+            showBaselinePage();
+        }
+        
+        function showBaselinePage() {
+            const rows = document.querySelectorAll('.baseline-table-row');
+            const totalRows = rows.length;
+            const totalPages = Math.ceil(totalRows / baselinePageSize);
+            const startIndex = (baselineCurrentPage - 1) * baselinePageSize;
+            const endIndex = Math.min(startIndex + baselinePageSize, totalRows);
+            
+            // Hide all rows first
+            rows.forEach(row => row.style.display = 'none');
+            
+            // Show rows for current page
+            for (let i = startIndex; i < endIndex; i++) {
+                if (rows[i]) rows[i].style.display = '';
+            }
+            
+            // Update pagination info
+            document.getElementById('baselinePaginationInfo').textContent = 
+                \`Showing \${startIndex + 1}-\${endIndex} of \${totalRows} tests\`;
+            
+            // Update pagination controls
+            const controls = document.getElementById('baselinePaginationControls');
+            controls.innerHTML = '';
+            
+            if (totalPages > 1) {
+                // Previous button
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← Previous';
+                prevBtn.disabled = baselineCurrentPage === 1;
+                prevBtn.onclick = () => { baselineCurrentPage--; showBaselinePage(); };
+                prevBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (prevBtn.disabled) prevBtn.style.opacity = '0.5';
+                controls.appendChild(prevBtn);
+                
+                // Page numbers
+                const startPage = Math.max(1, baselineCurrentPage - 2);
+                const endPage = Math.min(totalPages, startPage + 4);
+                
+                for (let page = startPage; page <= endPage; page++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.textContent = page;
+                    pageBtn.onclick = () => { baselineCurrentPage = page; showBaselinePage(); };
+                    pageBtn.style.cssText = \`padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; \${page === baselineCurrentPage ? 'background: #007bff; color: white;' : ''}\`;
+                    controls.appendChild(pageBtn);
+                }
+                
+                // Next button
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next →';
+                nextBtn.disabled = baselineCurrentPage === totalPages;
+                nextBtn.onclick = () => { baselineCurrentPage++; showBaselinePage(); };
+                nextBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (nextBtn.disabled) nextBtn.style.opacity = '0.5';
+                controls.appendChild(nextBtn);
+            }
+        }
+        
+        // Pagination for Slowest Current Tests
+        let currentCurrentPage = 1;
+        let currentPageSize = 20;
+        
+        window.updateCurrentPagination = function() {
+            currentPageSize = parseInt(document.getElementById('currentPageSize').value);
+            currentCurrentPage = 1;
+            showCurrentPage();
+        }
+        
+        function showCurrentPage() {
+            const rows = document.querySelectorAll('.current-table-row');
+            const totalRows = rows.length;
+            const totalPages = Math.ceil(totalRows / currentPageSize);
+            const startIndex = (currentCurrentPage - 1) * currentPageSize;
+            const endIndex = Math.min(startIndex + currentPageSize, totalRows);
+            
+            // Hide all rows first
+            rows.forEach(row => row.style.display = 'none');
+            
+            // Show rows for current page
+            for (let i = startIndex; i < endIndex; i++) {
+                if (rows[i]) rows[i].style.display = '';
+            }
+            
+            // Update pagination info
+            document.getElementById('currentPaginationInfo').textContent = 
+                \`Showing \${startIndex + 1}-\${endIndex} of \${totalRows} tests\`;
+            
+            // Update pagination controls
+            const controls = document.getElementById('currentPaginationControls');
+            controls.innerHTML = '';
+            
+            if (totalPages > 1) {
+                // Previous button
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← Previous';
+                prevBtn.disabled = currentCurrentPage === 1;
+                prevBtn.onclick = () => { currentCurrentPage--; showCurrentPage(); };
+                prevBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (prevBtn.disabled) prevBtn.style.opacity = '0.5';
+                controls.appendChild(prevBtn);
+                
+                // Page numbers
+                const startPage = Math.max(1, currentCurrentPage - 2);
+                const endPage = Math.min(totalPages, startPage + 4);
+                
+                for (let page = startPage; page <= endPage; page++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.textContent = page;
+                    pageBtn.onclick = () => { currentCurrentPage = page; showCurrentPage(); };
+                    pageBtn.style.cssText = \`padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; \${page === currentCurrentPage ? 'background: #007bff; color: white;' : ''}\`;
+                    controls.appendChild(pageBtn);
+                }
+                
+                // Next button
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next →';
+                nextBtn.disabled = currentCurrentPage === totalPages;
+                nextBtn.onclick = () => { currentCurrentPage++; showCurrentPage(); };
+                nextBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (nextBtn.disabled) nextBtn.style.opacity = '0.5';
+                controls.appendChild(nextBtn);
+            }
+        }
+        
+        // Initialize pagination for both tables
+        if (document.querySelector('.baseline-table-row')) {
+            showBaselinePage();
+        }
+        if (document.querySelector('.current-table-row')) {
+            showCurrentPage();
+        }
     });
     </script>
 </body>
