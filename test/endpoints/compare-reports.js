@@ -621,7 +621,48 @@ class ReportComparator {
     <p><strong>Current:</strong> ${title.includes('-to-') ? title.split("-to-")[1].split(":")[0] : metadata.current_dir}</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
+    
     <div class="section">
+        <h2>Table of Contents</h2>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6;">
+            <ul style="list-style: none; padding-left: 0; margin: 0; line-height: 1.6;">
+                <li><a href="#summary" style="text-decoration: none; color: #007bff; font-weight: bold;">Summary</a></li>
+                <li><a href="#visualizations" style="text-decoration: none; color: #007bff; font-weight: bold;">Performance Visualizations</a>
+                    <ul style="list-style: none; padding-left: 20px; margin-top: 5px;">
+                        <li><a href="#chronological-chart" style="text-decoration: none; color: #6c757d;">Chronological Response Times</a></li>
+                        <li><a href="#percentile-chart" style="text-decoration: none; color: #6c757d;">Performance Percentiles</a></li>
+                        <li><a href="#provider-chart" style="text-decoration: none; color: #6c757d;">Provider Performance Changes</a></li>
+                        <li><a href="#size-chart" style="text-decoration: none; color: #6c757d;">Response Size Impact Analysis</a></li>
+                    </ul>
+                </li>
+                ${detailed_performance && !detailed_performance.error ? `<li><a href="#performance-analysis" style="text-decoration: none; color: #007bff; font-weight: bold;">Detailed Performance Analysis</a>
+                    <ul style="list-style: none; padding-left: 20px; margin-top: 5px;">
+                        <li><a href="#request-counts" style="text-decoration: none; color: #6c757d;">Request Counts</a></li>
+                        <li><a href="#performance-percentiles" style="text-decoration: none; color: #6c757d;">Performance Percentiles</a></li>
+                        <li><a href="#statistical-metrics" style="text-decoration: none; color: #6c757d;">Statistical Metrics</a></li>
+                        ${provider_analysis && provider_analysis.length > 0 ? `<li><a href="#provider-analysis" style="text-decoration: none; color: #6c757d;">Provider Analysis</a></li>` : ''}
+                        ${response_size_analysis ? `<li><a href="#response-size-analysis" style="text-decoration: none; color: #6c757d;">Response Size vs Performance Analysis</a></li>` : ''}
+                    </ul>
+                </li>
+                ` : ''}
+                <li><a href="#slowest-100" style="text-decoration: none; color: #007bff; font-weight: bold;">Slowest 100 Tests Analysis</a>
+                    <ul style="list-style: none; padding-left: 20px; margin-top: 5px;">
+                        ${slowest_baseline_analysis && slowest_baseline_analysis.length > 0 ? `<li><a href="#slowest-baseline" style="text-decoration: none; color: #6c757d;">Slowest 100 Baseline Tests Analysis</a></li>` : ''}
+                        ${slowest_current_analysis && slowest_current_analysis.length > 0 ? `<li><a href="#slowest-current" style="text-decoration: none; color: #6c757d;">Slowest 100 Current Tests Analysis</a></li>` : ''}
+                    </ul>
+                </li>
+                <li><a href="#regressions-and-improvements" style="text-decoration: none; color: #007bff; font-weight: bold;">Regressions and Improvements</a>
+                    <ul style="list-style: none; padding-left: 20px; margin-top: 5px;">
+                        <li><a href="#overview" style="text-decoration: none; color: #6c757d;">Changes Overview</a></li>
+                        ${test_differences.regressions.length > 0 ? `<li><a href="#regressions" style="text-decoration: none; color: #6c757d;">Regressions</a></li>` : ''}
+                        ${test_differences.improvements.length > 0 ? `<li><a href="#improvements" style="text-decoration: none; color: #6c757d;">Improvements</a></li>` : ''}
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section" id="summary">
         <h2>Summary</h2>
         <div class="summary-grid">
             <div class="metric-card">
@@ -638,41 +679,66 @@ class ReportComparator {
             </div>
         </div>
     </div>
-    <div class="section">
-        <h2>Analysis by Endpoint Type</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Endpoint Type</th>
-                    <th>Test Count</th>
-                    <th>Pass Rate Change</th>
-                    <th>Regressions</th>
-                    <th>Improvements</th>
-                    <th>Avg Duration Change</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${endpoint_analysis.map(ep => {
-                  const baselinePassRate = ep.baseline_total > 0 ? (ep.baseline_passed / ep.baseline_total * 100).toFixed(1) : 0;
-                  const currentPassRate = ep.current_total > 0 ? (ep.current_passed / ep.current_total * 100).toFixed(1) : 0;
-                  const passRateChange = (currentPassRate - baselinePassRate).toFixed(1);
-                  return `
-                    <tr>
-                        <td>${ep.endpoint_type}</td>
-                        <td>${ep.baseline_total} → ${ep.current_total}</td>
-                        <td class="${passRateChange >= 0 ? 'positive' : 'negative'}">${baselinePassRate}% → ${currentPassRate}% (${passRateChange >= 0 ? '+' : ''}${passRateChange}%)</td>
-                        <td>${ep.regressions}</td>
-                        <td>${ep.improvements}</td>
-                        <td class="${ep.avg_duration_change <= 0 ? 'positive' : 'negative'}">${ep.avg_duration_change >= 0 ? '+' : ''}${ep.avg_duration_change}ms</td>
-                    </tr>
-                  `;
-                }).join('')}
-            </tbody>
-        </table>
+    <div class="section" id="visualizations">
+        <h2>📊 Performance Visualizations</h2>
+        <div style="margin-bottom: 40px;" id="chronological-chart">
+            <h3>🕒 Chronological Response Times: Baseline vs Current</h3>
+            <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests in execution order (left to right = chronological)</em></small></p>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label for="samplingInterval" style="font-weight: bold; margin-right: 8px;">Sample Interval:</label>
+                        <select id="samplingInterval" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option value="1">Every test (270k points)</option>
+                            <option value="10">Every 10th test</option>
+                            <option value="25">Every 25th test</option>
+                            <option value="50" selected>Every 50th test</option>
+                            <option value="100">Every 100th test</option>
+                            <option value="250">Every 250th test</option>
+                            <option value="500">Every 500th test</option>
+                            <option value="1000">Every 1000th test</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="dateRange" style="font-weight: bold; margin-right: 8px;">Range:</label>
+                        <select id="dateRange" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option value="all" selected>All tests</option>
+                            <option value="first25">First 25%</option>
+                            <option value="middle50">Middle 50%</option>
+                            <option value="last25">Last 25%</option>
+                        </select>
+                    </div>
+                    <button id="updateChart" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Update Chart</button>
+                    <button id="resetChart" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Reset</button>
+                    <div id="chartStatus" style="font-style: italic; color: #666;"></div>
+                </div>
+            </div>
+            <div style="width: 100%; height: 400px; position: relative;">
+                <canvas id="chronologicalChart"></canvas>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div id="percentile-chart">
+                <h3>📊 Performance Percentiles: Baseline vs Current</h3>
+                <p><small><strong>Blue:</strong> Baseline | <strong>Red:</strong> Current | <em>Higher bars = slower performance</em></small></p>
+                <canvas id="percentileChart" width="400" height="200"></canvas>
+            </div>
+            <div id="provider-chart">
+                <h3>🎯 Provider Performance Changes</h3>
+                <p><small><strong>Quadrants:</strong> 🟢 Faster+Reliable | 🟡 Slower+Reliable | 🔵 Faster+Unreliable | 🔴 Slower+Unreliable</small></p>
+                <canvas id="providerChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        <div style="max-width: 600px; margin: 0 auto;" id="size-chart">
+            <h3>📏 Response Size Impact Analysis</h3>
+            <p><small><strong>Shows:</strong> How response size correlates with performance degradation | <em>Higher = worse impact</em></small></p>
+            <canvas id="sizeChart" width="600" height="300"></canvas>
+        </div>
     </div>
     ${detailed_performance && !detailed_performance.error ? `
-    <div class="section">
+    <div class="section" id="performance-analysis">
         <h2>📊 Detailed Performance Analysis</h2>
+        <h3 id="request-counts">Request Counts</h3>
         <div class="summary-grid">
             <div class="metric-card">
                 <div class="metric-value">${detailed_performance.sample_sizes.baseline.toLocaleString()}</div>
@@ -683,7 +749,7 @@ class ReportComparator {
                 <div>Current Samples</div>
             </div>
         </div>
-        <h3>Performance Percentiles</h3>
+        <h3 id="performance-percentiles">Performance Percentiles</h3>
         <table>
             <thead>
                 <tr>
@@ -706,7 +772,7 @@ class ReportComparator {
                 `).join('')}
             </tbody>
         </table>
-        <h3>Statistical Metrics</h3>
+        <h3 id="statistical-metrics">Statistical Metrics</h3>
         <table>
             <thead>
                 <tr>
@@ -741,11 +807,8 @@ class ReportComparator {
                 </tr>
             </tbody>
         </table>
-    </div>
-    ` : ''}
-    ${provider_analysis && provider_analysis.length > 0 ? `
-    <div class="section">
-        <h2>🏢 Provider Analysis</h2>
+        ${provider_analysis && provider_analysis.length > 0 ? `
+        <h3 id="provider-analysis">🏢 Provider Analysis</h3>
         <table>
             <thead>
                 <tr>
@@ -773,11 +836,8 @@ class ReportComparator {
                 }).join('')}
             </tbody>
         </table>
-    </div>
-    ` : ''}
-    ${response_size_analysis ? `
-    <div class="section">
-        <h2>📏 Response Size vs Performance Analysis</h2>
+        ${response_size_analysis ? `
+        <h3 id="response-size-analysis">Response Size vs Performance Analysis</h3>
         <table>
             <thead>
                 <tr>
@@ -801,11 +861,14 @@ class ReportComparator {
             </tbody>
         </table>
         <p><small><strong>Size Categories:</strong> Tiny (&lt;1KB), Small (&lt;10KB), Medium (&lt;100KB), Large (≥100KB)</small></p>
+        ` : ''}
+        ` : ''}
     </div>
     ` : ''}
     ${slowest_baseline_analysis && slowest_baseline_analysis.length > 0 ? `
-    <div class="section">
-        <h2>🐌 Slowest 100 Baseline Tests Analysis</h2>
+    <div class="section" id="slowest-100">
+        <h2>🐌 Slowest 100 Baseline and Current Tests Analysis</h2>
+        <h3 id="slowest-baseline">Slowest 100 Baseline Tests Analysis</h3>
         <p>This table shows the 100 slowest tests from the baseline run and how they performed in the current test.</p>
         <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; gap: 15px;">
             <label for="baselinePageSize" style="font-weight: bold;">Show:</label>
@@ -864,7 +927,7 @@ class ReportComparator {
     ` : ''}
     ${slowest_current_analysis && slowest_current_analysis.length > 0 ? `
     <div class="section">
-        <h2>🐌 Slowest 100 Current Tests Analysis</h2>
+        <h3 id="slowest-current">Slowest 100 Current Tests Analysis</h3>
         <p>This table shows the 100 slowest tests from the current run and how they performed in the baseline test.</p>
         <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; display: flex; align-items: center; gap: 15px;">
             <label for="currentPageSize" style="font-weight: bold;">Show:</label>
@@ -921,64 +984,9 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
-    <div class="section">
-        <h2>📊 Performance Visualizations</h2>
-        <div style="margin-bottom: 40px;">
-            <h3>🕒 Chronological Response Times: Baseline vs Current</h3>
-            <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests in execution order (left to right = chronological)</em></small></p>
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
-                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-                    <div>
-                        <label for="samplingInterval" style="font-weight: bold; margin-right: 8px;">Sample Interval:</label>
-                        <select id="samplingInterval" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
-                            <option value="1">Every test (270k points)</option>
-                            <option value="10">Every 10th test</option>
-                            <option value="25">Every 25th test</option>
-                            <option value="50" selected>Every 50th test</option>
-                            <option value="100">Every 100th test</option>
-                            <option value="250">Every 250th test</option>
-                            <option value="500">Every 500th test</option>
-                            <option value="1000">Every 1000th test</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="dateRange" style="font-weight: bold; margin-right: 8px;">Range:</label>
-                        <select id="dateRange" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
-                            <option value="all" selected>All tests</option>
-                            <option value="first25">First 25%</option>
-                            <option value="middle50">Middle 50%</option>
-                            <option value="last25">Last 25%</option>
-                        </select>
-                    </div>
-                    <button id="updateChart" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Update Chart</button>
-                    <button id="resetChart" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Reset</button>
-                    <div id="chartStatus" style="font-style: italic; color: #666;"></div>
-                </div>
-            </div>
-            <div style="width: 100%; height: 400px; position: relative;">
-                <canvas id="chronologicalChart"></canvas>
-            </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-            <div>
-                <h3>📊 Performance Percentiles: Baseline vs Current</h3>
-                <p><small><strong>Blue:</strong> Baseline | <strong>Red:</strong> Current | <em>Higher bars = slower performance</em></small></p>
-                <canvas id="percentileChart" width="400" height="200"></canvas>
-            </div>
-            <div>
-                <h3>🎯 Provider Performance Changes</h3>
-                <p><small><strong>Quadrants:</strong> 🟢 Faster+Reliable | 🟡 Slower+Reliable | 🔵 Faster+Unreliable | 🔴 Slower+Unreliable</small></p>
-                <canvas id="providerChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-        <div style="max-width: 600px; margin: 0 auto;">
-            <h3>📏 Response Size Impact Analysis</h3>
-            <p><small><strong>Shows:</strong> How response size correlates with performance degradation | <em>Higher = worse impact</em></small></p>
-            <canvas id="sizeChart" width="600" height="300"></canvas>
-        </div>
-    </div>
-    <div class="section">
-        <h2>Changes Overview</h2>
+    <div class="section" id="regressions-and-improvements">
+        <h2>Regressions and Improvements</h2>
+        <h3 id="overview">Overview</h3>
         <div class="summary-grid">
             <div class="metric-card regression">
                 <div class="metric-value">${test_differences.regressions.length}</div>
@@ -999,8 +1007,8 @@ class ReportComparator {
         </div>
     </div>
     ${test_differences.regressions.length > 0 ? `
-    <div class="section">
-        <h2>🔴 Regressions</h2>
+    <div class="section" id="regressions">
+        <h3>🔴 Regressions</h3>
         <table>
             <thead>
                 <tr>
@@ -1028,8 +1036,8 @@ class ReportComparator {
     </div>
     ` : ''}
     ${test_differences.improvements.length > 0 ? `
-    <div class="section">
-        <h2>🟢 Improvements</h2>
+    <div class="section" id="improvements">
+        <h3>🟢 Improvements</h3>
         <table>
             <thead>
                 <tr>
