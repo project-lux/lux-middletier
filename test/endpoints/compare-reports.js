@@ -735,6 +735,35 @@ class ReportComparator {
         <div style="margin-bottom: 40px;">
             <h3>🕒 Chronological Response Times: Baseline vs Current</h3>
             <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests in execution order (left to right = chronological)</em></small></p>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
+                <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <label for="samplingInterval" style="font-weight: bold; margin-right: 8px;">Sample Interval:</label>
+                        <select id="samplingInterval" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option value="1">Every test (270k points)</option>
+                            <option value="10">Every 10th test</option>
+                            <option value="25">Every 25th test</option>
+                            <option value="50" selected>Every 50th test</option>
+                            <option value="100">Every 100th test</option>
+                            <option value="250">Every 250th test</option>
+                            <option value="500">Every 500th test</option>
+                            <option value="1000">Every 1000th test</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="dateRange" style="font-weight: bold; margin-right: 8px;">Range:</label>
+                        <select id="dateRange" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
+                            <option value="all" selected>All tests</option>
+                            <option value="first25">First 25%</option>
+                            <option value="middle50">Middle 50%</option>
+                            <option value="last25">Last 25%</option>
+                        </select>
+                    </div>
+                    <button id="updateChart" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Update Chart</button>
+                    <button id="resetChart" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Reset</button>
+                    <div id="chartStatus" style="font-style: italic; color: #666;"></div>
+                </div>
+            </div>
             <div style="width: 100%; height: 400px; position: relative;">
                 <canvas id="chronologicalChart"></canvas>
             </div>
@@ -857,7 +886,7 @@ class ReportComparator {
                     plugins: {
                         title: {
                             display: true,
-                            text: 'Response Time Comparison (' + responseTimeData.metadata.sampledTests.toLocaleString() + ' of ' + responseTimeData.metadata.totalTests.toLocaleString() + ' tests shown)',
+                            text: 'Response Time Comparison (' + responseTimeData.metadata.totalTests.toLocaleString() + ' tests shown)',
                             font: { size: 14, weight: 'bold' }
                         },
                         legend: {
@@ -870,7 +899,7 @@ class ReportComparator {
                             callbacks: {
                                 title: function(context) {
                                     const index = context[0].dataIndex;
-                                    return 'Test #' + (index + 1) + ' of ' + responseTimeData.metadata.sampledTests;
+                                    return 'Test #' + (index + 1) + ' of ' + responseTimeData.metadata.totalTests.toLocaleString();
                                 },
                                 label: function(context) {
                                     const isBaseline = context.datasetIndex === 0;
@@ -886,7 +915,7 @@ class ReportComparator {
                                         const pctChange = testDetail.baseline > 0 ? ((change / testDetail.baseline) * 100).toFixed(1) : 0;
                                         return [
                                             'Change: ' + (change >= 0 ? '+' : '') + change + 'ms (' + pctChange + '%)',
-                                            'Sample interval: every ' + responseTimeData.metadata.sampleInterval + ' tests'
+                                            'Test: ' + testDetail.testName.substring(0, 50) + '...'
                                         ];
                                     }
                                     return [];
@@ -923,88 +952,180 @@ class ReportComparator {
             });
         }
         
-        // Chronological Response Time Line Chart
+        // Chronological Response Time Line Chart with Controls
         const chronologicalData = ${JSON.stringify(this.generateChronologicalResponseTimeData(baselineResults, currentResults))};
-        if (chronologicalData && chronologicalData.datasets) {
-            const chronologicalCtx = document.getElementById('chronologicalChart').getContext('2d');
-            new Chart(chronologicalCtx, {
-                type: 'line',
-                data: {
-                    labels: chronologicalData.labels,
-                    datasets: chronologicalData.datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: {
-                        padding: 10
+        let chronologicalChart = null;
+        
+        function updateChronologicalChart(interval = 50, range = 'all') {
+            const fullData = chronologicalData.fullData;
+            let filteredData = fullData;
+            
+            // Apply range filter
+            if (range === 'first25') {
+                filteredData = fullData.slice(0, Math.floor(fullData.length * 0.25));
+            } else if (range === 'middle50') {
+                const start = Math.floor(fullData.length * 0.25);
+                const end = Math.floor(fullData.length * 0.75);
+                filteredData = fullData.slice(start, end);
+            } else if (range === 'last25') {
+                filteredData = fullData.slice(Math.floor(fullData.length * 0.75));
+            }
+            
+            // Apply sampling
+            const sampledData = interval > 1 ? 
+                filteredData.filter((_, index) => index % interval === 0) : 
+                filteredData;
+            
+            const chartData = {
+                labels: sampledData.map((_, index) => index),
+                datasets: [
+                    {
+                        label: 'Baseline Performance',
+                        data: sampledData.map(test => test.baseline),
+                        borderColor: 'rgba(54, 162, 235, 0.8)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 2,
+                        tension: 0.1
                     },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Chronological Performance (' + chronologicalData.metadata.sampledTests.toLocaleString() + ' of ' + chronologicalData.metadata.totalTests.toLocaleString() + ' tests shown)',
-                            font: { size: 14, weight: 'bold' }
-                        },
-                        legend: {
-                            position: 'top',
-                            labels: { usePointStyle: true, padding: 20 }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: function(context) {
-                                    const index = context[0].dataIndex;
-                                    return 'Chronological position: ' + (index + 1);
-                                },
-                                label: function(context) {
-                                    const isBaseline = context.datasetIndex === 0;
-                                    const label = isBaseline ? 'Baseline' : 'Current';
-                                    const value = context.parsed.y;
-                                    return label + ': ' + value + 'ms';
-                                },
-                                afterBody: function(context) {
-                                    const index = context[0].dataIndex;
-                                    const testDetail = chronologicalData.metadata.testDetails[index];
-                                    if (testDetail) {
-                                        const change = testDetail.current - testDetail.baseline;
-                                        const pctChange = testDetail.baseline > 0 ? ((change / testDetail.baseline) * 100).toFixed(1) : 0;
-                                        return [
-                                            'Change: ' + (change >= 0 ? '+' : '') + change + 'ms (' + pctChange + '%)',
-                                            'Test: ' + testDetail.testName.substring(0, 50) + '...'
-                                        ];
-                                    }
-                                    return [];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Test Execution Order (Chronological)' },
-                            grid: { display: false },
-                            ticks: {
-                                maxTicksLimit: 10,
-                                callback: function(value, index) {
-                                    const total = chronologicalData.metadata.sampledTests;
-                                    if (index === 0) return 'Start';
-                                    if (value === total - 1) return 'End';
-                                    return Math.round((value / total) * 100) + '%';
-                                }
-                            }
-                        },
-                        y: {
-                            title: { display: true, text: 'Response Time (ms)' },
-                            grid: { color: 'rgba(0,0,0,0.1)' },
-                            beginAtZero: true
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
+                    {
+                        label: 'Current Performance',
+                        data: sampledData.map(test => test.current),
+                        borderColor: 'rgba(255, 99, 132, 0.8)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        borderWidth: 2,
+                        tension: 0.1
                     }
+                ]
+            };
+            
+            // Generate time-based x-axis labels
+            const timeLabels = {};
+            const labelCount = 8; // Number of time labels to show
+            for (let i = 0; i < sampledData.length; i += Math.floor(sampledData.length / labelCount)) {
+                if (sampledData[i] && sampledData[i].timestamp) {
+                    timeLabels[i] = new Date(sampledData[i].timestamp).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    });
                 }
+            }
+            
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 10 },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Chronological Performance (' + sampledData.length.toLocaleString() + ' of ' + fullData.length.toLocaleString() + ' tests shown)',
+                        font: { size: 14, weight: 'bold' }
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: { usePointStyle: true, padding: 20 }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            title: function(context) {
+                                const index = context[0].dataIndex;
+                                const test = sampledData[index];
+                                return 'Test: ' + (test ? test.testName.substring(0, 30) + '...' : 'N/A');
+                            },
+                            label: function(context) {
+                                const isBaseline = context.datasetIndex === 0;
+                                const label = isBaseline ? 'Baseline' : 'Current';
+                                const value = context.parsed.y;
+                                return label + ': ' + value + 'ms';
+                            },
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const test = sampledData[index];
+                                if (test) {
+                                    const change = test.current - test.baseline;
+                                    const pctChange = test.baseline > 0 ? ((change / test.baseline) * 100).toFixed(1) : 0;
+                                    const timeLabel = test.timestamp ? new Date(test.timestamp).toLocaleTimeString() : 'N/A';
+                                    return [
+                                        'Change: ' + (change >= 0 ? '+' : '') + change + 'ms (' + pctChange + '%)',
+                                        'Time: ' + timeLabel
+                                    ];
+                                }
+                                return [];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Test Execution Order (Chronological)' },
+                        grid: { display: false },
+                        ticks: {
+                            maxTicksLimit: 10,
+                            callback: function(value, index) {
+                                // Use time labels when available
+                                if (timeLabels[value]) {
+                                    return timeLabels[value];
+                                }
+                                // Fallback to percentage
+                                const total = sampledData.length;
+                                if (index === 0) return 'Start';
+                                if (value === total - 1) return 'End';
+                                return Math.round((value / total) * 100) + '%';
+                            }
+                        }
+                    },
+                    y: {
+                        title: { display: true, text: 'Response Time (ms)' },
+                        grid: { color: 'rgba(0,0,0,0.1)' },
+                        beginAtZero: true
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            };
+            
+            if (chronologicalChart) {
+                chronologicalChart.data = chartData;
+                chronologicalChart.options = options;
+                chronologicalChart.update();
+            } else {
+                const chronologicalCtx = document.getElementById('chronologicalChart').getContext('2d');
+                chronologicalChart = new Chart(chronologicalCtx, {
+                    type: 'line',
+                    data: chartData,
+                    options: options
+                });
+            }
+            
+            // Update status
+            const statusElement = document.getElementById('chartStatus');
+            statusElement.textContent = sampledData.length.toLocaleString() + ' points displayed (interval: ' + interval + ', range: ' + range + ')';
+        }
+        
+        // Initialize with default settings
+        if (chronologicalData && chronologicalData.fullData) {
+            updateChronologicalChart(50, 'all');
+            
+            // Add event listeners
+            document.getElementById('updateChart').addEventListener('click', function() {
+                const interval = parseInt(document.getElementById('samplingInterval').value);
+                const range = document.getElementById('dateRange').value;
+                updateChronologicalChart(interval, range);
+            });
+            
+            document.getElementById('resetChart').addEventListener('click', function() {
+                document.getElementById('samplingInterval').value = '50';
+                document.getElementById('dateRange').value = 'all';
+                updateChronologicalChart(50, 'all');
             });
         }
         
@@ -1218,17 +1339,12 @@ class ReportComparator {
     // Sort by baseline duration for a nice visual progression
     commonTests.sort((a, b) => a.baseline - b.baseline);
     
-    // For large datasets, sample intelligently to keep chart responsive
-    const maxPoints = 5000; // Reasonable limit for chart performance
-    const sampleInterval = Math.max(1, Math.floor(commonTests.length / maxPoints));
-    const sampledTests = commonTests.filter((_, index) => index % sampleInterval === 0);
-    
     return {
-      labels: sampledTests.map((_, index) => index), // Use indices as x-axis
+      labels: commonTests.map((_, index) => index), // Use indices as x-axis
       datasets: [
         {
           label: 'Baseline Performance',
-          data: sampledTests.map(test => test.baseline),
+          data: commonTests.map(test => test.baseline),
           borderColor: 'rgba(54, 162, 235, 0.8)',
           backgroundColor: 'rgba(54, 162, 235, 0.1)',
           pointRadius: 0, // No individual points for cleaner look
@@ -1238,7 +1354,7 @@ class ReportComparator {
         },
         {
           label: 'Current Performance',
-          data: sampledTests.map(test => test.current),
+          data: commonTests.map(test => test.current),
           borderColor: 'rgba(255, 99, 132, 0.8)',
           backgroundColor: 'rgba(255, 99, 132, 0.1)',
           pointRadius: 0,
@@ -1249,9 +1365,9 @@ class ReportComparator {
       ],
       metadata: {
         totalTests: commonTests.length,
-        sampledTests: sampledTests.length,
-        sampleInterval,
-        testDetails: sampledTests // Store for tooltip info
+        sampledTests: commonTests.length,
+        sampleInterval: 1,
+        testDetails: commonTests // Store for tooltip info
       }
     };
   }
@@ -1275,39 +1391,54 @@ class ReportComparator {
     
     // Use current results order as the chronological baseline (they should be in execution order)
     const chronologicalTests = [];
+    let testIndex = 0;
     currentResults
       .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => {
+      .forEach((test, index) => {
         if (baselineMap.has(test.test_name)) {
           chronologicalTests.push({
             testName: test.test_name,
             baseline: baselineMap.get(test.test_name),
-            current: test.duration_ms
+            current: test.duration_ms,
+            originalIndex: index,
+            timestamp: test.timestamp || new Date(Date.now() + index * 1000).toISOString() // Use test timestamp or simulate
           });
         }
       });
     
-    // For large datasets, sample intelligently to keep chart responsive
-    const maxPoints = 5000;
-    const sampleInterval = Math.max(1, Math.floor(chronologicalTests.length / maxPoints));
-    const sampledTests = chronologicalTests.filter((_, index) => index % sampleInterval === 0);
+    // Generate time labels for x-axis (sample at key points)
+    const timeLabels = [];
+    const totalTests = chronologicalTests.length;
+    for (let i = 0; i < totalTests; i += Math.floor(totalTests / 10)) {
+      const test = chronologicalTests[i];
+      if (test && test.timestamp) {
+        timeLabels.push({
+          index: i,
+          time: new Date(test.timestamp).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+          })
+        });
+      }
+    }
     
     return {
-      labels: sampledTests.map((_, index) => index), // Use indices as x-axis
+      labels: chronologicalTests.map((_, index) => index),
       datasets: [
         {
           label: 'Baseline Performance',
-          data: sampledTests.map(test => test.baseline),
+          data: chronologicalTests.map(test => test.baseline),
           borderColor: 'rgba(54, 162, 235, 0.8)',
           backgroundColor: 'rgba(54, 162, 235, 0.1)',
           pointRadius: 0,
           pointHoverRadius: 4,
           borderWidth: 2,
-          tension: 0.1 // Slight smoothing for chronological view
+          tension: 0.1
         },
         {
           label: 'Current Performance',
-          data: sampledTests.map(test => test.current),
+          data: chronologicalTests.map(test => test.current),
           borderColor: 'rgba(255, 99, 132, 0.8)',
           backgroundColor: 'rgba(255, 99, 132, 0.1)',
           pointRadius: 0,
@@ -1316,11 +1447,13 @@ class ReportComparator {
           tension: 0.1
         }
       ],
+      fullData: chronologicalTests, // Include full dataset
+      timeLabels: timeLabels,
       metadata: {
         totalTests: chronologicalTests.length,
-        sampledTests: sampledTests.length,
-        sampleInterval,
-        testDetails: sampledTests
+        sampledTests: chronologicalTests.length,
+        sampleInterval: 1,
+        testDetails: chronologicalTests
       }
     };
   }
