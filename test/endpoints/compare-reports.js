@@ -68,7 +68,9 @@ class ReportComparator {
       test_differences: this.compareTests(baselineTests, currentTests),
       endpoint_analysis: this.analyzeByEndpoint(baselineTests, currentTests),
       provider_analysis: this.analyzeByProvider(baseline.results, current.results),
-      response_size_analysis: this.analyzeResponseSizePerformance(baseline.results, current.results)
+      response_size_analysis: this.analyzeResponseSizePerformance(baseline.results, current.results),
+      slowest_baseline_analysis: this.generateSlowestBaselineAnalysis(baseline.results, current.results),
+      slowest_current_analysis: this.generateSlowestCurrentAnalysis(baseline.results, current.results)
     };
 
     await this.generateReports(comparison, baseline, current);
@@ -441,6 +443,78 @@ class ReportComparator {
   }
 
   /**
+   * Generate slowest 20 tests from baseline and how current test performed on those same tests
+   */
+  generateSlowestBaselineAnalysis(baselineResults, currentResults) {
+    // Filter out non-PASS tests and sort by duration descending
+    const slowestBaseline = baselineResults
+      .filter(test => test.status === 'PASS' && test.duration_ms)
+      .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
+      .slice(0, 20);
+
+    // Create lookup map for current test results
+    const currentTestsMap = new Map();
+    currentResults.forEach(test => {
+      currentTestsMap.set(test.test_name, test);
+    });
+
+    // Create analysis with baseline slowest and corresponding current performance
+    return slowestBaseline.map(baselineTest => {
+      const currentTest = currentTestsMap.get(baselineTest.test_name);
+      const currentDuration = currentTest ? (currentTest.duration_ms || 0) : null;
+      const currentStatus = currentTest ? currentTest.status : 'MISSING';
+      
+      return {
+        test_name: baselineTest.test_name,
+        endpoint_type: baselineTest.endpoint_type,
+        baseline_duration: baselineTest.duration_ms || 0,
+        current_duration: currentDuration,
+        current_status: currentStatus,
+        duration_change: currentDuration !== null ? (currentDuration - (baselineTest.duration_ms || 0)) : null,
+        relative_change: (baselineTest.duration_ms || 0) > 0 && currentDuration !== null 
+          ? (((currentDuration - (baselineTest.duration_ms || 0)) / (baselineTest.duration_ms || 0)) * 100) 
+          : null
+      };
+    });
+  }
+
+  /**
+   * Generate slowest 20 tests from current and how baseline test performed on those same tests
+   */
+  generateSlowestCurrentAnalysis(baselineResults, currentResults) {
+    // Filter out non-PASS tests and sort by duration descending
+    const slowestCurrent = currentResults
+      .filter(test => test.status === 'PASS' && test.duration_ms)
+      .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
+      .slice(0, 20);
+
+    // Create lookup map for baseline test results
+    const baselineTestsMap = new Map();
+    baselineResults.forEach(test => {
+      baselineTestsMap.set(test.test_name, test);
+    });
+
+    // Create analysis with current slowest and corresponding baseline performance
+    return slowestCurrent.map(currentTest => {
+      const baselineTest = baselineTestsMap.get(currentTest.test_name);
+      const baselineDuration = baselineTest ? (baselineTest.duration_ms || 0) : null;
+      const baselineStatus = baselineTest ? baselineTest.status : 'MISSING';
+      
+      return {
+        test_name: currentTest.test_name,
+        endpoint_type: currentTest.endpoint_type,
+        current_duration: currentTest.duration_ms || 0,
+        baseline_duration: baselineDuration,
+        baseline_status: baselineStatus,
+        duration_change: baselineDuration !== null ? ((currentTest.duration_ms || 0) - baselineDuration) : null,
+        relative_change: baselineDuration !== null && baselineDuration > 0 
+          ? (((currentTest.duration_ms || 0) - baselineDuration) / baselineDuration * 100) 
+          : null
+      };
+    });
+  }
+
+  /**
    * Generate comparison reports in multiple formats
    */
   async generateReports(comparison, baseline = {}, current = {}) {
@@ -503,7 +577,7 @@ class ReportComparator {
    * Generate HTML comparison report
    */
   async generateHTMLReport(comparison, baselineResults = [], currentResults = []) {
-    const { metadata, summary, test_differences, endpoint_analysis, detailed_performance, provider_analysis, response_size_analysis } = comparison;
+    const { metadata, summary, test_differences, endpoint_analysis, detailed_performance, provider_analysis, response_size_analysis, slowest_baseline_analysis, slowest_current_analysis } = comparison;
     const title = this.comparisonName || "Test Report Comparison";
     
     // Read Chart.js from node_modules for inline inclusion
@@ -721,6 +795,86 @@ class ReportComparator {
             </tbody>
         </table>
         <p><small><strong>Size Categories:</strong> Tiny (&lt;1KB), Small (&lt;10KB), Medium (&lt;100KB), Large (≥100KB)</small></p>
+    </div>
+    ` : ''}
+    ${slowest_baseline_analysis && slowest_baseline_analysis.length > 0 ? `
+    <div class="section">
+        <h2>🐌 Slowest 20 Baseline Tests Analysis</h2>
+        <p>This table shows the 20 slowest tests from the baseline run and how they performed in the current test.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>Endpoint Type</th>
+                    <th>Baseline Duration</th>
+                    <th>Current Duration</th>
+                    <th>Current Status</th>
+                    <th>Duration Change</th>
+                    <th>Relative Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${slowest_baseline_analysis.map(test => {
+                  const durationChange = test.duration_change;
+                  const relativeChange = test.relative_change;
+                  const isImproved = durationChange !== null && durationChange < 0;
+                  const isRegressed = durationChange !== null && durationChange > 0;
+                  const isMissing = test.current_status === 'MISSING';
+                  
+                  return `
+                    <tr class="${isMissing ? 'missing-test' : isImproved ? 'improvement' : isRegressed ? 'regression' : ''}">
+                        <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
+                        <td>${test.endpoint_type}</td>
+                        <td>${test.baseline_duration}ms</td>
+                        <td>${test.current_duration !== null ? test.current_duration + 'ms' : 'N/A'}</td>
+                        <td class="${test.current_status === 'PASS' ? 'positive' : test.current_status === 'MISSING' ? 'neutral' : 'negative'}">${test.current_status}</td>
+                        <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
+                        <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+    ${slowest_current_analysis && slowest_current_analysis.length > 0 ? `
+    <div class="section">
+        <h2>🐌 Slowest 20 Current Tests Analysis</h2>
+        <p>This table shows the 20 slowest tests from the current run and how they performed in the baseline test.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>Endpoint Type</th>
+                    <th>Current Duration</th>
+                    <th>Baseline Duration</th>
+                    <th>Baseline Status</th>
+                    <th>Duration Change</th>
+                    <th>Relative Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${slowest_current_analysis.map(test => {
+                  const durationChange = test.duration_change;
+                  const relativeChange = test.relative_change;
+                  const isImproved = durationChange !== null && durationChange < 0;
+                  const isRegressed = durationChange !== null && durationChange > 0;
+                  const isMissing = test.baseline_status === 'MISSING';
+                  
+                  return `
+                    <tr class="${isMissing ? 'missing-test' : isRegressed ? 'regression' : isImproved ? 'improvement' : ''}">
+                        <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
+                        <td>${test.endpoint_type}</td>
+                        <td>${test.current_duration}ms</td>
+                        <td>${test.baseline_duration !== null ? test.baseline_duration + 'ms' : 'N/A'}</td>
+                        <td class="${test.baseline_status === 'PASS' ? 'positive' : test.baseline_status === 'MISSING' ? 'neutral' : 'negative'}">${test.baseline_status}</td>
+                        <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
+                        <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
+                    </tr>
+                  `;
+                }).join('')}
+            </tbody>
+        </table>
     </div>
     ` : ''}
     <div class="section">
