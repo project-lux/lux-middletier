@@ -40,7 +40,7 @@ class ReportComparator {
   /**
    * Compare two test reports and generate diff
    */
-  compareReports() {
+  async compareReports() {
     console.log('Loading reports...');
     const baseline = this.loadReport(this.baselineFile);
     const current = this.loadReport(this.currentFile);
@@ -71,7 +71,7 @@ class ReportComparator {
       response_size_analysis: this.analyzeResponseSizePerformance(baseline.results, current.results)
     };
 
-    this.generateReports(comparison);
+    await this.generateReports(comparison);
     return comparison;
   }
 
@@ -443,7 +443,7 @@ class ReportComparator {
   /**
    * Generate comparison reports in multiple formats
    */
-  generateReports(comparison) {
+  async generateReports(comparison) {
     // Extract endpoint type from output directory path for consistent naming
     const endpointType = path.basename(this.outputDir);
     const baseFileName = `${endpointType}-comparison`;
@@ -454,7 +454,7 @@ class ReportComparator {
 
     // HTML Report
     const htmlFile = path.join(this.outputDir, `${baseFileName}.html`);
-    const htmlContent = this.generateHTMLReport(comparison);
+    const htmlContent = await this.generateHTMLReport(comparison);
     fs.writeFileSync(htmlFile, htmlContent);
 
     // Console Summary
@@ -502,15 +502,19 @@ class ReportComparator {
   /**
    * Generate HTML comparison report
    */
-  generateHTMLReport(comparison) {
+  async generateHTMLReport(comparison) {
     const { metadata, summary, test_differences, endpoint_analysis, detailed_performance, provider_analysis, response_size_analysis } = comparison;
-  const title = this.comparisonName || "Test Report Comparison";
+    const title = this.comparisonName || "Test Report Comparison";
+    
+    // Read Chart.js from node_modules for inline inclusion
+    const chartJsPath = path.resolve(__dirname, './node_modules/chart.js/dist/chart.umd.min.js');
+    const chartJsContent = await fs.promises.readFile(chartJsPath, 'utf8');
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <title>${title}</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.js"></script>
+    <script>${chartJsContent}</script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
@@ -1314,7 +1318,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   try {
     const comparator = new ReportComparator(baselineFile, currentFile, outputDir, "Test Report Comparison");
-    comparator.compareReports();
+    await comparator.compareReports();
   } catch (error) {
     console.error('Comparison failed:', error.message);
     process.exit(1);
