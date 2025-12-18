@@ -510,6 +510,7 @@ class ReportComparator {
 <html>
 <head>
   <title>${title}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
@@ -719,6 +720,26 @@ class ReportComparator {
     </div>
     ` : ''}
     <div class="section">
+        <h2>📊 Performance Visualizations</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div>
+                <h3>📊 Performance Percentiles: Baseline vs Current</h3>
+                <p><small><strong>Blue:</strong> Baseline | <strong>Red:</strong> Current | <em>Higher bars = slower performance</em></small></p>
+                <canvas id="percentileChart" width="400" height="200"></canvas>
+            </div>
+            <div>
+                <h3>🎯 Provider Performance Changes</h3>
+                <p><small><strong>Quadrants:</strong> 🟢 Faster+Reliable | 🟡 Slower+Reliable | 🔵 Faster+Unreliable | 🔴 Slower+Unreliable</small></p>
+                <canvas id="providerChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        <div style="max-width: 600px; margin: 0 auto;">
+            <h3>📏 Response Size Impact Analysis</h3>
+            <p><small><strong>Shows:</strong> How response size correlates with performance degradation | <em>Higher = worse impact</em></small></p>
+            <canvas id="sizeChart" width="600" height="300"></canvas>
+        </div>
+    </div>
+    <div class="section">
         <h2>Changes Overview</h2>
         <div class="summary-grid">
             <div class="metric-card regression">
@@ -795,6 +816,184 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
+    
+    <script>
+    // Chart.js configuration and rendering
+    document.addEventListener('DOMContentLoaded', function() {
+        // Percentile Waterfall Chart
+        ${detailed_performance && !detailed_performance.error ? `
+        const percentileData = ${JSON.stringify(this.generatePercentileChartData(detailed_performance))};
+        if (percentileData) {
+            const percentileCtx = document.getElementById('percentileChart').getContext('2d');
+            new Chart(percentileCtx, {
+                type: 'bar',
+                data: percentileData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Performance Distribution Comparison',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { 
+                            position: 'top',
+                            labels: { usePointStyle: true, padding: 15 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const isBaseline = context.datasetIndex === 0;
+                                    const label = isBaseline ? 'Baseline' : 'Current';
+                                    return \`\${label}: \${context.parsed.y}ms\`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: 'Response Time (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' }
+                        },
+                        x: { 
+                            title: { display: true, text: 'Performance Percentile' },
+                            grid: { display: false }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }` : ''}
+        
+        // Provider Performance Bubble Chart  
+        ${provider_analysis && provider_analysis.length > 0 ? `
+        const providerData = ${JSON.stringify(this.generateProviderChartData(provider_analysis))};
+        if (providerData) {
+            const providerCtx = document.getElementById('providerChart').getContext('2d');
+            new Chart(providerCtx, {
+                type: 'bubble',
+                data: providerData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Provider Performance Change Analysis',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return \`Provider: \${context[0].raw.provider}\`;
+                                },
+                                label: function(context) {
+                                    const point = context.raw;
+                                    const quadrant = point.x <= 0 && point.y >= 0 ? '🟢 Faster + More Reliable' :
+                                                   point.x <= 0 && point.y < 0 ? '🔵 Faster + Less Reliable' :
+                                                   point.x > 0 && point.y >= 0 ? '🟡 Slower + More Reliable' :
+                                                   '🔴 Slower + Less Reliable';
+                                    return [
+                                        \`Duration Change: \${point.x > 0 ? '+' : ''}\${point.x}ms\`,
+                                        \`Pass Rate Change: \${point.y > 0 ? '+' : ''}\${point.y.toFixed(1)}%\`,
+                                        \`Category: \${quadrant}\`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Duration Change: Baseline → Current (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            // Add reference line at x=0
+                            ticks: {
+                                callback: function(value) {
+                                    return value === 0 ? '0 (no change)' : value;
+                                }
+                            }
+                        },
+                        y: { 
+                            title: { display: true, text: 'Pass Rate Change: Baseline → Current (%)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            // Add reference line at y=0
+                            ticks: {
+                                callback: function(value) {
+                                    return value === 0 ? '0 (no change)' : value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }` : ''}
+        
+        // Response Size vs Performance Scatter
+        ${response_size_analysis ? `
+        const sizeData = ${JSON.stringify(this.generateSizePerformanceChartData(response_size_analysis))};
+        if (sizeData) {
+            const sizeCtx = document.getElementById('sizeChart').getContext('2d');
+            new Chart(sizeCtx, {
+                type: 'scatter',
+                data: sizeData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: { 
+                            display: true, 
+                            text: 'Response Size vs Performance Degradation',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const point = context[0].raw;
+                                    return \`\${point.category.charAt(0).toUpperCase() + point.category.slice(1)} Responses\`;
+                                },
+                                label: function(context) {
+                                    const point = context.raw;
+                                    const impact = point.y > 0 ? 'slower' : 'faster';
+                                    return [
+                                        \`Avg Size: \${point.x.toLocaleString()} bytes\`,
+                                        \`Performance Impact: \${Math.abs(point.y)}ms \${impact}\`,
+                                        \`Category: \${point.category} (<\${point.category === 'tiny' ? '1KB' : point.category === 'small' ? '10KB' : point.category === 'medium' ? '100KB' : '100KB+'})\`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Average Response Size (bytes, log scale)' },
+                            type: 'logarithmic',
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 1000) return (value/1000).toFixed(0) + 'KB';
+                                    return value + 'B';
+                                }
+                            }
+                        },
+                        y: { 
+                            title: { display: true, text: 'Performance Impact: Baseline → Current (ms)' },
+                            grid: { color: 'rgba(0,0,0,0.1)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return value === 0 ? '0 (no change)' : (value > 0 ? '+' : '') + value + 'ms';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }` : ''}
+    });
+    </script>
 </body>
 </html>`;
   }
@@ -953,6 +1152,129 @@ class ReportComparator {
     });
 
     return comparison;
+  }
+
+  /**
+   * Generate chart data for percentile waterfall visualization
+   */
+  generatePercentileChartData(detailed_performance) {
+    if (!detailed_performance || detailed_performance.error) return null;
+    
+    const percentiles = Object.keys(detailed_performance.percentiles);
+    const baselineData = percentiles.map(p => detailed_performance.percentiles[p].baseline);
+    const currentData = percentiles.map(p => detailed_performance.percentiles[p].current);
+    const labels = percentiles.map(p => p.replace('p', '') + '%');
+    
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Baseline Performance',
+          data: baselineData,
+          backgroundColor: 'rgba(54, 162, 235, 0.8)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 2
+        },
+        {
+          label: 'Current Performance',
+          data: currentData,
+          backgroundColor: 'rgba(255, 99, 132, 0.8)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 2
+        }
+      ]
+    };
+  }
+
+  /**
+   * Generate chart data for provider performance heat map
+   */
+  generateProviderChartData(provider_analysis) {
+    if (!provider_analysis || provider_analysis.length === 0) return null;
+    
+    const providers = provider_analysis.map(p => p.provider_id);
+    const durationChanges = provider_analysis.map(p => p.avg_duration.change);
+    const passRateChanges = provider_analysis.map(p => {
+      const baseline = parseFloat(p.pass_rate.baseline);
+      const current = parseFloat(p.pass_rate.current);
+      return current - baseline;
+    });
+    
+    // Create bubble data: x=duration change, y=pass rate change, bubble size=test count
+    const bubbleData = provider_analysis.map(p => ({
+      x: p.avg_duration.change,
+      y: parseFloat(p.pass_rate.current) - parseFloat(p.pass_rate.baseline),
+      r: Math.max(5, Math.min(20, p.test_count.current / 100)), // Scale bubble size
+      provider: p.provider_id
+    }));
+    
+    return {
+      datasets: [{
+        label: 'Provider Changes (Baseline → Current)',
+        data: bubbleData,
+        backgroundColor: bubbleData.map(point => {
+          // Quadrant analysis: x=duration change, y=pass rate change
+          if (point.x <= 0 && point.y >= 0) return 'rgba(76, 175, 80, 0.7)';  // Faster + More Reliable (green)
+          if (point.x <= 0 && point.y < 0) return 'rgba(33, 150, 243, 0.7)';   // Faster + Less Reliable (blue)
+          if (point.x > 0 && point.y >= 0) return 'rgba(255, 193, 7, 0.7)';    // Slower + More Reliable (amber)
+          return 'rgba(244, 67, 54, 0.7)';                                     // Slower + Less Reliable (red)
+        }),
+        borderColor: bubbleData.map(point => {
+          if (point.x <= 0 && point.y >= 0) return 'rgba(76, 175, 80, 1)';
+          if (point.x <= 0 && point.y < 0) return 'rgba(33, 150, 243, 1)';
+          if (point.x > 0 && point.y >= 0) return 'rgba(255, 193, 7, 1)';
+          return 'rgba(244, 67, 54, 1)';
+        }),
+        borderWidth: 2
+      }]
+    };
+  }
+
+  /**
+   * Generate chart data for response size vs performance scatter plot
+   */
+  generateSizePerformanceChartData(response_size_analysis) {
+    if (!response_size_analysis) return null;
+    
+    const categories = ['tiny', 'small', 'medium', 'large'];
+    const scatterData = categories.map(category => {
+      const data = response_size_analysis[category];
+      if (!data) return null;
+      
+      return {
+        x: data.baseline.avg_size,
+        y: data.current.avg_duration - data.baseline.avg_duration,
+        r: Math.max(5, Math.min(15, data.current.count / 1000)), // Scale by sample count
+        category: category
+      };
+    }).filter(Boolean);
+    
+    return {
+      datasets: [{
+        label: 'Response Categories (Impact vs Size)',
+        data: scatterData,
+        backgroundColor: scatterData.map(point => {
+          switch(point.category) {
+            case 'tiny': return 'rgba(76, 175, 80, 0.8)';   // Green for tiny
+            case 'small': return 'rgba(33, 150, 243, 0.8)'; // Blue for small
+            case 'medium': return 'rgba(255, 193, 7, 0.8)'; // Amber for medium
+            case 'large': return 'rgba(244, 67, 54, 0.8)';  // Red for large
+            default: return 'rgba(158, 158, 158, 0.8)';
+          }
+        }),
+        borderColor: scatterData.map(point => {
+          switch(point.category) {
+            case 'tiny': return 'rgba(76, 175, 80, 1)';
+            case 'small': return 'rgba(33, 150, 243, 1)';
+            case 'medium': return 'rgba(255, 193, 7, 1)';
+            case 'large': return 'rgba(244, 67, 54, 1)';
+            default: return 'rgba(158, 158, 158, 1)';
+          }
+        }),
+        borderWidth: 2,
+        pointRadius: scatterData.map(point => Math.max(8, Math.min(20, point.r)))
+      }]
+    };
   }
 }
 
