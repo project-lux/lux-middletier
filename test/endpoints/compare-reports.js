@@ -64,8 +64,11 @@ class ReportComparator {
         comparison_timestamp: new Date().toISOString()
       },
       summary: this.compareSummaries(baseline.summary, current.summary),
+      detailed_performance: this.performDetailedPerformanceAnalysis(baseline.results, current.results),
       test_differences: this.compareTests(baselineTests, currentTests),
-      endpoint_analysis: this.analyzeByEndpoint(baselineTests, currentTests)
+      endpoint_analysis: this.analyzeByEndpoint(baselineTests, currentTests),
+      provider_analysis: this.analyzeByProvider(baseline.results, current.results),
+      response_size_analysis: this.analyzeResponseSizePerformance(baseline.results, current.results)
     };
 
     this.generateReports(comparison);
@@ -81,6 +84,72 @@ class ReportComparator {
       map.set(test.test_name, test);
     });
     return map;
+  }
+
+  /**
+   * Calculate percentiles from an array of numbers (optimized for large datasets)
+   */
+  calculatePercentiles(values, percentiles = [50, 90, 95, 99, 99.9]) {
+    if (!values || values.length === 0) return {};
+    
+    // Use slice() instead of spread operator to avoid stack overflow
+    const sorted = values.slice().sort((a, b) => a - b);
+    const result = {};
+    
+    percentiles.forEach(p => {
+      const index = (p / 100) * (sorted.length - 1);
+      const lower = Math.floor(index);
+      const upper = Math.ceil(index);
+      const weight = index % 1;
+      
+      if (lower === upper) {
+        result[`p${p}`] = sorted[lower];
+      } else {
+        result[`p${p}`] = sorted[lower] * (1 - weight) + sorted[upper] * weight;
+      }
+    });
+    
+    return result;
+  }
+
+  /**
+   * Calculate statistical metrics for performance analysis
+   */
+  calculateStats(values) {
+    if (!values || values.length === 0) return {};
+    
+    const sum = values.reduce((a, b) => a + b, 0);
+    const mean = sum / values.length;
+    const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = mean > 0 ? stdDev / mean : 0;
+    
+    return {
+      mean: Math.round(mean * 100) / 100,
+      median: this.calculatePercentiles(values, [50]).p50,
+      std_deviation: Math.round(stdDev * 100) / 100,
+      coefficient_of_variation: Math.round(cv * 1000) / 1000,
+      min: values.length > 0 ? values.reduce((min, val) => val < min ? val : min, values[0]) : 0,
+      max: values.length > 0 ? values.reduce((max, val) => val > max ? val : max, values[0]) : 0
+    };
+  }
+
+  /**
+   * Sample an array efficiently for large datasets
+   */
+  sampleArray(array, targetSize) {
+    if (array.length <= targetSize) return array;
+    
+    const step = Math.floor(array.length / targetSize);
+    const sample = [];
+    
+    for (let i = 0; i < array.length; i += step) {
+      if (sample.length < targetSize) {
+        sample.push(array[i]);
+      }
+    }
+    
+    return sample;
   }
 
   /**
@@ -136,6 +205,150 @@ class ReportComparator {
     summary.pass_rate.change = (parseFloat(summary.pass_rate.current) - parseFloat(summary.pass_rate.baseline)).toFixed(1);
 
     return summary;
+  }
+
+  /**
+   * Perform detailed performance analysis with percentiles and statistical metrics
+   */
+  performDetailedPerformanceAnalysis(baselineResults, currentResults) {
+    // Extract duration values from successful tests only
+    const baselineDurations = baselineResults
+      .filter(test => test.status === 'PASS')
+      .map(test => test.duration_ms || 0);
+    
+    const currentDurations = currentResults
+      .filter(test => test.status === 'PASS')
+      .map(test => test.duration_ms || 0);
+
+    if (baselineDurations.length === 0 || currentDurations.length === 0) {
+      return { error: 'Insufficient data for performance analysis' };
+    }
+
+    // Calculate percentiles
+    const baselinePercentiles = this.calculatePercentiles(baselineDurations);
+    const currentPercentiles = this.calculatePercentiles(currentDurations);
+    
+    // Calculate statistical metrics
+    const baselineStats = this.calculateStats(baselineDurations);
+    const currentStats = this.calculateStats(currentDurations);
+
+    // Build comparison object
+    const percentileComparison = {};
+    Object.keys(baselinePercentiles).forEach(key => {
+      const baselineVal = baselinePercentiles[key];
+      const currentVal = currentPercentiles[key];
+      const change = currentVal - baselineVal;
+      const relativeChange = baselineVal > 0 ? (change / baselineVal) * 100 : 0;
+      
+      percentileComparison[key] = {
+        baseline: Math.round(baselineVal * 100) / 100,
+        current: Math.round(currentVal * 100) / 100,
+        change: Math.round(change * 100) / 100,
+        relative_change: Math.round(relativeChange * 10) / 10
+      };
+    });
+
+    return {
+      sample_sizes: {
+        baseline: baselineDurations.length,
+        current: currentDurations.length
+      },
+      percentiles: percentileComparison,
+      statistical_metrics: {
+        mean: {
+          baseline: baselineStats.mean,
+          current: currentStats.mean,
+          change: Math.round((currentStats.mean - baselineStats.mean) * 100) / 100,
+          relative_change: baselineStats.mean > 0 ? Math.round(((currentStats.mean - baselineStats.mean) / baselineStats.mean) * 1000) / 10 : 0
+        },
+        std_deviation: {
+          baseline: baselineStats.std_deviation,
+          current: currentStats.std_deviation,
+          change: Math.round((currentStats.std_deviation - baselineStats.std_deviation) * 100) / 100
+        },
+        coefficient_of_variation: {
+          baseline: baselineStats.coefficient_of_variation,
+          current: currentStats.coefficient_of_variation,
+          change: Math.round((currentStats.coefficient_of_variation - baselineStats.coefficient_of_variation) * 1000) / 1000
+        },
+        range: {
+          baseline: { min: baselineStats.min, max: baselineStats.max },
+          current: { min: currentStats.min, max: currentStats.max }
+        }
+      }
+    };
+  }
+
+  /**
+   * Perform detailed performance analysis with percentiles and statistical metrics
+   */
+  performDetailedPerformanceAnalysis(baselineResults, currentResults) {
+    // Extract duration values from successful tests only
+    const baselineDurations = baselineResults
+      .filter(test => test.status === 'PASS')
+      .map(test => test.duration_ms || 0);
+    
+    const currentDurations = currentResults
+      .filter(test => test.status === 'PASS')
+      .map(test => test.duration_ms || 0);
+
+    if (baselineDurations.length === 0 || currentDurations.length === 0) {
+      return { error: 'Insufficient data for performance analysis' };
+    }
+
+    // Calculate percentiles
+    const baselinePercentiles = this.calculatePercentiles(baselineDurations);
+    const currentPercentiles = this.calculatePercentiles(currentDurations);
+    
+    // Calculate statistical metrics
+    const baselineStats = this.calculateStats(baselineDurations);
+    const currentStats = this.calculateStats(currentDurations);
+
+    // Build comparison object
+    const percentileComparison = {};
+    Object.keys(baselinePercentiles).forEach(key => {
+      const baselineVal = baselinePercentiles[key];
+      const currentVal = currentPercentiles[key];
+      const change = currentVal - baselineVal;
+      const relativeChange = baselineVal > 0 ? (change / baselineVal) * 100 : 0;
+      
+      percentileComparison[key] = {
+        baseline: Math.round(baselineVal * 100) / 100,
+        current: Math.round(currentVal * 100) / 100,
+        change: Math.round(change * 100) / 100,
+        relative_change: Math.round(relativeChange * 10) / 10
+      };
+    });
+
+    return {
+      sample_sizes: {
+        baseline: baselineDurations.length,
+        current: currentDurations.length
+      },
+      percentiles: percentileComparison,
+      statistical_metrics: {
+        mean: {
+          baseline: baselineStats.mean,
+          current: currentStats.mean,
+          change: Math.round((currentStats.mean - baselineStats.mean) * 100) / 100,
+          relative_change: baselineStats.mean > 0 ? Math.round(((currentStats.mean - baselineStats.mean) / baselineStats.mean) * 1000) / 10 : 0
+        },
+        std_deviation: {
+          baseline: baselineStats.std_deviation,
+          current: currentStats.std_deviation,
+          change: Math.round((currentStats.std_deviation - baselineStats.std_deviation) * 100) / 100
+        },
+        coefficient_of_variation: {
+          baseline: baselineStats.coefficient_of_variation,
+          current: currentStats.coefficient_of_variation,
+          change: Math.round((currentStats.coefficient_of_variation - baselineStats.coefficient_of_variation) * 1000) / 1000
+        },
+        range: {
+          baseline: { min: baselineStats.min, max: baselineStats.max },
+          current: { min: currentStats.min, max: currentStats.max }
+        }
+      }
+    };
   }
 
   /**
@@ -227,9 +440,12 @@ class ReportComparator {
 
     // Initialize stats for all endpoint types
     const allEndpointTypes = new Set();
-    [...baselineTests.values(), ...currentTests.values()].forEach(test => {
+    for (const test of baselineTests.values()) {
       allEndpointTypes.add(test.endpoint_type);
-    });
+    }
+    for (const test of currentTests.values()) {
+      allEndpointTypes.add(test.endpoint_type);
+    }
 
     allEndpointTypes.forEach(type => {
       endpointStats.set(type, {
@@ -359,7 +575,7 @@ class ReportComparator {
    * Generate HTML comparison report
    */
   generateHTMLReport(comparison) {
-    const { metadata, summary, test_differences, endpoint_analysis } = comparison;
+    const { metadata, summary, test_differences, endpoint_analysis, detailed_performance, provider_analysis, response_size_analysis } = comparison;
   const title = this.comparisonName || "Test Report Comparison";
     return `
 <!DOCTYPE html>
@@ -409,6 +625,171 @@ class ReportComparator {
             </div>
         </div>
     </div>
+    <div class="section">
+        <h2>Analysis by Endpoint Type</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Endpoint Type</th>
+                    <th>Test Count</th>
+                    <th>Pass Rate Change</th>
+                    <th>Regressions</th>
+                    <th>Improvements</th>
+                    <th>Avg Duration Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${endpoint_analysis.map(ep => {
+                  const baselinePassRate = ep.baseline_total > 0 ? (ep.baseline_passed / ep.baseline_total * 100).toFixed(1) : 0;
+                  const currentPassRate = ep.current_total > 0 ? (ep.current_passed / ep.current_total * 100).toFixed(1) : 0;
+                  const passRateChange = (currentPassRate - baselinePassRate).toFixed(1);
+                  return `
+                    <tr>
+                        <td>${ep.endpoint_type}</td>
+                        <td>${ep.baseline_total} → ${ep.current_total}</td>
+                        <td class="${passRateChange >= 0 ? 'positive' : 'negative'}">${baselinePassRate}% → ${currentPassRate}% (${passRateChange >= 0 ? '+' : ''}${passRateChange}%)</td>
+                        <td>${ep.regressions}</td>
+                        <td>${ep.improvements}</td>
+                        <td class="${ep.avg_duration_change <= 0 ? 'positive' : 'negative'}">${ep.avg_duration_change >= 0 ? '+' : ''}${ep.avg_duration_change}ms</td>
+                    </tr>
+                  `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+    ${detailed_performance && !detailed_performance.error ? `
+    <div class="section">
+        <h2>📊 Detailed Performance Analysis</h2>
+        <div class="summary-grid">
+            <div class="metric-card">
+                <div class="metric-value">${detailed_performance.sample_sizes.baseline.toLocaleString()}</div>
+                <div>Baseline Samples</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${detailed_performance.sample_sizes.current.toLocaleString()}</div>
+                <div>Current Samples</div>
+            </div>
+        </div>
+        <h3>Performance Percentiles</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Percentile</th>
+                    <th>Baseline (ms)</th>
+                    <th>Current (ms)</th>
+                    <th>Change (ms)</th>
+                    <th>Relative Change (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(detailed_performance.percentiles).map(([percentile, data]) => `
+                    <tr>
+                        <td>${percentile}</td>
+                        <td>${data.baseline}</td>
+                        <td>${data.current}</td>
+                        <td class="${data.change <= 0 ? 'positive' : 'negative'}">${data.change >= 0 ? '+' : ''}${data.change}</td>
+                        <td class="${data.relative_change <= 0 ? 'positive' : 'negative'}">${data.relative_change >= 0 ? '+' : ''}${data.relative_change}%</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <h3>Statistical Metrics</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Baseline</th>
+                    <th>Current</th>
+                    <th>Change</th>
+                    <th>Relative Change (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Mean</td>
+                    <td>${detailed_performance.statistical_metrics.mean.baseline}</td>
+                    <td>${detailed_performance.statistical_metrics.mean.current}</td>
+                    <td class="${detailed_performance.statistical_metrics.mean.change <= 0 ? 'positive' : 'negative'}">${detailed_performance.statistical_metrics.mean.change >= 0 ? '+' : ''}${detailed_performance.statistical_metrics.mean.change}</td>
+                    <td class="${detailed_performance.statistical_metrics.mean.relative_change <= 0 ? 'positive' : 'negative'}">${detailed_performance.statistical_metrics.mean.relative_change >= 0 ? '+' : ''}${detailed_performance.statistical_metrics.mean.relative_change}%</td>
+                </tr>
+                <tr>
+                    <td>Standard Deviation</td>
+                    <td>${detailed_performance.statistical_metrics.std_deviation.baseline}</td>
+                    <td>${detailed_performance.statistical_metrics.std_deviation.current}</td>
+                    <td class="${detailed_performance.statistical_metrics.std_deviation.change <= 0 ? 'positive' : 'negative'}">${detailed_performance.statistical_metrics.std_deviation.change >= 0 ? '+' : ''}${detailed_performance.statistical_metrics.std_deviation.change}</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Coefficient of Variation</td>
+                    <td>${detailed_performance.statistical_metrics.coefficient_of_variation.baseline}</td>
+                    <td>${detailed_performance.statistical_metrics.coefficient_of_variation.current}</td>
+                    <td class="${detailed_performance.statistical_metrics.coefficient_of_variation.change <= 0 ? 'positive' : 'negative'}">${detailed_performance.statistical_metrics.coefficient_of_variation.change >= 0 ? '+' : ''}${detailed_performance.statistical_metrics.coefficient_of_variation.change}</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+    ${provider_analysis && provider_analysis.length > 0 ? `
+    <div class="section">
+        <h2>🏢 Provider Analysis</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Provider ID</th>
+                    <th>Test Count Change</th>
+                    <th>Pass Rate Change</th>
+                    <th>Avg Duration Change</th>
+                    <th>Relative Performance Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${provider_analysis.map(provider => {
+                  const baselinePassRate = parseFloat(provider.pass_rate.baseline);
+                  const currentPassRate = parseFloat(provider.pass_rate.current);
+                  const passRateChange = (currentPassRate - baselinePassRate).toFixed(1);
+                  return `
+                    <tr>
+                        <td>${provider.provider_id}</td>
+                        <td>${provider.test_count.baseline} → ${provider.test_count.current} (${provider.test_count.change >= 0 ? '+' : ''}${provider.test_count.change})</td>
+                        <td class="${passRateChange >= 0 ? 'positive' : 'negative'}">${provider.pass_rate.baseline}% → ${provider.pass_rate.current}% (${passRateChange >= 0 ? '+' : ''}${passRateChange}%)</td>
+                        <td class="${provider.avg_duration.change <= 0 ? 'positive' : 'negative'}">${provider.avg_duration.baseline}ms → ${provider.avg_duration.current}ms (${provider.avg_duration.change >= 0 ? '+' : ''}${provider.avg_duration.change}ms)</td>
+                        <td class="${provider.avg_duration.relative_change <= 0 ? 'positive' : 'negative'}">${provider.avg_duration.relative_change >= 0 ? '+' : ''}${provider.avg_duration.relative_change}%</td>
+                    </tr>
+                  `;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+    ${response_size_analysis ? `
+    <div class="section">
+        <h2>📏 Response Size vs Performance Analysis</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Size Category</th>
+                    <th>Sample Count (B→C)</th>
+                    <th>Avg Duration (B→C)</th>
+                    <th>Duration Change</th>
+                    <th>Avg Size Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(response_size_analysis).map(([category, data]) => `
+                    <tr>
+                        <td style="text-transform: capitalize;">${category}</td>
+                        <td>${data.baseline.count} → ${data.current.count}</td>
+                        <td>${data.baseline.avg_duration}ms → ${data.current.avg_duration}ms</td>
+                        <td class="${data.duration_change <= 0 ? 'positive' : 'negative'}">${data.duration_change >= 0 ? '+' : ''}${data.duration_change}ms</td>
+                        <td class="${data.size_change <= 0 ? 'positive' : 'negative'}">${data.size_change >= 0 ? '+' : ''}${data.size_change.toLocaleString()} bytes</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        <p><small><strong>Size Categories:</strong> Tiny (&lt;1KB), Small (&lt;10KB), Medium (&lt;100KB), Large (≥100KB)</small></p>
+    </div>
+    ` : ''}
     <div class="section">
         <h2>Changes Overview</h2>
         <div class="summary-grid">
@@ -486,40 +867,164 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
-    <div class="section">
-        <h2>Analysis by Endpoint Type</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Endpoint Type</th>
-                    <th>Test Count</th>
-                    <th>Pass Rate Change</th>
-                    <th>Regressions</th>
-                    <th>Improvements</th>
-                    <th>Avg Duration Change</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${endpoint_analysis.map(ep => {
-                  const baselinePassRate = ep.baseline_total > 0 ? (ep.baseline_passed / ep.baseline_total * 100).toFixed(1) : 0;
-                  const currentPassRate = ep.current_total > 0 ? (ep.current_passed / ep.current_total * 100).toFixed(1) : 0;
-                  const passRateChange = (currentPassRate - baselinePassRate).toFixed(1);
-                  return `
-                    <tr>
-                        <td>${ep.endpoint_type}</td>
-                        <td>${ep.baseline_total} → ${ep.current_total}</td>
-                        <td class="${passRateChange >= 0 ? 'positive' : 'negative'}">${baselinePassRate}% → ${currentPassRate}% (${passRateChange >= 0 ? '+' : ''}${passRateChange}%)</td>
-                        <td>${ep.regressions}</td>
-                        <td>${ep.improvements}</td>
-                        <td class="${ep.avg_duration_change <= 0 ? 'positive' : 'negative'}">${ep.avg_duration_change >= 0 ? '+' : ''}${ep.avg_duration_change}ms</td>
-                    </tr>
-                  `;
-                }).join('')}
-            </tbody>
-        </table>
-    </div>
 </body>
 </html>`;
+  }
+
+  /**
+   * Analyze performance by test provider
+   */
+  analyzeByProvider(baselineResults, currentResults) {
+    const providerStats = new Map();
+
+    // Initialize provider stats
+    const allProviders = new Set();
+    for (const test of baselineResults) {
+      if (test.provider_id) allProviders.add(test.provider_id);
+    }
+    for (const test of currentResults) {
+      if (test.provider_id) allProviders.add(test.provider_id);
+    }
+
+    allProviders.forEach(provider => {
+      providerStats.set(provider, {
+        provider_id: provider,
+        baseline: { total: 0, passed: 0, failed: 0, errors: 0, durations: [] },
+        current: { total: 0, passed: 0, failed: 0, errors: 0, durations: [] }
+      });
+    });
+
+    // Collect baseline stats
+    for (const test of baselineResults) {
+      if (!test.provider_id) continue;
+      const stats = providerStats.get(test.provider_id);
+      if (!stats) continue;
+      
+      stats.baseline.total++;
+      if (test.status === 'PASS') {
+        stats.baseline.passed++;
+        if (typeof test.duration_ms === 'number') {
+          stats.baseline.durations.push(test.duration_ms);
+        }
+      } else if (test.status === 'FAIL') {
+        stats.baseline.failed++;
+      } else {
+        stats.baseline.errors++;
+      }
+    }
+
+    // Collect current stats
+    for (const test of currentResults) {
+      if (!test.provider_id) continue;
+      const stats = providerStats.get(test.provider_id);
+      if (!stats) continue;
+      
+      stats.current.total++;
+      if (test.status === 'PASS') {
+        stats.current.passed++;
+        if (typeof test.duration_ms === 'number') {
+          stats.current.durations.push(test.duration_ms);
+        }
+      } else if (test.status === 'FAIL') {
+        stats.current.failed++;
+      } else {
+        stats.current.errors++;
+      }
+    }
+
+    // Calculate metrics for each provider
+    const result = [];
+    providerStats.forEach(stats => {
+      const baselineAvg = stats.baseline.durations.length > 0 ? 
+        stats.baseline.durations.reduce((a, b) => a + b, 0) / stats.baseline.durations.length : 0;
+      const currentAvg = stats.current.durations.length > 0 ? 
+        stats.current.durations.reduce((a, b) => a + b, 0) / stats.current.durations.length : 0;
+      
+      result.push({
+        provider_id: stats.provider_id,
+        test_count: {
+          baseline: stats.baseline.total,
+          current: stats.current.total,
+          change: stats.current.total - stats.baseline.total
+        },
+        pass_rate: {
+          baseline: stats.baseline.total > 0 ? (stats.baseline.passed / stats.baseline.total * 100).toFixed(1) : 0,
+          current: stats.current.total > 0 ? (stats.current.passed / stats.current.total * 100).toFixed(1) : 0
+        },
+        avg_duration: {
+          baseline: Math.round(baselineAvg * 100) / 100,
+          current: Math.round(currentAvg * 100) / 100,
+          change: Math.round((currentAvg - baselineAvg) * 100) / 100,
+          relative_change: baselineAvg > 0 ? Math.round(((currentAvg - baselineAvg) / baselineAvg) * 1000) / 10 : 0
+        }
+      });
+    });
+
+    return result;
+  }
+
+  /**
+   * Analyze response size vs performance correlation
+   */
+  analyzeResponseSizePerformance(baselineResults, currentResults) {
+    const analyzeSizePerf = (results) => {
+      const sizeRanges = {
+        tiny: { threshold: 1000, durations: [], sizes: [] },
+        small: { threshold: 10000, durations: [], sizes: [] },
+        medium: { threshold: 100000, durations: [], sizes: [] },
+        large: { threshold: Infinity, durations: [], sizes: [] }
+      };
+
+      results.filter(test => test.status === 'PASS' && test.response_size_bytes && test.duration_ms)
+        .forEach(test => {
+          const size = test.response_size_bytes;
+          const duration = test.duration_ms;
+          
+          if (size < 1000) {
+            sizeRanges.tiny.durations.push(duration);
+            sizeRanges.tiny.sizes.push(size);
+          } else if (size < 10000) {
+            sizeRanges.small.durations.push(duration);
+            sizeRanges.small.sizes.push(size);
+          } else if (size < 100000) {
+            sizeRanges.medium.durations.push(duration);
+            sizeRanges.medium.sizes.push(size);
+          } else {
+            sizeRanges.large.durations.push(duration);
+            sizeRanges.large.sizes.push(size);
+          }
+        });
+
+      const result = {};
+      Object.keys(sizeRanges).forEach(range => {
+        const durations = sizeRanges[range].durations;
+        const sizes = sizeRanges[range].sizes;
+        result[range] = {
+          count: durations.length,
+          avg_duration: durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length * 100) / 100 : 0,
+          avg_size: sizes.length > 0 ? Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length) : 0
+        };
+      });
+      return result;
+    };
+
+    const baselineAnalysis = analyzeSizePerf(baselineResults);
+    const currentAnalysis = analyzeSizePerf(currentResults);
+
+    const comparison = {};
+    Object.keys(baselineAnalysis).forEach(range => {
+      const baseline = baselineAnalysis[range];
+      const current = currentAnalysis[range];
+      
+      comparison[range] = {
+        baseline: baseline,
+        current: current,
+        duration_change: Math.round((current.avg_duration - baseline.avg_duration) * 100) / 100,
+        size_change: current.avg_size - baseline.avg_size
+      };
+    });
+
+    return comparison;
   }
 }
 
