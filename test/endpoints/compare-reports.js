@@ -280,78 +280,6 @@ class ReportComparator {
   }
 
   /**
-   * Perform detailed performance analysis with percentiles and statistical metrics
-   */
-  performDetailedPerformanceAnalysis(baselineResults, currentResults) {
-    // Extract duration values from successful tests only
-    const baselineDurations = baselineResults
-      .filter(test => test.status === 'PASS')
-      .map(test => test.duration_ms || 0);
-    
-    const currentDurations = currentResults
-      .filter(test => test.status === 'PASS')
-      .map(test => test.duration_ms || 0);
-
-    if (baselineDurations.length === 0 || currentDurations.length === 0) {
-      return { error: 'Insufficient data for performance analysis' };
-    }
-
-    // Calculate percentiles
-    const baselinePercentiles = this.calculatePercentiles(baselineDurations);
-    const currentPercentiles = this.calculatePercentiles(currentDurations);
-    
-    // Calculate statistical metrics
-    const baselineStats = this.calculateStats(baselineDurations);
-    const currentStats = this.calculateStats(currentDurations);
-
-    // Build comparison object
-    const percentileComparison = {};
-    Object.keys(baselinePercentiles).forEach(key => {
-      const baselineVal = baselinePercentiles[key];
-      const currentVal = currentPercentiles[key];
-      const change = currentVal - baselineVal;
-      const relativeChange = baselineVal > 0 ? (change / baselineVal) * 100 : 0;
-      
-      percentileComparison[key] = {
-        baseline: Math.round(baselineVal * 100) / 100,
-        current: Math.round(currentVal * 100) / 100,
-        change: Math.round(change * 100) / 100,
-        relative_change: Math.round(relativeChange * 10) / 10
-      };
-    });
-
-    return {
-      sample_sizes: {
-        baseline: baselineDurations.length,
-        current: currentDurations.length
-      },
-      percentiles: percentileComparison,
-      statistical_metrics: {
-        mean: {
-          baseline: baselineStats.mean,
-          current: currentStats.mean,
-          change: Math.round((currentStats.mean - baselineStats.mean) * 100) / 100,
-          relative_change: baselineStats.mean > 0 ? Math.round(((currentStats.mean - baselineStats.mean) / baselineStats.mean) * 1000) / 10 : 0
-        },
-        std_deviation: {
-          baseline: baselineStats.std_deviation,
-          current: currentStats.std_deviation,
-          change: Math.round((currentStats.std_deviation - baselineStats.std_deviation) * 100) / 100
-        },
-        coefficient_of_variation: {
-          baseline: baselineStats.coefficient_of_variation,
-          current: currentStats.coefficient_of_variation,
-          change: Math.round((currentStats.coefficient_of_variation - baselineStats.coefficient_of_variation) * 1000) / 1000
-        },
-        range: {
-          baseline: { min: baselineStats.min, max: baselineStats.max },
-          current: { min: currentStats.min, max: currentStats.max }
-        }
-      }
-    };
-  }
-
-  /**
    * Compare individual tests
    */
   compareTests(baselineTests, currentTests) {
@@ -1001,7 +929,7 @@ class ReportComparator {
         const sizes = sizeRanges[range].sizes;
         result[range] = {
           count: durations.length,
-          avg_duration: durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length * 100) / 100 : 0,
+          avg_duration: durations.length > 0 ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 100) / 100 : 0,
           avg_size: sizes.length > 0 ? Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length) : 0
         };
       });
