@@ -726,13 +726,6 @@ class ReportComparator {
     <div class="section">
         <h2>📊 Performance Visualizations</h2>
         <div style="margin-bottom: 40px;">
-            <h3>⚡ All Test Response Times: Baseline vs Current</h3>
-            <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests sorted by baseline duration (fastest to slowest)</em></small></p>
-            <div style="width: 100%; height: 400px; position: relative;">
-                <canvas id="responseTimeChart"></canvas>
-            </div>
-        </div>
-        <div style="margin-bottom: 40px;">
             <h3>🕒 Chronological Response Times: Baseline vs Current</h3>
             <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests in execution order (left to right = chronological)</em></small></p>
             <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
@@ -867,91 +860,6 @@ class ReportComparator {
     <script>
     // Chart.js configuration and rendering
     document.addEventListener('DOMContentLoaded', function() {
-        // Response Time Line Chart (Full Width)
-        const responseTimeData = ${JSON.stringify(this.generateResponseTimeLineData(baselineResults, currentResults))};
-        if (responseTimeData && responseTimeData.datasets) {
-            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
-            new Chart(responseTimeCtx, {
-                type: 'line',
-                data: {
-                    labels: responseTimeData.labels,
-                    datasets: responseTimeData.datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: {
-                        padding: 10
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'Response Time Comparison (' + responseTimeData.metadata.totalTests.toLocaleString() + ' tests shown)',
-                            font: { size: 14, weight: 'bold' }
-                        },
-                        legend: {
-                            position: 'top',
-                            labels: { usePointStyle: true, padding: 20 }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: function(context) {
-                                    const index = context[0].dataIndex;
-                                    return 'Test #' + (index + 1) + ' of ' + responseTimeData.metadata.totalTests.toLocaleString();
-                                },
-                                label: function(context) {
-                                    const isBaseline = context.datasetIndex === 0;
-                                    const label = isBaseline ? 'Baseline' : 'Current';
-                                    const value = context.parsed.y;
-                                    return label + ': ' + value + 'ms';
-                                },
-                                afterBody: function(context) {
-                                    const index = context[0].dataIndex;
-                                    const testDetail = responseTimeData.metadata.testDetails[index];
-                                    if (testDetail) {
-                                        const change = testDetail.current - testDetail.baseline;
-                                        const pctChange = testDetail.baseline > 0 ? ((change / testDetail.baseline) * 100).toFixed(1) : 0;
-                                        return [
-                                            'Change: ' + (change >= 0 ? '+' : '') + change + 'ms (' + pctChange + '%)',
-                                            'Test: ' + testDetail.testName.substring(0, 50) + '...'
-                                        ];
-                                    }
-                                    return [];
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: { display: true, text: 'Tests (sorted by baseline performance)' },
-                            grid: { display: false },
-                            ticks: {
-                                maxTicksLimit: 10,
-                                callback: function(value, index) {
-                                    const total = responseTimeData.metadata.sampledTests;
-                                    if (index === 0) return 'Fastest';
-                                    if (index === this.getLabelForValue(this.max)) return 'Slowest';
-                                    return 'Tests (sorted by baseline performance)' + (value / total) * 100 + '%';
-                                }
-                            }
-                        },
-                        y: {
-                            title: { display: true, text: 'Response Time (ms)' },
-                            grid: { color: 'rgba(0,0,0,0.1)' },
-                            beginAtZero: true
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    }
-                }
-            });
-        }
-        
         // Chronological Response Time Line Chart with Controls
         const chronologicalData = ${JSON.stringify(this.generateChronologicalResponseTimeData(baselineResults, currentResults))};
         let chronologicalChart = null;
@@ -1305,71 +1213,6 @@ class ReportComparator {
     </script>
 </body>
 </html>`;
-  }
-
-  /**
-   * Generate chart data for response time line chart showing all test comparisons
-   */
-  generateResponseTimeLineData(baselineResults, currentResults) {
-    // Create test maps for efficient lookup
-    const baselineMap = new Map();
-    const currentMap = new Map();
-    
-    // Collect successful tests with durations
-    baselineResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => baselineMap.set(test.test_name, test.duration_ms));
-    
-    currentResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => currentMap.set(test.test_name, test.duration_ms));
-    
-    // Find tests that exist in both datasets
-    const commonTests = [];
-    baselineMap.forEach((baselineDuration, testName) => {
-      if (currentMap.has(testName)) {
-        commonTests.push({
-          testName,
-          baseline: baselineDuration,
-          current: currentMap.get(testName)
-        });
-      }
-    });
-    
-    // Sort by baseline duration for a nice visual progression
-    commonTests.sort((a, b) => a.baseline - b.baseline);
-    
-    return {
-      labels: commonTests.map((_, index) => index), // Use indices as x-axis
-      datasets: [
-        {
-          label: 'Baseline Performance',
-          data: commonTests.map(test => test.baseline),
-          borderColor: 'rgba(54, 162, 235, 0.8)',
-          backgroundColor: 'rgba(54, 162, 235, 0.1)',
-          pointRadius: 0, // No individual points for cleaner look
-          pointHoverRadius: 4,
-          borderWidth: 2,
-          tension: 0 // Straight lines between points
-        },
-        {
-          label: 'Current Performance',
-          data: commonTests.map(test => test.current),
-          borderColor: 'rgba(255, 99, 132, 0.8)',
-          backgroundColor: 'rgba(255, 99, 132, 0.1)',
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          borderWidth: 2,
-          tension: 0
-        }
-      ],
-      metadata: {
-        totalTests: commonTests.length,
-        sampledTests: commonTests.length,
-        sampleInterval: 1,
-        testDetails: commonTests // Store for tooltip info
-      }
-    };
   }
 
   /**
