@@ -549,7 +549,7 @@ class ReportComparator {
     return slowestBaseline.map(baselineTest => {
       const currentTest = currentTestsMap.get(baselineTest.stableKey);
       const currentDuration = currentTest ? (currentTest.duration_ms || 0) : null;
-      const currentStatus = currentTest ? currentTest.status : 'MISSING';
+      const currentStatus = currentTest ? currentTest.status : 'MISSING*';
       
       return {
         test_name: baselineTest.test_name,
@@ -590,7 +590,7 @@ class ReportComparator {
     return slowestCurrent.map(currentTest => {
       const baselineTest = baselineTestsMap.get(currentTest.stableKey);
       const baselineDuration = baselineTest ? (baselineTest.duration_ms || 0) : null;
-      const baselineStatus = baselineTest ? baselineTest.status : 'MISSING';
+      const baselineStatus = baselineTest ? baselineTest.status : 'MISSING*';
       
       return {
         test_name: currentTest.test_name,
@@ -948,7 +948,7 @@ class ReportComparator {
                         <td>${data.baseline.count} → ${data.current.count}</td>
                         <td>${data.baseline.avg_duration}ms → ${data.current.avg_duration}ms</td>
                         <td class="${data.duration_change <= 0 ? 'positive' : 'negative'}">${data.duration_change >= 0 ? '+' : ''}${data.duration_change}ms</td>
-                        <td class="${data.size_change <= 0 ? 'positive' : 'negative'}">${data.size_change >= 0 ? '+' : ''}${data.size_change.toLocaleString()} bytes</td>
+                        <td class="neutral">${data.size_change >= 0 ? '+' : ''}${data.size_change.toLocaleString()} bytes</td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -991,7 +991,7 @@ class ReportComparator {
                   const relativeChange = test.relative_change;
                   const isImproved = durationChange !== null && durationChange < 0;
                   const isRegressed = durationChange !== null && durationChange > 0;
-                  const isMissing = test.current_status === 'MISSING';
+                  const isMissing = test.current_status === 'MISSING*';
                   
                   const baselineLink = test.baseline_url 
                     ? `<a href="${test.baseline_url}" target="_blank" title="${(test.baseline_description || '').replace(/"/g, '&quot;')}">${test.baseline_duration}ms</a>`
@@ -1008,7 +1008,7 @@ class ReportComparator {
                         <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
                         <td>${baselineLink}</td>
                         <td>${currentLink}</td>
-                        <td class="${test.current_status === 'PASS' ? 'positive' : test.current_status === 'MISSING' ? 'neutral' : 'negative'}">${test.current_status}</td>
+                        <td class="${test.current_status === 'PASS' ? 'positive' : test.current_status === 'MISSING*' ? 'neutral' : 'negative'}">${test.current_status}</td>
                         <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
                         <td class="${isImproved ? 'positive' : isRegressed ? 'negative' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
                     </tr>
@@ -1016,6 +1016,9 @@ class ReportComparator {
                 }).join('')}
             </tbody>
         </table>
+        <p style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 13px; color: #666;">
+            <strong>* MISSING:</strong> Unable to find the associated response in the current test run. This typically occurs due to differences in test execution or data variations. A future update will improve this lookup mechanism.
+        </p>
     </div>
     ` : ''}
     ${slowest_current_analysis && slowest_current_analysis.length > 0 ? `
@@ -1050,7 +1053,7 @@ class ReportComparator {
                   const relativeChange = test.relative_change;
                   const isImproved = durationChange !== null && durationChange < 0;
                   const isRegressed = durationChange !== null && durationChange > 0;
-                  const isMissing = test.baseline_status === 'MISSING';
+                  const isMissing = test.baseline_status === 'MISSING*';
                   
                   const currentLink = test.current_url 
                     ? `<a href="${test.current_url}" target="_blank" title="${(test.current_description || '').replace(/"/g, '&quot;')}">${test.current_duration}ms</a>`
@@ -1067,7 +1070,7 @@ class ReportComparator {
                         <td title="${test.test_name}" style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${test.test_name}</td>
                         <td>${currentLink}</td>
                         <td>${baselineLink}</td>
-                        <td class="${test.baseline_status === 'PASS' ? 'positive' : test.baseline_status === 'MISSING' ? 'neutral' : 'negative'}">${test.baseline_status}</td>
+                        <td class="${test.baseline_status === 'PASS' ? 'positive' : test.baseline_status === 'MISSING*' ? 'neutral' : 'negative'}">${test.baseline_status}</td>
                         <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${durationChange !== null ? (durationChange >= 0 ? '+' : '') + durationChange + 'ms' : 'N/A'}</td>
                         <td class="${isRegressed ? 'negative' : isImproved ? 'positive' : 'neutral'}">${relativeChange !== null ? (relativeChange >= 0 ? '+' : '') + relativeChange.toFixed(1) + '%' : 'N/A'}</td>
                     </tr>
@@ -1075,6 +1078,9 @@ class ReportComparator {
                 }).join('')}
             </tbody>
         </table>
+        <p style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 13px; color: #666;">
+            <strong>* MISSING:</strong> Unable to find the associated response in the baseline test run. This typically occurs due to differences in test execution or data variations. A future update will improve this lookup mechanism.
+        </p>
     </div>
     ` : ''}
     <div class="section" id="regressions-and-improvements">
