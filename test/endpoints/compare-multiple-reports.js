@@ -9,19 +9,19 @@ const configurations = [
   {
     baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
     currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
-    baseOutputDir: 'comparisons',
+    baseOutputDir: 'reports/comparisons',
     comparisonName: 'ML Full to ML-Mini-16'
   },
   {
     baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
     currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'comparisons',
+    baseOutputDir: 'reports/comparisons',
     comparisonName: 'ML Full to QL-Dev-2'
   },
   {
     baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
     currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'comparisons',
+    baseOutputDir: 'reports/comparisons',
     comparisonName: 'ML-Mini-16 to QL-Dev-2'
   },
 ];
