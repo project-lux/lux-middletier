@@ -83,34 +83,72 @@ class ReportComparator {
 
   /**
    * Extract stable key from test data
-   * Uses a hybrid approach: primarily test_name + endpoint_type for consistency,
-   * but falls back to response_body_file for tests that might have duplicate names
-   * 
-   * This ensures the same test gets the same stable key whether it passes or fails
+   * Uses multiple fields to create a unique, robust identifier for each test execution
+   * This ensures we can reliably match the same test between different runs
    */
   extractStableKey(test) {
-    // Primary approach: use test_name + endpoint_type for consistent matching
-    // This works regardless of whether the test passes (has response_body_file) or fails (no response_body_file)
-    if (test.test_name && test.endpoint_type) {
-      return `${test.endpoint_type}:${test.test_name}`;
-    }
-    
-    // Fallback for tests without proper test_name: use response_body_file if available
+    // Primary approach: use response_body_file path (most reliable when available)
     if (test.response_body_file) {
+      // Extract the stable portion: provider + filename (excludes timestamp directory)
       const parts = test.response_body_file.split('/');
       const testsIndex = parts.findIndex(part => part.endsWith('-tests'));
       
       if (testsIndex !== -1 && testsIndex < parts.length - 1) {
-        // Return everything after the tests directory
+        // Return everything after the tests directory (provider + filename)
         return parts.slice(testsIndex + 1).join('/');
       }
       
-      // Fallback: just use the filename if pattern not found
+      // Fallback: use just the filename
       return parts[parts.length - 1];
     }
     
-    // Last resort fallback
-    return test.url || 'unknown';
+    // Fallback for tests without response_body_file (failed/timeout tests)
+    // Create composite key from multiple stable fields to ensure uniqueness
+    const keyParts = [];
+    
+    if (test.endpoint_type) keyParts.push(test.endpoint_type);
+    if (test.provider_id) keyParts.push(test.provider_id);
+    if (test.test_name) keyParts.push(test.test_name);
+    if (test.source_file) keyParts.push(test.source_file);
+    
+    // Add parameter signature for additional uniqueness
+    if (test.parameters && typeof test.parameters === 'object') {
+      const paramSignature = JSON.stringify(test.parameters);
+      const paramHash = this.simpleHash(paramSignature);
+      keyParts.push(`params:${paramHash}`);
+    }
+    
+    // Add URL path (without domain) for additional uniqueness
+    if (test.url) {
+      try {
+        const urlObj = new URL(test.url);
+        keyParts.push(`path:${urlObj.pathname}${urlObj.search}`);
+      } catch (e) {
+        // If URL parsing fails, just use the whole URL
+        keyParts.push(`url:${test.url}`);
+      }
+    }
+    
+    if (keyParts.length === 0) {
+      // Last resort: use timestamp if available
+      return test.timestamp || 'unknown';
+    }
+    
+    return keyParts.join('|');
+  }
+
+  /**
+   * Simple hash function for creating consistent short identifiers
+   */
+  simpleHash(str) {
+    let hash = 0;
+    if (str.length === 0) return hash.toString();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
   }
 
   /**
@@ -1629,59 +1667,48 @@ class ReportComparator {
    * Generate chart data for chronological response time line chart (execution order)
    */
   generateChronologicalResponseTimeData(baselineResults, currentResults) {
-    // Create test maps for efficient lookup
-    const baselineMap = new Map();
-    const currentMap = new Map();
+    // Use natural execution order from JSON files (no sorting needed)
     
-    // Collect successful tests with durations
-    baselineResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
-      .forEach(test => baselineMap.set(test.stableKey, test.duration_ms));
+    // Just get PASS tests with durations - use natural order from JSON
+    const baselinePassing = baselineResults.filter(test => 
+      test.status === 'PASS' && typeof test.duration_ms === 'number'
+    );
     
-    currentResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
-      .forEach(test => currentMap.set(test.stableKey, test.duration_ms));
+    const currentPassing = currentResults.filter(test => 
+      test.status === 'PASS' && typeof test.duration_ms === 'number'
+    );
     
-    // Use current results order as the chronological baseline (they should be in execution order)
-    const chronologicalTests = [];
-    let testIndex = 0;
-    currentResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
-      .forEach((test, index) => {
-        if (baselineMap.has(test.stableKey)) {
-          chronologicalTests.push({
-            testName: test.test_name,
-            baseline: baselineMap.get(test.stableKey),
-            current: test.duration_ms,
-            originalIndex: index,
-            timestamp: test.timestamp || new Date(Date.now() + index * 1000).toISOString() // Use test timestamp or simulate
-          });
-        }
+    if (baselinePassing.length === 0 || currentPassing.length === 0) {
+      return {
+        labels: [],
+        datasets: [],
+        fullData: [],
+        timeLabels: [],
+        metadata: { totalTests: 0, note: 'No passing tests with durations' }
+      };
+    }
+    
+    // Use the shorter list length for pairing
+    const maxLength = Math.min(baselinePassing.length, currentPassing.length);
+    
+    // Use all data points - modern browsers can handle it
+    const chartData = [];
+    for (let i = 0; i < maxLength; i++) {
+      chartData.push({
+        index: i,
+        baseline: baselinePassing[i].duration_ms,
+        current: currentPassing[i].duration_ms,
+        baselineTest: baselinePassing[i].test_name,
+        currentTest: currentPassing[i].test_name
       });
-    
-    // Generate time labels for x-axis (sample at key points)
-    const timeLabels = [];
-    const totalTests = chronologicalTests.length;
-    for (let i = 0; i < totalTests; i += Math.floor(totalTests / 10)) {
-      const test = chronologicalTests[i];
-      if (test && test.timestamp) {
-        timeLabels.push({
-          index: i,
-          time: new Date(test.timestamp).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          })
-        });
-      }
     }
     
     return {
-      labels: chronologicalTests.map((_, index) => index),
+      labels: chartData.map(d => d.index),
       datasets: [
         {
           label: 'Baseline Performance',
-          data: chronologicalTests.map(test => test.baseline),
+          data: chartData.map(d => d.baseline),
           borderColor: 'rgba(54, 162, 235, 0.8)',
           backgroundColor: 'rgba(54, 162, 235, 0.1)',
           pointRadius: 0,
@@ -1690,8 +1717,8 @@ class ReportComparator {
           tension: 0.1
         },
         {
-          label: 'Current Performance',
-          data: chronologicalTests.map(test => test.current),
+          label: 'Current Performance', 
+          data: chartData.map(d => d.current),
           borderColor: 'rgba(255, 99, 132, 0.8)',
           backgroundColor: 'rgba(255, 99, 132, 0.1)',
           pointRadius: 0,
@@ -1700,13 +1727,13 @@ class ReportComparator {
           tension: 0.1
         }
       ],
-      fullData: chronologicalTests, // Include full dataset
-      timeLabels: timeLabels,
+      fullData: chartData,
+      timeLabels: [], // Simplified - just use execution order
       metadata: {
-        totalTests: chronologicalTests.length,
-        sampledTests: chronologicalTests.length,
+        totalTests: maxLength,
+        sampledTests: chartData.length,
         sampleInterval: 1,
-        testDetails: chronologicalTests
+        note: 'All tests paired by execution order'
       }
     };
   }
