@@ -45,6 +45,10 @@ class ReportComparator {
     const baseline = this.loadReport(this.baselineFile);
     const current = this.loadReport(this.currentFile);
 
+    // Add stable keys for efficient matching
+    this.addStableKeys(baseline.results);
+    this.addStableKeys(current.results);
+
     console.log(`Baseline: ${baseline.results.length} tests (${baseline.summary.timestamp})`);
     console.log(`Current:  ${current.results.length} tests (${current.summary.timestamp})`);
 
@@ -78,12 +82,45 @@ class ReportComparator {
   }
 
   /**
-   * Create a map of tests keyed by test description for efficient lookup
+   * Extract stable key from response_body_file path
+   * Takes everything after the endpoint type directory (e.g., get-facets-tests)
+   * Example: "reports/test-run-2025-11-14_19-14-58/responses/get-facets-tests/BackendLogsTestDataProvider/confRow000893.json"
+   * Returns: "BackendLogsTestDataProvider/confRow000893.json"
+   */
+  extractStableKey(responseBodyFile) {
+    if (!responseBodyFile) return null;
+    
+    // Split by '/' and find the endpoint tests directory
+    const parts = responseBodyFile.split('/');
+    const testsIndex = parts.findIndex(part => part.endsWith('-tests'));
+    
+    if (testsIndex === -1 || testsIndex >= parts.length - 1) {
+      // Fallback: just use the filename if pattern not found
+      return parts[parts.length - 1];
+    }
+    
+    // Return everything after the tests directory
+    return parts.slice(testsIndex + 1).join('/');
+  }
+
+  /**
+   * Add stable keys to test results for efficient matching
+   */
+  addStableKeys(results) {
+    results.forEach(test => {
+      test.stableKey = this.extractStableKey(test.response_body_file);
+    });
+  }
+
+  /**
+   * Create a map of tests keyed by stable key for efficient lookup
    */
   createTestMap(results) {
     const map = new Map();
     results.forEach(test => {
-      map.set(test.description, test);
+      if (test.stableKey) {
+        map.set(test.stableKey, test);
+      }
     });
     return map;
   }
@@ -295,8 +332,8 @@ class ReportComparator {
     };
 
     // Check tests in current report
-    for (const [testDescription, currentTest] of currentTests) {
-      const baselineTest = baselineTests.get(testDescription);
+    for (const [testStableKey, currentTest] of currentTests) {
+      const baselineTest = baselineTests.get(testStableKey);
 
       if (!baselineTest) {
         differences.new_tests.push({
@@ -324,8 +361,8 @@ class ReportComparator {
     }
 
     // Check for missing tests (in baseline but not current)
-    for (const [testDescription, baselineTest] of baselineTests) {
-      if (!currentTests.has(testDescription)) {
+    for (const [testStableKey, baselineTest] of baselineTests) {
+      if (!currentTests.has(testStableKey)) {
         differences.missing_tests.push({
           test_name: baselineTest.test_name,
           status: baselineTest.status,
@@ -455,12 +492,14 @@ class ReportComparator {
     // Create lookup map for current test results
     const currentTestsMap = new Map();
     currentResults.forEach(test => {
-      currentTestsMap.set(test.description, test);
+      if (test.stableKey) {
+        currentTestsMap.set(test.stableKey, test);
+      }
     });
 
     // Create analysis with baseline slowest and corresponding current performance
     return slowestBaseline.map(baselineTest => {
-      const currentTest = currentTestsMap.get(baselineTest.description);
+      const currentTest = currentTestsMap.get(baselineTest.stableKey);
       const currentDuration = currentTest ? (currentTest.duration_ms || 0) : null;
       const currentStatus = currentTest ? currentTest.status : 'MISSING';
       
@@ -494,12 +533,14 @@ class ReportComparator {
     // Create lookup map for baseline test results
     const baselineTestsMap = new Map();
     baselineResults.forEach(test => {
-      baselineTestsMap.set(test.description, test);
+      if (test.stableKey) {
+        baselineTestsMap.set(test.stableKey, test);
+      }
     });
 
     // Create analysis with current slowest and corresponding baseline performance
     return slowestCurrent.map(currentTest => {
-      const baselineTest = baselineTestsMap.get(currentTest.description);
+      const baselineTest = baselineTestsMap.get(currentTest.stableKey);
       const baselineDuration = baselineTest ? (baselineTest.duration_ms || 0) : null;
       const baselineStatus = baselineTest ? baselineTest.status : 'MISSING';
       
@@ -1584,23 +1625,23 @@ class ReportComparator {
     
     // Collect successful tests with durations
     baselineResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => baselineMap.set(test.description, test.duration_ms));
+      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
+      .forEach(test => baselineMap.set(test.stableKey, test.duration_ms));
     
     currentResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => currentMap.set(test.description, test.duration_ms));
+      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
+      .forEach(test => currentMap.set(test.stableKey, test.duration_ms));
     
     // Use current results order as the chronological baseline (they should be in execution order)
     const chronologicalTests = [];
     let testIndex = 0;
     currentResults
-      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
+      .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number' && test.stableKey)
       .forEach((test, index) => {
-        if (baselineMap.has(test.description)) {
+        if (baselineMap.has(test.stableKey)) {
           chronologicalTests.push({
             testName: test.test_name,
-            baseline: baselineMap.get(test.description),
+            baseline: baselineMap.get(test.stableKey),
             current: test.duration_ms,
             originalIndex: index,
             timestamp: test.timestamp || new Date(Date.now() + index * 1000).toISOString() // Use test timestamp or simulate
