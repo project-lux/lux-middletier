@@ -603,7 +603,7 @@ class ReportComparator {
         .metric-value { font-size: 1.5em; font-weight: bold; }
         .positive { color: green; }
         .negative { color: red; }
-        .neutral { color: #666; }
+        .neutral { color: #667; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -689,7 +689,7 @@ class ReportComparator {
                     <div>
                         <label for="samplingInterval" style="font-weight: bold; margin-right: 8px;">Sample Interval:</label>
                         <select id="samplingInterval" style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;">
-                            <option value="1">Every test (270k points)</option>
+                            <option value="1">Every test (${Math.max(baselineResults.length, currentResults.length).toLocaleString()} points)</option>
                             <option value="10">Every 10th test</option>
                             <option value="25">Every 25th test</option>
                             <option value="50" selected>Every 50th test</option>
@@ -710,8 +710,12 @@ class ReportComparator {
                     </div>
                     <button id="updateChart" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Update Chart</button>
                     <button id="resetChart" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Reset</button>
-                    <div id="chartStatus" style="font-style: italic; color: #666;"></div>
+                    <div id="chartStatus" style="font-style: italic; color: #667;"></div>
                 </div>
+            </div>
+            <div style="background: #e7f3ff; padding: 12px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #007bff;">
+                <p style="margin: 0; font-size: 14px;"><strong>📊 Chart Data Policy:</strong> Only tests that <em>passed</em> in both baseline and current runs are included in performance charts.</p>
+                <p style="margin: 8px 0 0 0; font-size: 13px"><strong>Baseline PASS tests:</strong> ${baselineResults.filter(t => t.status === 'PASS').length.toLocaleString()} | <strong>Current PASS tests:</strong> ${currentResults.filter(t => t.status === 'PASS').length.toLocaleString()} | <strong>Available to chart:</strong> <span id="chartDataCount">Calculating...</span></p>
             </div>
             <div style="width: 100%; height: 400px; position: relative;">
                 <canvas id="chronologicalChart"></canvas>
@@ -878,7 +882,7 @@ class ReportComparator {
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
             </select>
-            <div id="baselinePaginationInfo" style="font-style: italic; color: #666;"></div>
+            <div id="baselinePaginationInfo" style="font-style: italic; color: #667;"></div>
             <div id="baselinePaginationControls" style="margin-left: auto;"></div>
         </div>
         <table>
@@ -937,7 +941,7 @@ class ReportComparator {
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
             </select>
-            <div id="currentPaginationInfo" style="font-style: italic; color: #666;"></div>
+            <div id="currentPaginationInfo" style="font-style: italic; color: #667;"></div>
             <div id="currentPaginationControls" style="margin-left: auto;"></div>
         </div>
         <table>
@@ -1223,6 +1227,15 @@ class ReportComparator {
             // Update status
             const statusElement = document.getElementById('chartStatus');
             statusElement.textContent = sampledData.length.toLocaleString() + ' points displayed (interval: ' + interval + ', range: ' + range + ')';
+            
+            // Update chart data count in the info box
+            const chartDataCount = document.getElementById('chartDataCount');
+            if (chartDataCount) {
+                const totalDataPoints = chronologicalData.fullData ? chronologicalData.fullData.length : 0;
+                chartDataCount.textContent = totalDataPoints.toLocaleString() + ' matching tests';
+                chartDataCount.style.fontWeight = totalDataPoints === 0 ? 'bold' : 'normal';
+                chartDataCount.style.color = totalDataPoints === 0 ? '#dc3545' : '#28a745';
+            }
         }
         
         // Initialize with default settings
@@ -1572,11 +1585,11 @@ class ReportComparator {
     // Collect successful tests with durations
     baselineResults
       .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => baselineMap.set(test.test_name, test.duration_ms));
+      .forEach(test => baselineMap.set(test.description, test.duration_ms));
     
     currentResults
       .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
-      .forEach(test => currentMap.set(test.test_name, test.duration_ms));
+      .forEach(test => currentMap.set(test.description, test.duration_ms));
     
     // Use current results order as the chronological baseline (they should be in execution order)
     const chronologicalTests = [];
@@ -1584,10 +1597,10 @@ class ReportComparator {
     currentResults
       .filter(test => test.status === 'PASS' && typeof test.duration_ms === 'number')
       .forEach((test, index) => {
-        if (baselineMap.has(test.test_name)) {
+        if (baselineMap.has(test.description)) {
           chronologicalTests.push({
             testName: test.test_name,
-            baseline: baselineMap.get(test.test_name),
+            baseline: baselineMap.get(test.description),
             current: test.duration_ms,
             originalIndex: index,
             timestamp: test.timestamp || new Date(Date.now() + index * 1000).toISOString() // Use test timestamp or simulate
