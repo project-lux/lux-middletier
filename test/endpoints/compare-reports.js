@@ -82,25 +82,35 @@ class ReportComparator {
   }
 
   /**
-   * Extract stable key from response_body_file path
-   * Takes everything after the endpoint type directory (e.g., get-facets-tests)
-   * Example: "reports/test-run-2025-11-14_19-14-58/responses/get-facets-tests/BackendLogsTestDataProvider/confRow000893.json"
-   * Returns: "BackendLogsTestDataProvider/confRow000893.json"
+   * Extract stable key from test data
+   * Uses a hybrid approach: primarily test_name + endpoint_type for consistency,
+   * but falls back to response_body_file for tests that might have duplicate names
+   * 
+   * This ensures the same test gets the same stable key whether it passes or fails
    */
-  extractStableKey(responseBodyFile) {
-    if (!responseBodyFile) return null;
+  extractStableKey(test) {
+    // Primary approach: use test_name + endpoint_type for consistent matching
+    // This works regardless of whether the test passes (has response_body_file) or fails (no response_body_file)
+    if (test.test_name && test.endpoint_type) {
+      return `${test.endpoint_type}:${test.test_name}`;
+    }
     
-    // Split by '/' and find the endpoint tests directory
-    const parts = responseBodyFile.split('/');
-    const testsIndex = parts.findIndex(part => part.endsWith('-tests'));
-    
-    if (testsIndex === -1 || testsIndex >= parts.length - 1) {
+    // Fallback for tests without proper test_name: use response_body_file if available
+    if (test.response_body_file) {
+      const parts = test.response_body_file.split('/');
+      const testsIndex = parts.findIndex(part => part.endsWith('-tests'));
+      
+      if (testsIndex !== -1 && testsIndex < parts.length - 1) {
+        // Return everything after the tests directory
+        return parts.slice(testsIndex + 1).join('/');
+      }
+      
       // Fallback: just use the filename if pattern not found
       return parts[parts.length - 1];
     }
     
-    // Return everything after the tests directory
-    return parts.slice(testsIndex + 1).join('/');
+    // Last resort fallback
+    return test.url || 'unknown';
   }
 
   /**
@@ -108,7 +118,7 @@ class ReportComparator {
    */
   addStableKeys(results) {
     results.forEach(test => {
-      test.stableKey = this.extractStableKey(test.response_body_file);
+      test.stableKey = this.extractStableKey(test);
     });
   }
 
@@ -483,9 +493,9 @@ class ReportComparator {
    * Generate slowest 100 tests from baseline and how current test performed on those same tests
    */
   generateSlowestBaselineAnalysis(baselineResults, currentResults) {
-    // Filter out non-PASS tests and sort by duration descending
+    // Include tests with durations (PASS, FAIL, SLOW) and sort by duration descending
     const slowestBaseline = baselineResults
-      .filter(test => test.status === 'PASS' && test.duration_ms)
+      .filter(test => test.duration_ms && ['PASS', 'FAIL', 'SLOW'].includes(test.status))
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
       .slice(0, 100);
 
@@ -524,9 +534,9 @@ class ReportComparator {
    * Generate slowest 100 tests from current and how baseline test performed on those same tests
    */
   generateSlowestCurrentAnalysis(baselineResults, currentResults) {
-    // Filter out non-PASS tests and sort by duration descending
+    // Include tests with durations (PASS, FAIL, SLOW) and sort by duration descending
     const slowestCurrent = currentResults
-      .filter(test => test.status === 'PASS' && test.duration_ms)
+      .filter(test => test.duration_ms && ['PASS', 'FAIL', 'SLOW'].includes(test.status))
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
       .slice(0, 100);
 
