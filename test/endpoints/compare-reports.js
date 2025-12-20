@@ -531,9 +531,9 @@ class ReportComparator {
    * Generate slowest 100 tests from baseline and how current test performed on those same tests
    */
   generateSlowestBaselineAnalysis(baselineResults, currentResults) {
-    // Include tests with durations (PASS, FAIL, SLOW) and sort by duration descending
+    // Include all tests with durations (including timeouts which are the actual slowest) and sort by duration descending
     const slowestBaseline = baselineResults
-      .filter(test => test.duration_ms && ['PASS', 'FAIL', 'SLOW'].includes(test.status))
+      .filter(test => test.duration_ms)
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
       .slice(0, 100);
 
@@ -572,9 +572,9 @@ class ReportComparator {
    * Generate slowest 100 tests from current and how baseline test performed on those same tests
    */
   generateSlowestCurrentAnalysis(baselineResults, currentResults) {
-    // Include tests with durations (PASS, FAIL, SLOW) and sort by duration descending
+    // Include all tests with durations (including timeouts which are the actual slowest) and sort by duration descending
     const slowestCurrent = currentResults
-      .filter(test => test.duration_ms && ['PASS', 'FAIL', 'SLOW'].includes(test.status))
+      .filter(test => test.duration_ms)
       .sort((a, b) => (b.duration_ms || 0) - (a.duration_ms || 0))
       .slice(0, 100);
 
