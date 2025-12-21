@@ -442,10 +442,6 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
       primary = providerOptions?.deriveSearchEstimateTests;
       secondary = options?.noDeriveRelatedTests;
       break;
-    case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-      primary = providerOptions?.deriveSearchWillMatchTests;
-      secondary = options?.noDeriveRelatedTests;
-      break;
   }
   return getResolvedOption(primary, secondary);
 }

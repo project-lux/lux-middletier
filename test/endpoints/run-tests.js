@@ -548,8 +548,6 @@ class ResponseAnalyzer {
         return this.extractOrderedItemsInfo("Results Count", data);
       case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
         return this.extractOrderedItemsInfo("Estimate", data);
-      case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-        return this.extractWillMatchInfo("Will Match", data);
       default:
         return null;
     }
@@ -1039,11 +1037,10 @@ class EndpointTester {
     // Based on your data: get-facets (336K), get-data (75K), get-related-list (38K), etc.
     const sizeEstimates = {
       'get-facets-tests.xlsx': 336793,
-      'get-data-tests.xlsx': 75183,
+      'get-data-tests.xlsx': 75183, /* TODO */
       'get-related-list-tests.xlsx': 37993,
       'get-search-tests.xlsx': 17708,
-      'get-search-estimate-tests.xlsx': 17693,
-      'get-search-will-match-tests.xlsx': 17693
+      'get-search-estimate-tests.xlsx': 17693
     };
     return sizeEstimates[filename] || 10000; // Default estimate
   }

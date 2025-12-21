@@ -111,7 +111,6 @@ $ node create-tests.js --help
 Usage: node create-tests.js [options]
 
 Options:
-  --test-count=<number>         Maximum number of test cases to generate per provider
   --no-dedup                    Skip deduplication of test cases for faster processing
   --no-derive-related-tests     Skip generating get-facets, get-search-estimate and
                                 get-search-will-match tests unless overridden by individual providers.
@@ -126,7 +125,6 @@ Examples:
   node create-tests.js
   node create-tests.js --no-dedup
   node create-tests.js --no-derive-related-tests
-  node create-tests.js --test-count=100
   node create-tests.js --providers AdvancedSearchQueriesTestDataProvider
   node create-tests.js --providers ^BackendLogsTestDataProvider
   node create-tests.js --endpoints get-search,get-auto-complete
@@ -137,38 +135,12 @@ Examples:
 
 The following will meet our needs just fine.  It specifies a single test data provider that includes some get-data requests.  That should suffice to work out any issues.
 
-`node create-tests.js --providers SpecificItemTestCasesTestDataProvider --no-derive-related-tests`
+`node create-tests.js --providers GetDataTestDataProvider --no-derive-related-tests`
 
 Summary: 
 
 ```bash
-============================================================================================
-TEST GENERATION SUMMARY
-============================================================================================
-
-Endpoint                      Total Before Dedup  Unique Tests  Duplicates Removed  Duration
---------------------------------------------------------------------------------------------
-delete-data                                    0             0                   0       1ms
-get-advanced-search-config                     0             0                   0       0ms
-get-auto-complete                              0             0                   0       1ms
-get-data                                      31            31                   0      77ms
-get-facets                                     0             0                   0       0ms
-get-health                                     0             0                   0       1ms
-get-info                                       0             0                   0       0ms
-get-related-list                               0             0                   0       1ms
-get-resolve                                    0             0                   0       0ms
-get-search                                     1             1                   0     138ms
-get-search-estimate                            0             0                   0       1ms
-get-search-info                                0             0                   0       0ms
-get-search-will-match                          0             0                   0       1ms
-get-stats                                      0             0                   0       0ms
-get-tenant-status                              0             0                   0       1ms
-get-translate                                  0             0                   0       0ms
-get-version-info                               0             0                   0       1ms
-post-data                                      0             0                   0       1ms
-put-data                                       0             0                   0       1ms
---------------------------------------------------------------------------------------------
-TOTALS                                        32            32                   0     225ms
+TODO
 ```
 
 If you would like to verify the test configuration spreadsheets were created, look in `ls ./configs`.  The output directory is hard-coded --an oversight.
@@ -238,88 +210,7 @@ Here's the expected output:
 
 ```bash
 $ node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data
-Configuration directory: ./configs
-Reports directory: ./reports
-Response bodies will be saved to disk
-Checking connectivity to base URL...
-✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
-Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-08-28_14-34-01
-Base URL: https://lux-front-sbx.collections.yale.edu
-
-Resolved:
-  Requested providers:
-        All
-  Requested endpoints:
-        get-data
-
-Filtering options:
-  Available providers:
-        AdvancedSearchQueriesTestDataProvider
-        BackendLogsTestDataProvider
-        BenchmarkQueriesTestDataProvider
-        Prd2PrdTestQueriesTestDataProvider
-        SpecificItemTestCasesTestDataProvider
-        UpdatedAdvancedSearchQueriesTestDataProvider
-  Available endpoints:
-        get-data
-        get-facets
-        get-search
-        get-search-estimate
-        get-search-will-match
-
-
-=== EXECUTING TESTS BY ENDPOINT FILE (1 files) ===
-Memory-efficient approach: Processing one spreadsheet at a time
-
---- Processing endpoint 1/1: get-data (get-data-tests.xlsx) ---
-    Loading get-data-tests.xlsx (endpoint: get-data)
-Loading config from configs\get-data-tests.xlsx for the get-data endpoint...
-  Loaded 31 tests (31 enabled) from get-data-tests.xlsx
-    Found 1 providers in get-data: SpecificItemTestCasesTestDataProvider
-    Processing SpecificItemTestCasesTestDataProvider: 31 tests
-Running test 1 of 31: [Source row 3] as GET https://lux-front-sbx.collections.yale.edu/data/object/437d40f0-bf57-4800-b3f4-ad8c62dc8291
-
-...omitted for brevity
-
-Running test 31 of 31: [Source row 39] as GET https://lux-front-sbx.collections.yale.edu/data/object/c3b35b6c-1e5b-458e-a03e-f77e77ce3a27
-      ✓ Accumulated 31 results for SpecificItemTestCasesTestDataProvider (total: 31)
-  ✓ Completed endpoint get-data - memory cleared
-
-=== GENERATING CONSOLIDATED REPORTS ===
-Generating the JSON report...
-Generating the HTML report...
-
-=== Test Summary ===
-Providers Included: SpecificItemTestCasesTestDataProvider
-Endpoints Included: get-data
-Total Tests: 31
-Passed: 30
-Failed: 1
-Errors: 0
-Slow: 0
-Average Duration: 210ms
-Total Duration: 0 minutes
-
-Reports generated in: reports\test-run-2025-08-28_14-34-01\endpoints\get-data
-- JSON: endpoint-test-report.json
-- HTML: endpoint-test-report.html
-- Response bodies: responses/ directory
-  ✓ Generated reports for get-data endpoint (31 total tests from 1 providers)
-
-=== CONSOLIDATED TEST SUMMARY ===
-Total endpoints processed: 1
-Total tests executed: 31
-✅ Passed: 30
-❌ Failed: 1
-⚠️  Errors: 0
-🐌 Slow: 0
-⏱️  Average duration: 210ms
-⏱️  Total duration: 0 minutes
-
-📊 Dashboard report generated: dashboard-report.html
-✓ Generated consolidated dashboard reports
-✓ Processed 1 endpoints across multiple providers
+TODO
 ```
 
 If all went well, you can open your shared environment's web access URL and find your report in the reports directory.
@@ -342,7 +233,7 @@ The dashboard reports contain links to the individual endpoint reports: `endpoin
 The response bodies are within the `responses` sub-dir, with paths that identify the endpoint and provider.  For our small test:
 
 ```bash
-$ ll responses/get-data-tests/SpecificItemTestCasesTestDataProvider/
+$ ll responses/get-data-tests/GetDataTestDataProvider/
 total 804
 -rw-r--r-- 1 ec2-user ec2-user 4096 13963 Aug 26 14:39 confRow02_sourceRow3.json
 -rw-r--r-- 1 ec2-user ec2-user 4096 15812 Aug 26 14:39 confRow03_sourceRow4.json
@@ -526,69 +417,7 @@ Even though it is a dry run, it will still take a while to process all of the te
 Anticipated output:
 
 ```bash
-Configuration directory: ./configs
-Reports directory: ./reports
-Test name: ML 1/3rd
-Test description: MarkLogic with 1/3rd the resources PRD has.
-Response bodies will be saved to disk
-
-DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
-
-Checking connectivity to base URL...
-✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
-Loaded 19 endpoint specifications
-Test execution directory: reports/test-run-2025-08-28_17-31-21
-Base URL: https://lux-front-sbx.collections.yale.edu
-
-Resolved:
-  Requested providers:
-        All
-  Requested endpoints:
-        All
-
-Filtering options:
-  Available providers:
-        AdvancedSearchQueriesTestDataProvider
-        BackendLogsTestDataProvider
-        BenchmarkQueriesTestDataProvider
-        Prd2PrdTestQueriesTestDataProvider
-        SpecificItemTestCasesTestDataProvider
-        UpdatedAdvancedSearchQueriesTestDataProvider
-  Available endpoints:
-        get-data
-        get-facets
-        get-related-list
-        get-search
-        get-search-estimate
-        get-search-will-match
-
-Loading config from configs/get-data-tests.xlsx for the get-data endpoint...
-Loading config from configs/get-facets-tests.xlsx for the get-facets endpoint...
-Loading config from configs/get-related-list-tests.xlsx for the get-related-list endpoint...
-Loading config from configs/get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
-Loading config from configs/get-search-tests.xlsx for the get-search endpoint...
-Loading config from configs/get-search-will-match-tests.xlsx for the get-search-will-match endpoint...
-Found 436889 test configurations across 6 files
-
-Test distribution by endpoint type:
-  get-data: 75183 tests (75183 enabled, 0 filtered out)
-  get-facets: 270619 tests (270619 enabled, 0 filtered out)
-  get-related-list: 37993 tests (37993 enabled, 0 filtered out)
-  get-search-estimate: 17693 tests (17693 enabled, 0 filtered out)
-  get-search: 17708 tests (17708 enabled, 0 filtered out)
-  get-search-will-match: 17693 tests (17693 enabled, 0 filtered out)
-
-=== DRY RUN SUMMARY ===
-Total tests found: 436889
-Tests that would be executed: 436889
-Tests that would be skipped: 0
-Estimated execution time: 873778s - 4368890s (rough estimate)
-
-No actual HTTP requests were made.
-
-BASE URL: https://lux-front-sbx.collections.yale.edu
-
-To execute these tests, run the same command without --dry-run
+TODO
 ```
 
 Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.

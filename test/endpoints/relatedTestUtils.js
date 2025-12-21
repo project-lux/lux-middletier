@@ -2,7 +2,7 @@
  * Search Test Data Provider Sub-Interface
  *
  * Test data providers that serve up search test cases should extend this class to get
- * search-estimate, search-will-match, and facet requests for their search requests.
+ * search-estimate, and facet requests for their search requests.
  */
 import { FACETS_CONFIGS } from "./test-data-providers/facetsConfig.js";
 import { ENDPOINT_KEYS } from "./constants.js";
@@ -235,8 +235,7 @@ export const getDerivedTestConfigs = (
 
   const configMap = {
     [ENDPOINT_KEYS.GET_FACETS]: getDerivedFacetTestConfigs,
-    [ENDPOINT_KEYS.GET_SEARCH_ESTIMATE]: getDerivedSearchEstimateConfigs,
-    [ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH]: getDerivedSearchWillMatchConfigs
+    [ENDPOINT_KEYS.GET_SEARCH_ESTIMATE]: getDerivedSearchEstimateConfigs
   };
 
   const configFunction = configMap[endpointKey];
@@ -363,61 +362,6 @@ const getDerivedSearchEstimateConfigs = (
             [COLUMNS.EXPECTED_STATUS]: "200",
             [COLUMNS.TIMEOUT_MS]: "15000",
             [COLUMNS.MAX_RESPONSE_TIME]: "3000",
-            [COLUMNS.DELAY_AFTER_MS]: "0",
-            [COLUMNS.TAGS]: `${endpointKey},derived`,
-          }),
-        ];
-      },
-
-      reportResults: (results, searchTestRows, _, endpointKey) => {
-        console.log(
-          `Generated ${results.length} ${endpointKey} requests from ${searchTestRows.length} search tests.`
-        );
-      },
-    }
-  );
-};
-
-const getDerivedSearchWillMatchConfigs = (
-  endpointKey,
-  endpointColumns,
-  searchTestRows,
-  searchColumns
-) => {
-  return generateTestConfigs(
-    endpointKey,
-    endpointColumns,
-    searchTestRows,
-    searchColumns,
-    {
-      generateConfigs: ({
-        searchTestRow,
-        scope,
-        query,
-        searchColumnIndices,
-        endpointColumns,
-        endpointColumnIndices,
-        endpointKey,
-      }) => {
-        // Transform query to JSON and add scope as _scope property
-        const processedQuery = convertQueryToJson(query, scope);
-
-        return [
-          createTestConfig(endpointColumns, endpointColumnIndices, {
-            [COLUMNS.PARAM_SCOPE]: scope,
-            [COLUMNS.PARAM_Q]: processedQuery,
-            [COLUMNS.PROVIDER_ID]:
-              searchTestRow[searchColumnIndices[COLUMNS.PROVIDER_ID]],
-            [COLUMNS.TEST_NAME]: `For search "${
-              searchTestRow[searchColumnIndices[COLUMNS.TEST_NAME]]
-            }"`,
-            [COLUMNS.DESCRIPTION]: `For search "${
-              searchTestRow[searchColumnIndices[COLUMNS.DESCRIPTION]]
-            }"`,
-            [COLUMNS.ENABLED]: "true",
-            [COLUMNS.EXPECTED_STATUS]: "200",
-            [COLUMNS.TIMEOUT_MS]: "10000",
-            [COLUMNS.MAX_RESPONSE_TIME]: "2000",
             [COLUMNS.DELAY_AFTER_MS]: "0",
             [COLUMNS.TAGS]: `${endpointKey},derived`,
           }),
