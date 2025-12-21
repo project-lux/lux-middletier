@@ -276,8 +276,8 @@ export function parseBoolean(value) {
 
 /**
  * Extract type and uuid from LUX data URLs
- * @param {string} url - LUX data URL (e.g., "https://lux.collections.yale.edu/view/item/12345678-1234-1234-1234-123456789012")
- * @returns {Object} - Object containing type and uuid parameters
+ * @param {string} url - LUX data URL (e.g., "https://lux.collections.yale.edu/view/item/12345678-1234-1234-1234-123456789012" or "https://domain.com/data/object/uuid?profile=summary&lang=en")
+ * @returns {Object} - Object containing type, uuid, and query parameters
  */
 export function extractDataParamsFromUrl(url) {
   const params = {};
@@ -286,23 +286,23 @@ export function extractDataParamsFromUrl(url) {
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
     
-    // Look for patterns like /view/item/uuid or /data/item/uuid
-    const viewIndex = pathParts.findIndex(part => part === 'view' || part === 'data');
+    // Look for standard LUX URL patterns: /data/type/uuid or /view/type/uuid
+    const dataIndex = pathParts.indexOf('data');
+    const viewIndex = pathParts.indexOf('view');
     
-    if (viewIndex >= 0 && viewIndex + 2 < pathParts.length) {
-      // Found view/data, next should be type, then uuid
+    if (dataIndex >= 0 && pathParts.length > dataIndex + 2) {
+      // Pattern: /data/type/uuid (actual API URLs)
+      params.type = pathParts[dataIndex + 1];
+      params.uuid = pathParts[dataIndex + 2];
+    } else if (viewIndex >= 0 && pathParts.length > viewIndex + 2) {
+      // Pattern: /view/type/uuid (frontend URLs)
       params.type = pathParts[viewIndex + 1];
       params.uuid = pathParts[viewIndex + 2];
-    } else {
-      // Try to find type/uuid pattern directly in path
-      const typeIndex = pathParts.findIndex(part => 
-        ['item', 'set', 'agent', 'place', 'concept', 'work', 'event'].includes(part)
-      );
-      
-      if (typeIndex >= 0 && typeIndex + 1 < pathParts.length) {
-        params.type = pathParts[typeIndex];
-        params.uuid = pathParts[typeIndex + 1];
-      }
+    }
+
+    // Extract query parameters
+    for (const [key, value] of urlObj.searchParams) {
+      params[key] = value;
     }
     
     return params;
@@ -456,4 +456,53 @@ export async function validateBaseUrl(baseUrl, skipConnectivityCheck = false) {
   }
 
   return result;
+}
+
+/**
+ * Virtual endpoint utilities for handling get-data splits
+ */
+import { ENDPOINT_KEYS } from './constants.js';
+
+/**
+ * Check if an endpoint key is a virtual endpoint
+ * @param {string} endpointKey - The endpoint key to check
+ * @returns {boolean} - True if this is a virtual endpoint
+ */
+export function isVirtualEndpoint(endpointKey) {
+  return endpointKey === ENDPOINT_KEYS.GET_DATA_WITH_PROFILE || 
+         endpointKey === ENDPOINT_KEYS.GET_DATA_NO_PROFILE;
+}
+
+/**
+ * Get the real endpoint key that virtual endpoints map to
+ * @param {string} virtualEndpointKey - The virtual endpoint key
+ * @returns {string} - The real endpoint key for endpoint spec lookup
+ */
+export function getRealEndpointKey(virtualEndpointKey) {
+  if (virtualEndpointKey === ENDPOINT_KEYS.GET_DATA_WITH_PROFILE || 
+      virtualEndpointKey === ENDPOINT_KEYS.GET_DATA_NO_PROFILE) {
+    return ENDPOINT_KEYS.GET_DATA;
+  }
+  return virtualEndpointKey;
+}
+
+/**
+ * Get all virtual endpoints for a given real endpoint
+ * @param {string} realEndpointKey - The real endpoint key
+ * @returns {Array<string>} - Array of virtual endpoint keys, or empty array if not a split endpoint
+ */
+export function getVirtualEndpoints(realEndpointKey) {
+  if (realEndpointKey === ENDPOINT_KEYS.GET_DATA) {
+    return [ENDPOINT_KEYS.GET_DATA_WITH_PROFILE, ENDPOINT_KEYS.GET_DATA_NO_PROFILE];
+  }
+  return [];
+}
+
+/**
+ * Check if this virtual endpoint should include tests with profile parameter
+ * @param {string} virtualEndpointKey - The virtual endpoint key
+ * @returns {boolean} - True if this virtual endpoint should include profile parameter
+ */
+export function shouldIncludeProfile(virtualEndpointKey) {
+  return virtualEndpointKey === ENDPOINT_KEYS.GET_DATA_WITH_PROFILE;
 }

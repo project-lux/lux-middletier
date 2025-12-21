@@ -19,7 +19,7 @@ import { BackendLogsTestDataProvider } from
   './backend-logs/BackendLogsTestDataProvider.js';
 
 // Register all available providers
-// TODO: TestDataProviderFactory.registerProvider(GetDataTestDataProvider);
+TestDataProviderFactory.registerProvider(GetDataTestDataProvider);
 TestDataProviderFactory.registerProvider(AdvancedSearchQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(BenchmarkQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(Prd2PrdTestQueriesTestDataProvider);

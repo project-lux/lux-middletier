@@ -3,7 +3,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl } from "./utils.js";
+import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl, getRealEndpointKey } from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/interface.js";
 import { ENDPOINT_KEYS } from "./constants.js";
 
@@ -243,9 +243,11 @@ class ConfigurationLoader {
    */
   getEndpointMethod(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -261,9 +263,11 @@ class ConfigurationLoader {
    */
   getEndpointPath(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -279,9 +283,11 @@ class ConfigurationLoader {
    */
   getEndpointTests(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -1634,10 +1640,21 @@ class EndpointTester {
   }
 
   getAvailableEndpoints() {
-    return this.configLoader
+    // Get endpoints from actual config files plus virtual endpoints
+    const configEndpoints = this.configLoader
       .getValidConfigFiles()
       .map((file) => this.configLoader.extractEndpointType(file))
       .sort();
+      
+    // Add virtual endpoints that are supported
+    const virtualEndpoints = [
+      ENDPOINT_KEYS.GET_DATA_WITH_PROFILE,
+      ENDPOINT_KEYS.GET_DATA_NO_PROFILE
+    ];
+    
+    // Combine and deduplicate
+    const allEndpoints = [...new Set([...configEndpoints, ...virtualEndpoints])];
+    return allEndpoints.sort();
   }
 
   getProvidersIncluded() {

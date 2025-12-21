@@ -19,6 +19,8 @@
  */
 export const ENDPOINT_KEYS = {
   GET_DATA: "get-data",
+  GET_DATA_WITH_PROFILE: "get-data-with-profile",
+  GET_DATA_NO_PROFILE: "get-data-no-profile",
   GET_FACETS: "get-facets",
   GET_RELATED_LIST: "get-related-list",
   GET_SEARCH: "get-search",
