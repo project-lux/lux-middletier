@@ -1022,27 +1022,7 @@ class EndpointTester {
       }
     }
 
-    // Sort by file size (largest first) for better progress visibility
-    return targetFiles.sort((a, b) => {
-      const sizeA = this.getEndpointFileSize(a.file);
-      const sizeB = this.getEndpointFileSize(b.file);
-      return sizeB - sizeA; // Descending order
-    });
-  }
-
-  /**
-   * Get estimated file size for sorting (rough estimate based on known sizes)
-   */
-  getEndpointFileSize(filename) {
-    // Based on your data: get-facets (336K), get-data (75K), get-related-list (38K), etc.
-    const sizeEstimates = {
-      'get-facets-tests.xlsx': 336793,
-      'get-data-tests.xlsx': 75183, /* TODO */
-      'get-related-list-tests.xlsx': 37993,
-      'get-search-tests.xlsx': 17708,
-      'get-search-estimate-tests.xlsx': 17693
-    };
-    return sizeEstimates[filename] || 10000; // Default estimate
+    return targetFiles;
   }
 
   /**
