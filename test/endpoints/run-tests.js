@@ -704,6 +704,7 @@ class EndpointTester {
     this.reportsDir = reportsDir;
     this.results = [];
     this.options = options;
+    this.requestCounter = 0; // Initialize request counter for unique request IDs
 
     // Initialize configuration
     this.initializeDirectories();
@@ -1367,6 +1368,7 @@ class EndpointTester {
    */
   async runSingleTest(testConfig) {
     const startTime = Date.now();
+    const requestId = ++this.requestCounter; // Increment and assign unique request ID
 
     try {
       const response = await this.requestHandler.executeRequest(testConfig);
@@ -1395,10 +1397,11 @@ class EndpointTester {
         duration,
         timestamp,
         additionalInfo,
-        responseBodyFile
+        responseBodyFile,
+        requestId
       );
     } catch (error) {
-      return this.createErrorResult(testConfig, error, Date.now() - startTime);
+      return this.createErrorResult(testConfig, error, Date.now() - startTime, requestId);
     }
   }
 
@@ -1411,7 +1414,8 @@ class EndpointTester {
     duration,
     timestamp,
     additionalInfo,
-    responseBodyFile
+    responseBodyFile,
+    requestId
   ) {
     const statusMatches = response.status === testConfig.expected_status;
     let status = statusMatches ? "PASS" : "FAIL";
@@ -1426,6 +1430,7 @@ class EndpointTester {
     }
 
     const result = {
+      request_id: requestId,
       provider_id: testConfig.provider_id,
       test_name: testConfig.test_name,
       endpoint_type: testConfig.endpoint_type,
@@ -1484,7 +1489,7 @@ class EndpointTester {
   /**
    * Create error result object
    */
-  createErrorResult(testConfig, error, duration) {
+  createErrorResult(testConfig, error, duration, requestId) {
     let responseBodyFile = null;
     let additionalInfo = null;
 
@@ -1504,6 +1509,7 @@ class EndpointTester {
     }
 
     const result = {
+      request_id: requestId,
       test_name: testConfig.test_name,
       provider_id: testConfig.provider_id,
       endpoint_type: testConfig.endpoint_type,
