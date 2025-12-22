@@ -133,23 +133,55 @@ Examples:
   node create-tests.js --list-options
 ```
 
-The following will meet our needs just fine.  It specifies a single test data provider that includes some get-data requests.  That should suffice to work out any issues.
+The following will meet our needs just fine.  It specifies a single test data provider that includes some get-search requests.  That should suffice to work out any issues.
 
-`node create-tests.js --providers GetDataTestDataProvider --no-derive-related-tests`
+`node create-tests.js --providers Prd2PrdTestQueriesTestDataProvider --no-derive-related-tests`
 
 Summary: 
 
 ```bash
-TODO
+============================================================================================
+TEST GENERATION SUMMARY
+============================================================================================
+
+Endpoint                      Total Before Dedup  Unique Tests  Duplicates Removed  Duration
+--------------------------------------------------------------------------------------------
+delete-data                                    0             0                   0       1ms
+get-advanced-search-config                     0             0                   0       3ms
+get-auto-complete                              0             0                   0       0ms
+get-data-no-profile                            0             0                   0       2ms
+get-data-with-profile                          0             0                   0       1ms
+get-facets                                     0             0                   0       1ms
+get-health                                     0             0                   0       2ms
+get-info                                       0             0                   0       3ms
+get-related-list                               0             0                   0       3ms
+get-resolve                                    0             0                   0       1ms
+get-search                                    18            12                   6      60ms
+get-search-estimate                            0             0                   0       1ms
+get-search-info                                0             0                   0       2ms
+get-search-will-match                          0             0                   0       5ms
+get-stats                                      0             0                   0       5ms
+get-tenant-status                              0             0                   0       2ms
+get-translate                                  0             0                   0       1ms
+get-version-info                               0             0                   0       1ms
+post-data                                      0             0                   0       2ms
+put-data                                       0             0                   0       3ms
+--------------------------------------------------------------------------------------------
+TOTALS                                        18            12                   6      99ms
+
+Endpoints processed: 20
+
+Generated related tests: false
+
+Test file generation complete!
 ```
 
 If you would like to verify the test configuration spreadsheets were created, look in `ls ./configs`.  The output directory is hard-coded --an oversight.
 
 ```bash
-$ ll ./configs
-total 64
--rw-r--r-- 1 ec2-user ec2-user 4096 40708 Aug 26 14:36 get-data-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096 24325 Aug 26 14:36 get-search-tests.xlsx
+$ ll configs
+total 32
+-rw-r--r-- 1 MARKLOGIC+bhartwig 4096 32628 Dec 22 14:01 get-search-tests.xlsx
 ```
 
 Still not satisfied?!  Find your shared environment's web access URL in [Shared Environments](#shared-environments) and click on the configs directory.
@@ -192,7 +224,8 @@ Examples:
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run
-  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider
+  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTes
+tDataProvider
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate
   node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search
@@ -202,30 +235,60 @@ Presuming the present working directory is `/test-config/lux-middletier/test/end
 
 Time to select an environment, which must be specified using the `--base-url` argument.  Find the middle tier base URL you need in [Environments to TEST](#environments-to-test).
 
-For our examples, we'll use Mini MarkLogic.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-data endpoint.
+For our examples, we'll use Mini MarkLogic.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-search endpoint.
 
-`node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data`
+`node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-search`
 
 Here's the expected output:
 
 ```bash
-$ node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-data
-TODO
+=== GENERATING CONSOLIDATED REPORTS ===
+Generating the JSON report...
+Generating the HTML report...
+
+=== Test Summary ===
+Providers Included: Prd2PrdTestQueriesTestDataProvider
+Endpoints Included: get-search
+Total Tests: 12
+Passed: 12
+Failed: 0
+Errors: 0
+Slow: 0
+Average Duration: 377ms
+Total Duration: 0 minutes
+
+Reports generated in: reports\test-run-2025-12-22_18-56-45\endpoints\get-search
+- JSON: endpoint-test-report.json
+- HTML: endpoint-test-report.html
+- Response bodies: responses/ directory
+  ✓ Generated reports for get-search endpoint (12 total tests from 1 providers)
+
+=== CONSOLIDATED TEST SUMMARY ===
+Total endpoints processed: 1
+Total tests executed: 12
+✅ Passed: 12
+❌ Failed: 0
+⚠️  Errors: 0
+� Slow: 0
+⏱️  Average duration: 377ms
+⏱️  Total duration: 0 minutes
+
+� Dashboard report generated: dashboard-report.html
+✓ Generated consolidated dashboard reports
+✓ Processed 1 endpoints across multiple providers
 ```
 
 If all went well, you can open your shared environment's web access URL and find your report in the reports directory.
-
-Curious about that failure?  Feel free to check the JSON or HTML report but **--spoiler alert--** https://lux.collections.yale.edu/data/concept/92150a0a-4ade-494d-9554-c548c9c21bd3 doesn't exist in the current dataset.
 
 ### Reports and Response Bodies
 
 The dashboard reports should be found in `./reports/test-run-[timestamp]/`.  Example:
 
 ```bash
--rw-r--r-- 1 ec2-user ec2-user 4096 6541 Aug 26 14:39 dashboard-report.html
--rw-r--r-- 1 ec2-user ec2-user 4096 1456 Aug 26 14:39 dashboard-report.json
-drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 endpoints/
-drwxr-xr-x 1 ec2-user ec2-user 4096    0 Aug 26 14:39 responses/
+-rw-r--r-- 1 ec2-user ec2-user 4096 6541 Dec 22 14:39 dashboard-report.html
+-rw-r--r-- 1 ec2-user ec2-user 4096 1456 Dec 22 14:39 dashboard-report.json
+drwxr-xr-x 1 ec2-user ec2-user 4096    0 Dec 22 14:39 endpoints/
+drwxr-xr-x 1 ec2-user ec2-user 4096    0 Dec 22 14:39 responses/
 ```
 
 The dashboard reports contain links to the individual endpoint reports: `endpoints/[endpointKey]/endpoint-test-report.*`.  So long as the `--save-responses` option was used, the response bodies will be available in one form or another within the HTML reports.
@@ -233,39 +296,20 @@ The dashboard reports contain links to the individual endpoint reports: `endpoin
 The response bodies are within the `responses` sub-dir, with paths that identify the endpoint and provider.  For our small test:
 
 ```bash
-$ ll responses/get-data-tests/GetDataTestDataProvider/
+$ ll responses/get-search-tests/Prd2PrdTestQueriesTestDataProvider/
 total 804
--rw-r--r-- 1 ec2-user ec2-user 4096 13963 Aug 26 14:39 confRow02_sourceRow3.json
--rw-r--r-- 1 ec2-user ec2-user 4096 15812 Aug 26 14:39 confRow03_sourceRow4.json
--rw-r--r-- 1 ec2-user ec2-user 4096 23411 Aug 26 14:39 confRow04_sourceRow5.json
--rw-r--r-- 1 ec2-user ec2-user 4096   843 Aug 26 14:39 confRow05_sourceRow6.json
--rw-r--r-- 1 ec2-user ec2-user 4096 31897 Aug 26 14:39 confRow06_sourceRow7.json
--rw-r--r-- 1 ec2-user ec2-user 4096 57915 Aug 26 14:39 confRow07_sourceRow8.json
--rw-r--r-- 1 ec2-user ec2-user 4096 45437 Aug 26 14:39 confRow08_sourceRow10.json
--rw-r--r-- 1 ec2-user ec2-user 4096 12554 Aug 26 14:39 confRow09_sourceRow11.json
--rw-r--r-- 1 ec2-user ec2-user 4096 18145 Aug 26 14:39 confRow10_sourceRow12.json
--rw-r--r-- 1 ec2-user ec2-user 4096 27244 Aug 26 14:39 confRow11_sourceRow13.json
--rw-r--r-- 1 ec2-user ec2-user 4096 12860 Aug 26 14:39 confRow12_sourceRow14.json
--rw-r--r-- 1 ec2-user ec2-user 4096 28164 Aug 26 14:39 confRow13_sourceRow18.json
--rw-r--r-- 1 ec2-user ec2-user 4096 32865 Aug 26 14:39 confRow14_sourceRow19.json
--rw-r--r-- 1 ec2-user ec2-user 4096 23285 Aug 26 14:39 confRow15_sourceRow20.json
--rw-r--r-- 1 ec2-user ec2-user 4096 28962 Aug 26 14:39 confRow16_sourceRow22.json
--rw-r--r-- 1 ec2-user ec2-user 4096 22826 Aug 26 14:39 confRow17_sourceRow23.json
--rw-r--r-- 1 ec2-user ec2-user 4096 67936 Aug 26 14:39 confRow18_sourceRow24.json
--rw-r--r-- 1 ec2-user ec2-user 4096 14377 Aug 26 14:39 confRow19_sourceRow25.json
--rw-r--r-- 1 ec2-user ec2-user 4096 13678 Aug 26 14:39 confRow20_sourceRow26.json
--rw-r--r-- 1 ec2-user ec2-user 4096 19328 Aug 26 14:39 confRow21_sourceRow27.json
--rw-r--r-- 1 ec2-user ec2-user 4096 15202 Aug 26 14:39 confRow22_sourceRow28.json
--rw-r--r-- 1 ec2-user ec2-user 4096 11709 Aug 26 14:39 confRow23_sourceRow29.json
--rw-r--r-- 1 ec2-user ec2-user 4096 22387 Aug 26 14:39 confRow24_sourceRow30.json
--rw-r--r-- 1 ec2-user ec2-user 4096 25670 Aug 26 14:39 confRow25_sourceRow31.json
--rw-r--r-- 1 ec2-user ec2-user 4096 18173 Aug 26 14:39 confRow26_sourceRow32.json
--rw-r--r-- 1 ec2-user ec2-user 4096 15823 Aug 26 14:39 confRow27_sourceRow34.json
--rw-r--r-- 1 ec2-user ec2-user 4096 38519 Aug 26 14:39 confRow28_sourceRow35.json
--rw-r--r-- 1 ec2-user ec2-user 4096 19390 Aug 26 14:39 confRow29_sourceRow36.json
--rw-r--r-- 1 ec2-user ec2-user 4096 41478 Aug 26 14:39 confRow30_sourceRow37.json
--rw-r--r-- 1 ec2-user ec2-user 4096 19758 Aug 26 14:39 confRow31_sourceRow38.json
--rw-r--r-- 1 ec2-user ec2-user 4096 17765 Aug 26 14:39 confRow32_sourceRow39.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 13963 Dec 22 14:39 confRow02_sourceRow7.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 15812 Dec 22 14:39 confRow03_sourceRow9.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 23411 Dec 22 14:39 confRow04_sourceRow11.json
+-rw-r--r-- 1 ec2-user ec2-user 4096   843 Dec 22 14:39 confRow05_sourceRow13.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 31897 Dec 22 14:39 confRow06_sourceRow15.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 57915 Dec 22 14:39 confRow07_sourceRow17.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 45437 Dec 22 14:39 confRow08_sourceRow40.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 12554 Dec 22 14:39 confRow09_sourceRow41.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 18145 Dec 22 14:39 confRow10_sourceRow43.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 27244 Dec 22 14:39 confRow11_sourceRow44.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 12860 Dec 22 14:39 confRow12_sourceRow45.json
+-rw-r--r-- 1 ec2-user ec2-user 4096 28164 Dec 22 14:39 confRow13_sourceRow46.json
 ```
 
 ### Recap
@@ -297,27 +341,34 @@ TEST GENERATION SUMMARY
 
 Endpoint                      Total Before Dedup  Unique Tests  Duplicates Removed  Duration
 --------------------------------------------------------------------------------------------
-delete-data                                    0             0                   0       1ms
-get-advanced-search-config                     0             0                   0       3ms
+delete-data                                    0             0                   0       3ms
+get-advanced-search-config                     0             0                   0       6ms
 get-auto-complete                              0             0                   0       1ms
-get-data                                  75,183        75,183                   0      3.3s
-get-facets                               270,814       270,619                 195     22.5s
-get-health                                     0             0                   0       1ms
-get-info                                       0             0                   0       1ms
-get-related-list                          37,993        37,993                   0      2.5s
-get-resolve                                    0             0                   0       1ms
-get-search                                17,751        17,708                  43      1.7s
-get-search-estimate                       17,708        17,693                  15     995ms
+get-data-no-profile                       17,500        17,500                   0     632ms
+get-data-with-profile                     75,000        75,000                   0      2.7s
+get-facets                               270,801       270,606                 195     27.8s
+get-health                                     0             0                   0       3ms
+get-info                                       0             0                   0       2ms
+get-related-list                          37,906        37,906                   0      2.0s
+get-resolve                                    0             0                   0       8ms
+get-search                                17,750        17,707                  43      2.2s
+get-search-estimate                       17,707        17,692                  15      1.0s
 get-search-info                                0             0                   0       4ms
-get-search-will-match                     17,708        17,693                  15     870ms
-get-stats                                      0             0                   0       2ms
-get-tenant-status                              0             0                   0       2ms
-get-translate                                  0             0                   0       1ms
-get-version-info                               0             0                   0       1ms
-post-data                                      0             0                   0       2ms
-put-data                                       0             0                   0       1ms
+get-search-will-match                          0             0                   0       2ms
+get-stats                                      0             0                   0       8ms
+get-tenant-status                              0             0                   0       5ms
+get-translate                                  0             0                   0       3ms
+get-version-info                               0             0                   0       4ms
+post-data                                      0             0                   0       5ms
+put-data                                       0             0                   0       8ms
 --------------------------------------------------------------------------------------------
-TOTALS                                   437,157       436,889                 268     31.9s
+TOTALS                                   436,664       436,411                 253     36.5s
+
+Endpoints processed: 20
+
+Generated related tests: true (the --no-derive-related-tests option was not specified)
+
+Test file generation complete!
 ```
 
 And the updated configs dir:
@@ -325,12 +376,12 @@ And the updated configs dir:
 ```bash
 $ ll ./configs
 total 454484
--rw-r--r-- 1 ec2-user ec2-user 4096  54137117 Aug 26 15:16 get-data-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096 323485854 Aug 26 15:16 get-facets-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096  32695542 Aug 26 15:16 get-related-list-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096  17124723 Aug 26 15:16 get-search-estimate-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096  20781438 Aug 26 15:15 get-search-tests.xlsx
--rw-r--r-- 1 ec2-user ec2-user 4096  17153122 Aug 26 15:16 get-search-will-match-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  11792137 Dec 22 15:16 get-data-no-profile-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  51674901 Dec 22 15:16 get-data-with-profile-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096 323465664 Dec 22 15:16 get-facets-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  32620071 Dec 22 15:16 get-related-list-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  17123377 Dec 22 15:16 get-search-estimate-tests.xlsx
+-rw-r--r-- 1 ec2-user ec2-user 4096  20779906 Dec 22 15:15 get-search-tests.xlsx
 ```
 
 ### Pre Flight
@@ -417,7 +468,69 @@ Even though it is a dry run, it will still take a while to process all of the te
 Anticipated output:
 
 ```bash
-TODO
+Configuration directory: ./configs
+Reports directory: ./reports
+Test name: ML 1/3rd
+Test description: MarkLogic with 1/3rd the resources PRD has.
+Response bodies will be saved to disk
+
+DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
+
+Checking connectivity to base URL...
+✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
+Loaded 19 endpoint specifications
+Test execution directory: reports\test-run-2025-12-22_18-58-44
+Base URL: https://lux-front-sbx.collections.yale.edu
+
+Resolved:
+  Requested providers:
+        All
+  Requested endpoints:
+        All
+
+Filtering options:
+  Available providers:
+        AdvancedSearchQueriesTestDataProvider
+        BackendLogsTestDataProvider
+        BenchmarkQueriesTestDataProvider
+        GetDataTestDataProvider
+        Prd2PrdTestQueriesTestDataProvider
+        UpdatedAdvancedSearchQueriesTestDataProvider
+  Available endpoints:
+        get-data-no-profile
+        get-data-with-profile
+        get-facets
+        get-related-list
+        get-search
+        get-search-estimate
+
+Loading config from configs\get-data-no-profile-tests.xlsx for the get-data-no-profile endpoint...
+Loading config from configs\get-data-with-profile-tests.xlsx for the get-data-with-profile endpoint...
+Loading config from configs\get-facets-tests.xlsx for the get-facets endpoint...
+Loading config from configs\get-related-list-tests.xlsx for the get-related-list endpoint...
+Loading config from configs\get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
+Loading config from configs\get-search-tests.xlsx for the get-search endpoint...
+Found 436411 test configurations across 6 files
+
+Test distribution by endpoint type:
+  get-data-no-profile: 17500 tests (17500 enabled, 0 filtered out)
+  get-data-with-profile: 75000 tests (75000 enabled, 0 filtered out)
+  get-facets: 270606 tests (270606 enabled, 0 filtered out)
+  get-related-list: 37906 tests (37906 enabled, 0 filtered out)
+  get-search-estimate: 17692 tests (17692 enabled, 0 filtered out)
+  get-search: 17707 tests (17707 enabled, 0 filtered out)
+
+=== DRY RUN SUMMARY ===
+Total tests found: 436411
+Tests that would be executed: 436411
+Tests that would be skipped: 0
+Estimated execution time: 872822s - 4364110s (rough estimate)
+
+No actual HTTP requests were made.
+
+BASE URL: https://lux-front-sbx.collections.yale.edu
+
+To execute these tests, run the same command without --dry-run
 ```
 
 Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.
