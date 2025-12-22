@@ -23,7 +23,6 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
     
     // This provider extracts URLs from the second column (TST) of data.tsv
     // - URLs containing "/view/results/" are treated as GET_SEARCH tests
-    // - URLs containing "/view/" but not "/view/results/" are treated as GET_DATA tests
     this.sourcePath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'data.tsv');
 
     // Updated in parseTsvFile
@@ -79,8 +78,6 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
           // Check if URL matches the requested endpoint type
           if (endpointKey === ENDPOINT_KEYS.GET_SEARCH) {
             return url.includes('/view/results/');
-          } else if (endpointKey === ENDPOINT_KEYS.GET_DATA) {
-            return url.includes('/view/') && !url.includes('/view/results/');
           }
           
           return false;
@@ -122,16 +119,6 @@ export class Prd2PrdTestQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName.startsWith('param:')) {
             // Extract parameter from URL query string or path
             const paramName = columnName.replace('param:', '');
-            
-            // For GET_DATA endpoints, extract type and uuid from URL path
-            if (endpointKey === ENDPOINT_KEYS.GET_DATA) {
-              const pathParams = this.extractPathParams(url);
-              if (paramName === 'type' && pathParams.type) {
-                return pathParams.type;
-              } else if (paramName === 'uuid' && pathParams.uuid) {
-                return pathParams.uuid;
-              }
-            }
             
             // For other parameters, use query string
             return queryParams[paramName] || '';

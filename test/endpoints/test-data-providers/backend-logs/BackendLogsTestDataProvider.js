@@ -16,7 +16,7 @@ import { ENDPOINT_KEYS } from "../../constants.js";
  *      and get-search-will-match contain insufficient information and should be
  *      derived from get-search requests.  Ditto for get-facet's log entries.
  * - LuxRelatedList: Related list requests with URIs, scopes, and names
- * - LuxNamedProfiles: Document profile requests with URIs and profiles
+ * - LuxNamedProfiles (DISABLED): Document profile requests with URIs and profiles
  * - requestCompleted: Completed search requests with full parameters
  *
  * Log file format expected: *ErrorLog*.txt files in the raw/ subdirectory
@@ -37,6 +37,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
     // Cache for parsed log data to avoid re-parsing
     this.parsedDataCache = new Map();
+    
+    // Counter for skipped related list requests
+    this.skippedRelatedListRequests = 0;
   }
 
   /**
@@ -178,6 +181,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       console.log(
         `✓ Generated ${filteredRows.length} test cases for ${endpointKey} from backend logs`
       );
+      
+      // Report skipped related list requests if any
+      if (endpointKey === ENDPOINT_KEYS.GET_RELATED_LIST && this.skippedRelatedListRequests > 0) {
+        console.log(
+          `⚠ Skipped ${this.skippedRelatedListRequests} related list requests that were not related agents, concepts, or places.`
+        );
+      }
+      
       return filteredRows;
     } catch (error) {
       console.error(
@@ -195,7 +206,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   shouldProcessEndpoint(endpointKey) {
     return [
-      ENDPOINT_KEYS.GET_DATA,
+      // ENDPOINT_KEYS.GET_DATA,
       ENDPOINT_KEYS.GET_RELATED_LIST,
       ENDPOINT_KEYS.GET_SEARCH,
     ].includes(endpointKey);
@@ -248,15 +259,15 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
           if (relatedList) {
             parsedData.push(relatedList);
           }
-        } else if (
-          ENDPOINT_KEYS.GET_DATA === endpointKey &&
-          line.includes("[Event:id=LuxNamedProfiles]")
-        ) {
-          // Parse document profile requests
-          const document = this.parseDocumentRequest(line);
-          if (document) {
-            parsedData.push(document);
-          }
+        // } else if (
+        //   ENDPOINT_KEYS.GET_DATA === endpointKey &&
+        //   line.includes("[Event:id=LuxNamedProfiles]")
+        // ) {
+        //   // Parse document profile requests
+        //   const document = this.parseDocumentRequest(line);
+        //   if (document) {
+        //     parsedData.push(document);
+        //   }
         }
       } catch (error) {
         // Skip malformed lines
@@ -360,46 +371,51 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const [, timestamp, relationName, scope, uri, duration, page, pageLength] =
       match;
 
-    return {
-      timestamp,
-      relationName,
-      scope,
-      uri,
-      duration: parseInt(duration),
-      page: page ? parseInt(page) : 1,
-      pageLength: pageLength ? parseInt(pageLength) : 25,
-      rawLine: line,
-    };
+    if (["relatedToAgent", "relatedToConcept", "relatedToPlace"].includes(relationName)) {
+      return {
+        timestamp,
+        relationName,
+        scope,
+        uri,
+        duration: parseInt(duration),
+        page: page ? parseInt(page) : 1,
+        pageLength: pageLength ? parseInt(pageLength) : 25,
+        rawLine: line,
+      };
+    }
+    console.log(`RelatedListTestDataProvider: Skipping relation '${relationName}'`);
+    this.skippedRelatedListRequests++;
+    return null;
   }
 
-  /**
-   * Parse a document request log entry
-   * @param {string} line - The log line
-   * @returns {Object|null} - Parsed document request or null
-   */
-  parseDocumentRequest(line) {
-    const match = line.match(
-      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Applied the '([^']+)' profile to '([^']+)' in (\d+) milliseconds?/
-    );
-    if (!match) return null;
+  // /**
+  //  * Parse a document request log entry
+  //  * @param {string} line - The log line
+  //  * @returns {Object|null} - Parsed document request or null
+  //  */
+  // parseDocumentRequest(line) {
+  //   const match = line.match(
+  //     /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*Applied the '([^']+)' profile to '([^']+)' in (\d+) milliseconds?/
+  //   );
+  //   if (!match) return null;
 
-    const [, timestamp, profile, uri, duration] = match;
+  //   const [, timestamp, profile, uri, duration] = match;
 
-    // Extract type and UUID from URI
-    const uriMatch = uri.match(/\/data\/([^/]+)\/([^/]+)$/);
-    const type = uriMatch ? uriMatch[1] : "";
-    const uuid = uriMatch ? uriMatch[2] : "";
+  //   // Extract type and UUID from URI
+  //   const uriMatch = uri.match(/\/data\/([^/]+)\/([^/]+)$/);
+  //   const type = uriMatch ? uriMatch[1] : "";
+  //   const uuid = uriMatch ? uriMatch[2] : "";
 
-    return {
-      timestamp,
-      profile,
-      uri,
-      type,
-      uuid,
-      duration: parseInt(duration),
-      rawLine: line,
-    };
-  }
+  //   return {
+  //     timestamp,
+  //     profile,
+  //     uri,
+  //     type,
+  //     uuid,
+  //     duration: parseInt(duration),
+  //     rawLine: line,
+  //   };
+  // }
 
   /**
    * Extract test cases for a specific endpoint from parsed log data
@@ -414,8 +430,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         return this.extractSearchTestCases(logData, sourceFile);
       case ENDPOINT_KEYS.GET_RELATED_LIST:
         return this.extractRelatedListTestCases(logData, sourceFile);
-      case ENDPOINT_KEYS.GET_DATA:
-        return this.extractDocumentTestCases(logData, sourceFile);
+      // case ENDPOINT_KEYS.GET_DATA:
+      //   return this.extractDocumentTestCases(logData, sourceFile);
       default:
         return [];
     }

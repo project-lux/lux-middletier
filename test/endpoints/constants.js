@@ -18,25 +18,13 @@
  * Example: GET /api/search/:scope becomes "get-search"
  */
 export const ENDPOINT_KEYS = {
-  DELETE_DATA: "delete-data",
-  GET_ADVANCED_SEARCH_CONFIG: "get-advanced-search-config",
-  GET_AUTO_COMPLETE: "get-auto-complete",
   GET_DATA: "get-data",
+  GET_DATA_WITH_PROFILE: "get-data-with-profile",
+  GET_DATA_NO_PROFILE: "get-data-no-profile",
   GET_FACETS: "get-facets",
-  GET_HEALTH: "get-health",
-  GET_INFO: "get-info",
   GET_RELATED_LIST: "get-related-list",
-  GET_RESOLVE: "get-resolve",
   GET_SEARCH: "get-search",
   GET_SEARCH_ESTIMATE: "get-search-estimate",
-  GET_SEARCH_INFO: "get-search-info",
-  GET_SEARCH_WILL_MATCH: "get-search-will-match",
-  GET_STATS: "get-stats",
-  GET_TENANT_STATUS: "get-tenant-status",
-  GET_TRANSLATE: "get-translate",
-  GET_VERSION_INFO: "get-version-info",
-  POST_DATA: "post-data",
-  PUT_DATA: "put-data",
 };
 
 // Reverse lookup for endpoint keys (useful for debugging and error messages)

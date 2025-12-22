@@ -24,6 +24,20 @@ export class TestDataProvider {
     return ENDPOINT_KEYS.GET_DATA === endpointKey;
   }
 
+  isGetDataWithProfile(endpointKey) {
+    return ENDPOINT_KEYS.GET_DATA_WITH_PROFILE === endpointKey;
+  }
+
+  isGetDataNoProfile(endpointKey) {
+    return ENDPOINT_KEYS.GET_DATA_NO_PROFILE === endpointKey;
+  }
+
+  isGetDataVariant(endpointKey) {
+    return this.isGetData(endpointKey) || 
+           this.isGetDataWithProfile(endpointKey) || 
+           this.isGetDataNoProfile(endpointKey);
+  }
+
   isGetRelatedList(endpointKey) {
     return ENDPOINT_KEYS.GET_RELATED_LIST === endpointKey;
   }

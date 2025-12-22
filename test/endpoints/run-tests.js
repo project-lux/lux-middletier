@@ -3,7 +3,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl } from "./utils.js";
+import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl, getRealEndpointKey } from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/interface.js";
 import { ENDPOINT_KEYS } from "./constants.js";
 
@@ -243,9 +243,11 @@ class ConfigurationLoader {
    */
   getEndpointMethod(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -261,9 +263,11 @@ class ConfigurationLoader {
    */
   getEndpointPath(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -279,9 +283,11 @@ class ConfigurationLoader {
    */
   getEndpointTests(endpointType) {
     if (this.endpointsSpec?.endpoints) {
+      // For virtual endpoints, get the real endpoint
+      const realEndpointKey = getRealEndpointKey(endpointType);
       const endpoint = this.endpointsSpec.endpoints.find((ep) => {
         const specKey = getEndpointKeyFromPath(ep.path, ep.method);
-        return specKey === endpointType;
+        return specKey === realEndpointKey;
       });
 
       if (endpoint) {
@@ -548,8 +554,6 @@ class ResponseAnalyzer {
         return this.extractOrderedItemsInfo("Results Count", data);
       case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
         return this.extractOrderedItemsInfo("Estimate", data);
-      case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-        return this.extractWillMatchInfo("Will Match", data);
       default:
         return null;
     }
@@ -700,6 +704,7 @@ class EndpointTester {
     this.reportsDir = reportsDir;
     this.results = [];
     this.options = options;
+    this.requestCounter = 0; // Initialize request counter for unique request IDs
 
     // Initialize configuration
     this.initializeDirectories();
@@ -1024,28 +1029,7 @@ class EndpointTester {
       }
     }
 
-    // Sort by file size (largest first) for better progress visibility
-    return targetFiles.sort((a, b) => {
-      const sizeA = this.getEndpointFileSize(a.file);
-      const sizeB = this.getEndpointFileSize(b.file);
-      return sizeB - sizeA; // Descending order
-    });
-  }
-
-  /**
-   * Get estimated file size for sorting (rough estimate based on known sizes)
-   */
-  getEndpointFileSize(filename) {
-    // Based on your data: get-facets (336K), get-data (75K), get-related-list (38K), etc.
-    const sizeEstimates = {
-      'get-facets-tests.xlsx': 336793,
-      'get-data-tests.xlsx': 75183,
-      'get-related-list-tests.xlsx': 37993,
-      'get-search-tests.xlsx': 17708,
-      'get-search-estimate-tests.xlsx': 17693,
-      'get-search-will-match-tests.xlsx': 17693
-    };
-    return sizeEstimates[filename] || 10000; // Default estimate
+    return targetFiles;
   }
 
   /**
@@ -1384,6 +1368,7 @@ class EndpointTester {
    */
   async runSingleTest(testConfig) {
     const startTime = Date.now();
+    const requestId = ++this.requestCounter; // Increment and assign unique request ID
 
     try {
       const response = await this.requestHandler.executeRequest(testConfig);
@@ -1412,10 +1397,11 @@ class EndpointTester {
         duration,
         timestamp,
         additionalInfo,
-        responseBodyFile
+        responseBodyFile,
+        requestId
       );
     } catch (error) {
-      return this.createErrorResult(testConfig, error, Date.now() - startTime);
+      return this.createErrorResult(testConfig, error, Date.now() - startTime, requestId);
     }
   }
 
@@ -1428,7 +1414,8 @@ class EndpointTester {
     duration,
     timestamp,
     additionalInfo,
-    responseBodyFile
+    responseBodyFile,
+    requestId
   ) {
     const statusMatches = response.status === testConfig.expected_status;
     let status = statusMatches ? "PASS" : "FAIL";
@@ -1443,6 +1430,7 @@ class EndpointTester {
     }
 
     const result = {
+      request_id: requestId,
       provider_id: testConfig.provider_id,
       test_name: testConfig.test_name,
       endpoint_type: testConfig.endpoint_type,
@@ -1501,7 +1489,7 @@ class EndpointTester {
   /**
    * Create error result object
    */
-  createErrorResult(testConfig, error, duration) {
+  createErrorResult(testConfig, error, duration, requestId) {
     let responseBodyFile = null;
     let additionalInfo = null;
 
@@ -1521,6 +1509,7 @@ class EndpointTester {
     }
 
     const result = {
+      request_id: requestId,
       test_name: testConfig.test_name,
       provider_id: testConfig.provider_id,
       endpoint_type: testConfig.endpoint_type,
@@ -1657,10 +1646,21 @@ class EndpointTester {
   }
 
   getAvailableEndpoints() {
-    return this.configLoader
+    // Get endpoints from actual config files plus virtual endpoints
+    const configEndpoints = this.configLoader
       .getValidConfigFiles()
       .map((file) => this.configLoader.extractEndpointType(file))
       .sort();
+      
+    // Add virtual endpoints that are supported
+    const virtualEndpoints = [
+      ENDPOINT_KEYS.GET_DATA_WITH_PROFILE,
+      ENDPOINT_KEYS.GET_DATA_NO_PROFILE
+    ];
+    
+    // Combine and deduplicate
+    const allEndpoints = [...new Set([...configEndpoints, ...virtualEndpoints])];
+    return allEndpoints.sort();
   }
 
   getProvidersIncluded() {

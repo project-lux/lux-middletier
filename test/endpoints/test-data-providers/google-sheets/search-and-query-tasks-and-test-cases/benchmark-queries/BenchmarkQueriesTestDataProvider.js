@@ -44,7 +44,7 @@ export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
    */
   async extractTestData(apiDef, endpointKey, columns) {
     try {
-      if (!this.isGetSearch(endpointKey) && !this.isGetData(endpointKey)) {
+      if (!this.isGetSearch(endpointKey)) {
         // console.log(
         //   `Skipping: the ${endpointKey} endpoint is not applicable for this provider`
         // );
@@ -104,8 +104,6 @@ export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
 
         if (urlEndpointType === ENDPOINT_KEYS.GET_SEARCH) {
           queryParams = parseUrlQueryString(testUrl);
-        } else if (urlEndpointType === ENDPOINT_KEYS.GET_DATA) {
-          dataParams = extractDataParamsFromUrl(testUrl);
         }
 
         // Combine both parameter sets
@@ -119,11 +117,7 @@ export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
             // Column E is the description (Query column)
             return (
               this.getColumnValue(record, "Query") ||
-              `${
-                urlEndpointType === ENDPOINT_KEYS.GET_DATA
-                  ? "GET_DATA"
-                  : "GET_SEARCH"
-              } test from source row ${record.originalIndex}`
+              `GET_SEARCH test from source row ${record.originalIndex}`
             );
           } else if (columnName === "enabled") {
             return true;
@@ -136,11 +130,7 @@ export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
           } else if (columnName === "delay_after_ms") {
             return 0;
           } else if (columnName === "tags") {
-            const endpointTag =
-              urlEndpointType === ENDPOINT_KEYS.GET_DATA
-                ? "get-data"
-                : "search";
-            return `benchmark-queries,${endpointTag}`;
+            return `benchmark-queries,search`;
           } else if (columnName.startsWith("param:")) {
             // Extract parameter from URL query string or path
             const paramName = columnName.replace("param:", "");
@@ -298,18 +288,11 @@ export class BenchmarkQueriesTestDataProvider extends TestDataProvider {
   /**
    * Determine the endpoint type from a URL
    * @param {string} url - URL to analyze
-   * @returns {string} - Either ENDPOINT_KEYS.GET_SEARCH or ENDPOINT_KEYS.GET_DATA
+   * @returns {string} - ENDPOINT_KEYS.GET_SEARCH
    */
   getEndpointTypeFromUrl(url) {
-    if (!url || typeof url !== "string") return null;
-
-    // Check if it's a search results URL
-    if (url.includes("/view/results/")) {
-      return ENDPOINT_KEYS.GET_SEARCH;
-    }
-
-    // Otherwise treat it as a data URL
-    return ENDPOINT_KEYS.GET_DATA;
+    // Modified this provider to only support search.
+    return ENDPOINT_KEYS.GET_SEARCH;
   }
 
   /**

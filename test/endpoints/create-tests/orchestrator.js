@@ -4,6 +4,7 @@ import { TestStatistics } from "./statistics.js";
 import { filterProviders, filterEndpoints } from "./filter-utils.js";
 import { TestDataProviderFactory } from "../test-data-providers/index.js";
 import { ENDPOINT_KEYS } from "../constants.js";
+import { getVirtualEndpoints, getRealEndpointKey } from "../utils.js";
 
 /**
  * Create instances of all available TestDataProvider implementations
@@ -69,15 +70,18 @@ export function cleanupExistingFiles(testsDir) {
  * Prepare endpoints for processing by applying filters
  * @param {Object} apiDefinitions - All API definitions
  * @param {Object} options - Configuration options
- * @returns {Array<string>} - Filtered array of endpoint keys
+ * @returns {Array<string>} - Filtered array of endpoint keys including virtual endpoints
  */
 export function prepareEndpoints(apiDefinitions, options) {
   console.log(
     `Found ${Object.keys(apiDefinitions).length} unique API endpoints\n`
   );
 
-  // Apply endpoint filtering
+  // Expand virtual endpoints - replace get-data with its virtual variants
   let endpointKeys = Object.keys(apiDefinitions);
+  endpointKeys = expandVirtualEndpoints(endpointKeys);
+
+  // Apply endpoint filtering
   if (options.endpointFilter && options.endpointFilter.length > 0) {
     const originalCount = endpointKeys.length;
     endpointKeys = filterEndpoints(endpointKeys, options.endpointFilter);
@@ -93,6 +97,29 @@ export function prepareEndpoints(apiDefinitions, options) {
   }
 
   return endpointKeys;
+}
+
+/**
+ * Expand endpoint keys to include virtual endpoints where applicable
+ * @param {Array<string>} endpointKeys - Original endpoint keys
+ * @returns {Array<string>} - Endpoint keys with virtual endpoints expanded
+ */
+function expandVirtualEndpoints(endpointKeys) {
+  const expandedKeys = [];
+  
+  for (const endpointKey of endpointKeys) {
+    const virtualEndpoints = getVirtualEndpoints(endpointKey);
+    if (virtualEndpoints.length > 0) {
+      // Replace the real endpoint with its virtual endpoints
+      console.log(`Expanding ${endpointKey} into virtual endpoints: ${virtualEndpoints.join(', ')}`);
+      expandedKeys.push(...virtualEndpoints);
+    } else {
+      // Keep the original endpoint
+      expandedKeys.push(endpointKey);
+    }
+  }
+  
+  return expandedKeys;
 }
 
 /**
@@ -173,12 +200,19 @@ export async function processRemainingEndpoints(
 
   for (const endpointKey of endpointKeys) {
     if (endpointKey !== getSearchKey) {
-      const apiDef = apiDefinitions[endpointKey];
+      // For virtual endpoints, get the real API definition
+      const realEndpointKey = getRealEndpointKey(endpointKey);
+      const apiDef = apiDefinitions[realEndpointKey];
+
+      if (!apiDef) {
+        console.warn(`Warning: No API definition found for endpoint ${endpointKey} (real: ${realEndpointKey})`);
+        continue;
+      }
 
       const startTime = Date.now();
       const result = await createTestsForEndpoint(
         apiDef,
-        endpointKey,
+        endpointKey, // Pass virtual endpoint key for file naming and provider filtering
         testsDir,
         allProviders,
         options,

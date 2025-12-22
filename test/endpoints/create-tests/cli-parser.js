@@ -94,7 +94,6 @@ export function parseCommandLineArgs() {
 
   // Check for data source arguments
   // Usage examples:
-  // node create-tests.js --test-count=5
   // node create-tests.js --no-dedup
   // node create-tests.js --providers AdvancedSearchQueriesTestDataProvider,BenchmarkQueriesTestDataProvider
   // node create-tests.js --endpoints get-search,get-auto-complete
@@ -106,9 +105,6 @@ export function parseCommandLineArgs() {
       console.log("Usage: node create-tests.js [options]");
       console.log("");
       console.log("Options:");
-      console.log(
-        "  --test-count=<number>         Maximum number of test cases to generate per provider"
-      );
       console.log(
         "  --no-dedup                    Skip deduplication of test cases for faster processing"
       );
@@ -139,7 +135,6 @@ export function parseCommandLineArgs() {
       console.log("  node create-tests.js");
       console.log("  node create-tests.js --no-dedup");
       console.log("  node create-tests.js --no-derive-related-tests");
-      console.log("  node create-tests.js --test-count=100");
       console.log(
         "  node create-tests.js --providers AdvancedSearchQueriesTestDataProvider"
       );
@@ -185,28 +180,10 @@ export function parseCommandLineArgs() {
         console.log("Example: --endpoints get-search,get-auto-complete");
         process.exit(1);
       }
-    } else if (arg.startsWith("--test-count=")) {
-      const value = arg.split("=")[1];
-      if (!value) {
-        console.error("Error: --test-count requires a value");
-        console.log("Example: --test-count=100");
-        process.exit(1);
-      }
-      const count = parseInt(value);
-      if (isNaN(count) || count <= 0) {
-        console.error("Error: --test-count must be a positive number");
-        console.log("Example: --test-count=100");
-        process.exit(1);
-      }
-      options.testCaseCount = count;
     } else if (arg === "--no-dedup") {
       options.skipDeduplication = true;
     } else if (arg === "--no-derive-related-tests") {
       options.noDeriveRelatedTests = true;
-    } else if (arg === "--test-count") {
-      console.error("Error: --test-count requires a value");
-      console.log("Example: --test-count=100");
-      process.exit(1);
     } else if (arg.startsWith("-")) {
       // Unknown option starting with "-"
       console.error(`Error: Unknown option '${arg}'`);

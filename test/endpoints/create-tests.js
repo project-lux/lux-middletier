@@ -187,7 +187,7 @@ function analyzeEndpointsSpec() {
  * Create test file for a specific API endpoint using ALL available providers
  */
 async function createTestsForEndpoint(
-  apiDef,
+  apiDef, // this is the real API def, which we should use for virtual endpoints.
   endpointKey,
   testsDir,
   allProviders,
@@ -213,7 +213,7 @@ async function createTestsForEndpoint(
     "duplicate_count",
   ];
 
-  // Add required parameters first
+  // Add required parameters first  
   const requiredParamColumns = apiDef.requiredParams.map(
     (param) => `param:${param.name}`
   );
@@ -440,10 +440,6 @@ function shouldDeriveTestsForEndpoint(endpointKey, options, providerOptions) {
       break;
     case ENDPOINT_KEYS.GET_SEARCH_ESTIMATE:
       primary = providerOptions?.deriveSearchEstimateTests;
-      secondary = options?.noDeriveRelatedTests;
-      break;
-    case ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH:
-      primary = providerOptions?.deriveSearchWillMatchTests;
       secondary = options?.noDeriveRelatedTests;
       break;
   }
