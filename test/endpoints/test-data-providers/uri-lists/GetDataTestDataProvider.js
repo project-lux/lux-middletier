@@ -2,14 +2,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { TestDataProvider } from "../interface.js";
-import { ENDPOINT_KEYS } from "../../constants.js";
 import { extractDataParamsFromUrl } from '../../utils.js';
 
 export class GetDataTestDataProvider extends TestDataProvider {
   constructor(options = {}) {
     super(options);
-    // Path to the URI list file - one URI per line
-    this.uriListPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'get-data-uris.txt');
   }
 
   /**
@@ -20,12 +17,22 @@ export class GetDataTestDataProvider extends TestDataProvider {
    * @returns {Promise<Array<Array>>} - Array of test data rows
    */
   async extractTestData(apiDef, endpointKey, columns) {
-    // Only provide data for get-data related endpoints
-    if (!this.isGetDataVariant(endpointKey)) {
+    // Determine URI list to use, if any at all.
+    let filename = null;
+    if (this.isGetDataWithProfile(endpointKey)) {
+      this.withProfiles = true;
+      filename = '2025-12-03-uris-with-profile.txt';
+    } else if (this.isGetDataNoProfile(endpointKey)) {
+      this.withProfiles = false;
+      filename = '2025-12-03-uris-plain.txt';
+    } else {
       return [];
     }
 
     try {
+      // Path to the URI list file - one URI per line
+      this.uriListPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), filename);
+
       // Check if URI list file exists
       if (!fs.existsSync(this.uriListPath)) {
         console.warn(`GetDataTestDataProvider: URI list file not found at ${this.uriListPath}`);
@@ -36,11 +43,11 @@ export class GetDataTestDataProvider extends TestDataProvider {
       const content = fs.readFileSync(this.uriListPath, 'utf-8');
       const uris = content
         .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !line.startsWith('#')); // Filter out empty lines and comments
+      //   .map(line => line.trim())
+      //   .filter(line => line && !line.startsWith('#')); // Filter out empty lines and comments
 
       if (uris.length === 0) {
-        console.warn('GetDataTestDataProvider: No valid URIs found in the file');
+        console.warn(`GetDataTestDataProvider: No valid URIs found in '${filename}'`);
         return [];
       }
 
@@ -107,9 +114,9 @@ export class GetDataTestDataProvider extends TestDataProvider {
       } else if (columnName === 'expected_status') {
         row[colIndex] = 200;
       } else if (columnName === 'timeout_ms') {
-        row[colIndex] = 10000;
+        row[colIndex] = this.withProfiles ? 10000 : 60000;
       } else if (columnName === 'max_response_time') {
-        row[colIndex] = 5000;
+        row[colIndex] = this.withProfiles ? 5000 : 30000;
       } else if (columnName === 'delay_after_ms') {
         row[colIndex] = 0;
       } else if (columnName === 'tags') {
@@ -121,7 +128,7 @@ export class GetDataTestDataProvider extends TestDataProvider {
         }
         row[colIndex] = tags.join(',');
       } else if (columnName === 'duplicate_count') {
-        row[colIndex] = 1; // Will be updated by deduplication logic if enabled
+        row[colIndex] = 0; // Will be updated by deduplication logic if enabled
       } else if (columnName.startsWith('param:')) {
         const paramName = columnName.replace('param:', '');
         row[colIndex] = params[paramName] || '';
