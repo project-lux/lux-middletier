@@ -37,6 +37,9 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
     // Cache for parsed log data to avoid re-parsing
     this.parsedDataCache = new Map();
+    
+    // Counter for skipped related list requests
+    this.skippedRelatedListRequests = 0;
   }
 
   /**
@@ -178,6 +181,14 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       console.log(
         `✓ Generated ${filteredRows.length} test cases for ${endpointKey} from backend logs`
       );
+      
+      // Report skipped related list requests if any
+      if (endpointKey === ENDPOINT_KEYS.GET_RELATED_LIST && this.skippedRelatedListRequests > 0) {
+        console.log(
+          `⚠ Skipped ${this.skippedRelatedListRequests} related list requests that were not related agents, concepts, or places.`
+        );
+      }
+      
       return filteredRows;
     } catch (error) {
       console.error(
@@ -360,16 +371,21 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     const [, timestamp, relationName, scope, uri, duration, page, pageLength] =
       match;
 
-    return {
-      timestamp,
-      relationName,
-      scope,
-      uri,
-      duration: parseInt(duration),
-      page: page ? parseInt(page) : 1,
-      pageLength: pageLength ? parseInt(pageLength) : 25,
-      rawLine: line,
-    };
+    if (["relatedToAgent", "relatedToConcept", "relatedToPlace"].includes(relationName)) {
+      return {
+        timestamp,
+        relationName,
+        scope,
+        uri,
+        duration: parseInt(duration),
+        page: page ? parseInt(page) : 1,
+        pageLength: pageLength ? parseInt(pageLength) : 25,
+        rawLine: line,
+      };
+    }
+    console.log(`RelatedListTestDataProvider: Skipping relation '${relationName}'`);
+    this.skippedRelatedListRequests++;
+    return null;
   }
 
   // /**
