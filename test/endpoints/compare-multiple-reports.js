@@ -27,13 +27,14 @@ const configurations = [
 ];
 
 const endpointsToCompare = [
-    'get-data',
+    'get-data-no-profile',
+    'get-data-with-profile',
     'get-facets',
     'get-related-list',
     'get-search',
-    'get-search-estimate',
-    'get-search-will-match'];
+    'get-search-estimate'];
 
+(async () => {
 for (const config of configurations) {
   let { baselineEndpointsDir, currentEndpointsDir, baseOutputDir } = config;
   baselineEndpointsDir = path.join(baseDir, baselineEndpointsDir);
@@ -73,13 +74,12 @@ for (const config of configurations) {
     const currentFile = `${currentEndpointsDir}/${endpoint}/endpoint-test-report.json`;
     const endpointOutputDir = `${baseOutputDir}/${comparisonName}/${endpoint}`;
     const endpointComparisonName = `${comparisonName}: ${endpoint}`;
-    compareFiles(baselineFile, currentFile, endpointOutputDir, endpointComparisonName);
+    await compareFiles(baselineFile, currentFile, endpointOutputDir, endpointComparisonName);
   }
 }
+})();
 
-// ...existing code...
-
-function compareFiles(baselineFile, currentFile, outputDir, comparisonName) {
+async function compareFiles(baselineFile, currentFile, outputDir, comparisonName) {
   // Validate input files exist
 
   if (!fs.existsSync(baselineFile)) {
@@ -96,7 +96,7 @@ function compareFiles(baselineFile, currentFile, outputDir, comparisonName) {
 
   try {
     const comparator = new ReportComparator(baselineFile, currentFile, outputDir, comparisonName);
-    comparator.compareReports();
+    await comparator.compareReports();
   } catch (error) {
     console.error(`Comparison of these files failed: ${baselineFile}, ${currentFile}`, error.message);
     // opt not to exit so that other comparisons can continue

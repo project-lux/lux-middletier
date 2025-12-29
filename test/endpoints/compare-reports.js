@@ -82,12 +82,23 @@ class ReportComparator {
   }
 
   /**
-   * Extract stable key from test data
-   * Uses multiple fields to create a unique, robust identifier for each test execution
-   * This ensures we can reliably match the same test between different runs
+   * Extract key from test data
+   * Keys are used to find the same request in the comparison report.
+   * Uses unique request_id when available, falling back to flawed fallbacks for backward compatibility
+   * Regardless of the method, the reports being compared need to have used the same test configuration files.
    */
-  extractStableKey(test) {
-    // Primary approach: use response_body_file path (most reliable when available)
+  extractKey(test) {
+    // Primary approach: use simple unique request ID (when available)
+    // Valid when the tests being compared used the same test configuration files.
+    if (test.request_id) {
+      return test.request_id.toString();
+    }
+
+    /*
+     * WARNING: FALLBACK METHODS ARE NOT RELIABLE.
+     */
+    
+    // Fallback for old test data format - use response_body_file path (most reliable when available)
     if (test.response_body_file) {
       // Extract the stable portion: provider + filename (excludes timestamp directory)
       const parts = test.response_body_file.split('/');
@@ -102,7 +113,7 @@ class ReportComparator {
       return parts[parts.length - 1];
     }
     
-    // Fallback for tests without response_body_file (failed/timeout tests)
+    // Final fallback for tests without request_id or response_body_file (failed/timeout tests)
     // Create composite key from multiple stable fields to ensure uniqueness
     const keyParts = [];
     
@@ -156,7 +167,7 @@ class ReportComparator {
    */
   addStableKeys(results) {
     results.forEach(test => {
-      test.stableKey = this.extractStableKey(test);
+      test.stableKey = this.extractKey(test);
     });
   }
 
@@ -1016,8 +1027,8 @@ class ReportComparator {
                 }).join('')}
             </tbody>
         </table>
-        <p style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 13px; color: #666;">
-            <strong>* MISSING:</strong> Unable to find the associated response in the current test run. This typically occurs due to differences in test execution or data variations. A future update will improve this lookup mechanism.
+        <p style="margin-top: 15px; padding: 10px; border-radius: 5px; font-size: 13px;">
+            <strong>* MISSING:</strong> Unable to find the associated response in the test's results. This is not expected so long as the responses have unique IDs (added in Dec 2025) and the tests being compared used the same test configurations. There is fallback logic but it has known flaws and can even associate the wrong two responses.
         </p>
     </div>
     ` : ''}
@@ -1078,8 +1089,8 @@ class ReportComparator {
                 }).join('')}
             </tbody>
         </table>
-        <p style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 13px; color: #666;">
-            <strong>* MISSING:</strong> Unable to find the associated response in the baseline test run. This typically occurs due to differences in test execution or data variations. A future update will improve this lookup mechanism.
+        <p style="margin-top: 15px; padding: 10px; background: border-radius: 5px; font-size: 13px;">
+            <strong>* MISSING:</strong> Unable to find the associated response in the test's results. This is not expected so long as the responses have unique IDs (added in Dec 2025) and the tests being compared used the same test configurations. There is fallback logic but it has known flaws and can even associate the wrong two responses.
         </p>
     </div>
     ` : ''}
@@ -1515,7 +1526,8 @@ class ReportComparator {
                             grid: { color: 'rgba(0,0,0,0.1)' },
                             ticks: {
                                 callback: function(value) {
-                                    return value === 0 ? '0 (no change)' : (value > 0 ? '+' : '') + value + 'ms';
+                                    const rounded = Math.round(value * 100) / 100;
+                                    return rounded === 0 ? '0 (no change)' : (rounded > 0 ? '+' : '') + rounded + 'ms';
                                 }
                             }
                         }
@@ -1989,7 +2001,7 @@ class ReportComparator {
       
       return {
         x: data.baseline.avg_size,
-        y: data.current.avg_duration - data.baseline.avg_duration,
+        y: Math.round((data.current.avg_duration - data.baseline.avg_duration) * 100) / 100,
         r: Math.max(5, Math.min(15, data.current.count / 1000)), // Scale by sample count
         category: category
       };
