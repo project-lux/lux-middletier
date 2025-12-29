@@ -23,6 +23,7 @@
         - [QLever](#qlever)
     - [Run All Tests](#run-all-tests)
     - [Post Flight](#post-flight)
+  - [Run Partial Test](#run-partial-test)
 
 
 # Middle Tier Endpoint Testing Notes
@@ -57,12 +58,12 @@ sudo dnf install git -y
 
 **Mini MarkLogic:**
 
-* Middle tier: https://lux-front-sbx.collections.yale.edu --We're borrowing SBX's middle tier, which shares its URL with SBX's frontend.
+* Middle tier: http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com
 * Admin Console: https://lux-ml-sbxa.collections.yale.edu:8001
 * Query Console: https://lux-ml-sbxa.collections.yale.edu:8000/qconsole
 * Monitoring Console: https://lux-ml-sbxa.collections.yale.edu:8002/history/
 
-Or you can use Mini MarkLogic's IP address for the consoles: 10.5.156.95
+Or you can use Mini MarkLogic's IP address for the consoles: 10.5.156.111
 
 **MarkLogic Full:**
 
@@ -237,7 +238,7 @@ Time to select an environment, which must be specified using the `--base-url` ar
 
 For our examples, we'll use Mini MarkLogic.  Since we'll want the response bodies from the real test runs, let's prove that works.  And more for illustrative purposes, let's restrict to the get-search endpoint.
 
-`node run-tests.js --base-url https://lux-front-sbx.collections.yale.edu --save-responses --endpoints get-search`
+`node run-tests.js --base-url http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com --save-responses --endpoints get-search`
 
 Here's the expected output:
 
@@ -317,6 +318,8 @@ total 804
 At this point, we proved out everything we need to have confidence to run a larger test.  True, we didn't test all the endpoints that will be part of a full test, but the mechanics of making and processing the requests has.
 
 ## Run the Full Test
+
+If you only need to run one segment of the test, see [Run Partial Test](#run-partial-test).
 
 ### Create All Test Configurations
 
@@ -456,9 +459,9 @@ Dry run (no `nohup`) example pre-configured for the MarkLogic 1/3rd test:
 
 ```bash
 $ node run-tests.js \
-    --base-url https://lux-front-sbx.collections.yale.edu \
-    --name "ML 1/3rd" \
-    --description "MarkLogic with 1/3rd the resources PRD has." \
+    --base-url http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com \
+    --name "ML-Mini-24" \
+    --description "3.5 GHz with 128 GB memory." \
     --save-responses \
     --dry-run
 ```
@@ -470,17 +473,17 @@ Anticipated output:
 ```bash
 Configuration directory: ./configs
 Reports directory: ./reports
-Test name: ML 1/3rd
-Test description: MarkLogic with 1/3rd the resources PRD has.
+Test name: ML-Mini-24
+Test description: 3.5 GHz with 128 GB memory.
 Response bodies will be saved to disk
 
 DRY RUN MODE: Tests will not be executed, only planned test execution will be shown
 
 Checking connectivity to base URL...
-✓ Successfully connected to https://lux-front-sbx.collections.yale.edu (HTTP 200)
+✓ Successfully connected to http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com (HTTP 200)
 Loaded 19 endpoint specifications
-Test execution directory: reports\test-run-2025-12-22_18-58-44
-Base URL: https://lux-front-sbx.collections.yale.edu
+Test execution directory: reports/test-run-2025-12-29_15-33-48
+Base URL: http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com
 
 Resolved:
   Requested providers:
@@ -504,36 +507,36 @@ Filtering options:
         get-search
         get-search-estimate
 
-Loading config from configs\get-data-no-profile-tests.xlsx for the get-data-no-profile endpoint...
-Loading config from configs\get-data-with-profile-tests.xlsx for the get-data-with-profile endpoint...
-Loading config from configs\get-facets-tests.xlsx for the get-facets endpoint...
-Loading config from configs\get-related-list-tests.xlsx for the get-related-list endpoint...
-Loading config from configs\get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
-Loading config from configs\get-search-tests.xlsx for the get-search endpoint...
-Found 436411 test configurations across 6 files
+Loading config from configs/get-data-no-profile-tests.xlsx for the get-data-no-profile endpoint...
+Loading config from configs/get-data-with-profile-tests.xlsx for the get-data-with-profile endpoint...
+Loading config from configs/get-facets-tests.xlsx for the get-facets endpoint...
+Loading config from configs/get-related-list-tests.xlsx for the get-related-list endpoint...
+Loading config from configs/get-search-estimate-tests.xlsx for the get-search-estimate endpoint...
+Loading config from configs/get-search-tests.xlsx for the get-search endpoint...
+Found 436495 test configurations across 6 files
 
 Test distribution by endpoint type:
   get-data-no-profile: 17500 tests (17500 enabled, 0 filtered out)
   get-data-with-profile: 75000 tests (75000 enabled, 0 filtered out)
   get-facets: 270606 tests (270606 enabled, 0 filtered out)
-  get-related-list: 37906 tests (37906 enabled, 0 filtered out)
+  get-related-list: 37990 tests (37990 enabled, 0 filtered out)
   get-search-estimate: 17692 tests (17692 enabled, 0 filtered out)
   get-search: 17707 tests (17707 enabled, 0 filtered out)
 
 === DRY RUN SUMMARY ===
-Total tests found: 436411
-Tests that would be executed: 436411
+Total tests found: 436495
+Tests that would be executed: 436495
 Tests that would be skipped: 0
-Estimated execution time: 872822s - 4364110s (rough estimate)
+Estimated execution time: 872990s - 4364950s (rough estimate)
 
 No actual HTTP requests were made.
 
-BASE URL: https://lux-front-sbx.collections.yale.edu
+BASE URL: http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com
 
 To execute these tests, run the same command without --dry-run
 ```
 
-Let's hope the estimated execution time of 10 - 15 days is waaaaaaaaaaaaay off.
+Ignore the estimated execution time.  We see runs taking 4 to 8 hours.
 
 Ready to run the actual test?  Here's a modified version of the last command.  It uses `nohup`, writes STDERR and STDOUT to a file, and is not in dry run mode.  It's go time!
 
@@ -548,11 +551,11 @@ Double check the base URL.
 
 ```bash
 $ nohup node run-tests.js \
-    --base-url https://lux-front-sbx.collections.yale.edu \
-    --name "ML 1/3rd" \
-    --description "Take 3: MarkLogic with 1/3rd the resources PRD has." \
+    --base-url http://internal-exp-lux-middle-alb-892169207.us-east-1.elb.amazonaws.com \
+    --name "ML-Mini-24" \
+    --description "3.5 GHz with 128 GB memory." \
     --save-responses \
-    > take-03.out 2>&1 &
+    > ML-Mini-24.out 2>&1 &
 ```
 
 **IMPORTANT**
@@ -563,7 +566,7 @@ Also disown the process:
 
 OK, now you can see how it's going:
 
-`tail -f take-03.out`
+`tail -f ML-Mini-24.out`
 
 After the test configuration spreadsheets are read, you should start seeing tests executing.  It's at this time that the test's reports directory is created and can be added to the [Endpoint Tests](https://docs.google.com/spreadsheets/d/1uu6aL7yn047yyiZ4auujpTXnlwm01sgWZQ50ht-X4M4/edit?gid=981515063#gid=981515063) spreadsheet.
 
@@ -583,4 +586,27 @@ For MarkLogic:
 3. Take screenshots of the key monitoring aspects (minutely data, a.k.a., "raw").
 
 What artifacts should we get from QLever?
+
+## Run Partial Test
+
+To run a single segment of the test:
+
+1. Temporarily move or rename the all test configuration files less the one you want to run.
+2. Add `--request-counter-start` to the run-tests command. It overrides a counter that defaults to zero.  The counter is used to assign a unique ID to every request.  These IDs are used by the performance report comparision utility to reliably find the same request in the other report.  This works so long as the two tests being compared used the same test configs. Below are the values to use by segment for version 2 of the test configuration files (Dec 2025).  If the number of tests change, these values need to be updated.
+
+    | Segment | Filename                         | Bytes     | MD5                              | Counter |
+    |---------|----------------------------------|-----------|----------------------------------|---------|
+    | 1       | get-data-no-profile-tests.xlsx   | 11792137  | ccd850def5337ecb63c75f2cd65acc30 | 0       |
+    | 2       | get-data-with-profile-tests.xlsx | 51674901  | e4810a3d96df949c88980c91861a3a3e | 17500   |
+    | 3       | get-related-list-tests.xlsx      | 32793371  | 79030be506af75eb9724a26aa6ad5880 | 92500   |
+    | 4       | get-search-estimate-tests.xlsx   | 17123377  | 41bed14e3021bef62c334c5e4a2d8579 | 130428  |
+    | 5       | get-search-tests.xlsx            | 20779906  | dff0259cbb4edb491c0da58bf7270ef2 | 148120  |
+    | 6       | get-facets-tests.xlsx            | 323465664 | 68a66e75f0ed1d6529a97f5b47005aa8 | 166127  |
+
+3. Follow the rest of the relevant directions in [Run the Full Test](#run-the-full-test).
+
+
+
+
+
 
