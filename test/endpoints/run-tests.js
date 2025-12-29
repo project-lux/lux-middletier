@@ -704,7 +704,7 @@ class EndpointTester {
     this.reportsDir = reportsDir;
     this.results = [];
     this.options = options;
-    this.requestCounter = 0; // Initialize request counter for unique request IDs
+    this.requestCounter = options.requestCounterStart || 0; // Initialize request counter for unique request IDs
 
     // Initialize configuration
     this.initializeDirectories();
@@ -3436,6 +3436,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let testName = null; // custom name for the test run
   let testDescription = null; // custom description for the test run
   let baseUrl = null; // custom base URL for API requests
+  let requestCounterStart = 0; // initial value for request counter (default: 0)
   let positionalArgIndex = 0;
 
   // Process command line arguments
@@ -3500,6 +3501,27 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         console.error("Error: --base-url requires a URL");
         process.exit(1);
       }
+    } else if (arg === "--request-counter-start") {
+      // Next argument should be the initial request counter value
+      i++;
+      if (i < args.length) {
+        const value = parseInt(args[i], 10);
+        if (isNaN(value) || value < 0) {
+          console.error("Error: --request-counter-start requires a non-negative integer");
+          process.exit(1);
+        }
+        requestCounterStart = value;
+      } else {
+        console.error("Error: --request-counter-start requires a number");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--request-counter-start=")) {
+      const value = parseInt(arg.substring(24), 10);
+      if (isNaN(value) || value < 0) {
+        console.error("Error: --request-counter-start requires a non-negative integer");
+        process.exit(1);
+      }
+      requestCounterStart = value;
     } else if (arg === "--help" || arg === "-h") {
       console.log(
         "Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]"
@@ -3516,6 +3538,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("Options:");
       console.log(
         "  --base-url <url>               Base URL for API requests (REQUIRED)"
+      );
+      console.log(
+        "  --request-counter-start <num>  Initial value for request counter (default: 0)"
       );
       console.log(
         "  --save-responses, -r          Save response bodies to disk"
@@ -3690,6 +3715,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     dryRun,
     testName,
     testDescription,
+    requestCounterStart,
   };
   const tester = new EndpointTester(configDir, reportsDir, options);
 

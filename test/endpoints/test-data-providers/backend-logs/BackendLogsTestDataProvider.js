@@ -4,6 +4,10 @@ import { fileURLToPath } from "url";
 import { TestDataProvider } from "../interface.js";
 import { ENDPOINT_KEYS } from "../../constants.js";
 
+// Directory date prefixes for filtering log files by endpoint type
+const SEARCH_DATE_PREFIXES = ['20250820'];
+const RELATED_LIST_DATE_PREFIXES = ['20251216'];
+
 /**
  * Backend Logs Test Data Provider
  *
@@ -11,15 +15,28 @@ import { ENDPOINT_KEYS } from "../../constants.js";
  * This provider analyzes log files from backend operations to generate
  * endpoint-specific test cases for various LUX API endpoints.
  *
+ * Directory Filtering:
+ * - Search requests: Only processes directories with names starting with date prefixes
+ *   defined in SEARCH_DATE_PREFIXES (currently 20250820)
+ * - Related list requests: Only processes directories with names starting with date prefixes  
+ *   defined in RELATED_LIST_DATE_PREFIXES (currently 20251216)
+ *
+ * Related List Sampling:
+ * - Automatically samples up to 38,000 related list requests total
+ * - Distributes quota evenly across log files
+ * - Preserves original ratios of relatedToAgent, relatedToConcept, and relatedToPlace
+ * - Provides detailed per-file and aggregate logging with percentages
+ *
  * Supported log patterns:
  * - LuxSearch: successful get-search requests.  Log entries for get-search-estimate
  *      and get-search-will-match contain insufficient information and should be
  *      derived from get-search requests.  Ditto for get-facet's log entries.
- * - LuxRelatedList: Related list requests with URIs, scopes, and names
+ * - LuxRelatedList: Related list requests with URIs, scopes, and names (filtered to
+ *      relatedToAgent, relatedToConcept, and relatedToPlace only)
  * - LuxNamedProfiles (DISABLED): Document profile requests with URIs and profiles
  * - requestCompleted: Completed search requests with full parameters
  *
- * Log file format expected: *ErrorLog*.txt files in the raw/ subdirectory
+ * Log file format expected: *ErrorLog*.txt files in date-prefixed subdirectories
  */
 export class BackendLogsTestDataProvider extends TestDataProvider {
   /**
@@ -44,9 +61,10 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
   /**
    * Discover all log files in the raw directory and subdirectories
+   * @param {string} endpointKey - The endpoint key to filter directories for
    * @returns {Array<string>} - Array of log file paths
    */
-  discoverLogFiles() {
+  discoverLogFiles(endpointKey) {
     try {
       if (!fs.existsSync(this.sourceDir)) {
         console.warn(
@@ -55,7 +73,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         return [];
       }
 
-      const logFiles = this.findLogFilesRecursively(this.sourceDir);
+      const logFiles = this.findLogFilesRecursively(this.sourceDir, endpointKey);
       this.logFiles = logFiles;
       return logFiles;
     } catch (error) {
@@ -70,9 +88,10 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   /**
    * Recursively find all log files in a directory and its subdirectories
    * @param {string} dir - Directory to search
+   * @param {string} endpointKey - The endpoint key to filter directories for
    * @returns {Array<string>} - Array of log file paths
    */
-  findLogFilesRecursively(dir) {
+  findLogFilesRecursively(dir, endpointKey) {
     const logFiles = [];
 
     try {
@@ -82,9 +101,11 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          // Recursively search subdirectories
-          const subDirFiles = this.findLogFilesRecursively(fullPath);
-          logFiles.push(...subDirFiles);
+          // Check if this directory should be processed for this endpoint
+          if (this.shouldProcessDirectory(entry.name, endpointKey)) {
+            const subDirFiles = this.findLogFilesRecursively(fullPath, endpointKey);
+            logFiles.push(...subDirFiles);
+          }
         } else if (entry.isFile()) {
           // Check if it's a log file we want to process
           if (this.isQualifyingLogFile(entry.name)) {
@@ -99,6 +120,22 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
     }
 
     return logFiles;
+  }
+
+  /**
+   * Check if a directory should be processed based on endpoint type
+   * @param {string} dirName - The directory name to check
+   * @param {string} endpointKey - The endpoint key
+   * @returns {boolean} - Whether this directory should be processed
+   */
+  shouldProcessDirectory(dirName, endpointKey) {
+    if (endpointKey === ENDPOINT_KEYS.GET_SEARCH) {
+      return SEARCH_DATE_PREFIXES.some(prefix => dirName.startsWith(prefix));
+    } else if (endpointKey === ENDPOINT_KEYS.GET_RELATED_LIST) {
+      return RELATED_LIST_DATE_PREFIXES.some(prefix => dirName.startsWith(prefix));
+    }
+    // For other endpoints, process all directories
+    return true;
   }
 
   /**
@@ -126,7 +163,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
       console.log(`Processing the ${endpointKey} endpoint`);
 
-      const logFiles = this.discoverLogFiles();
+      const logFiles = this.discoverLogFiles(endpointKey);
 
       if (logFiles.length === 0) {
         console.warn(`Warning: No log files found in ${this.sourceDir}`);
@@ -175,8 +212,12 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         }
       }
 
-      // Apply limits and filtering
-      const filteredRows = this.applyFiltersAndLimits(allTestRows, endpointKey);
+
+      // Apply related list sampling if applicable
+      let filteredRows = allTestRows;
+      if (endpointKey === ENDPOINT_KEYS.GET_RELATED_LIST && logFiles.length > 0) {
+        filteredRows = this.applyRelatedListSampling(filteredRows, logFiles.length);
+      }
 
       console.log(
         `✓ Generated ${filteredRows.length} test cases for ${endpointKey} from backend logs`
@@ -595,37 +636,168 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
   }
 
   /**
-   * Apply filters and limits to test rows
+   * Apply related list sampling with ratio preservation
    * @param {Array<Array>} testRows - Test data rows
-   * @param {string} endpointKey - Endpoint key
-   * @returns {Array<Array>} - Filtered test rows
+   * @param {number} fileCount - Number of log files processed
+   * @returns {Array<Array>} - Sampled test rows
    */
-  applyFiltersAndLimits(testRows, endpointKey) {
-    // Remove duplicates based on parameter combinations
-    const seen = new Set();
-    let filtered = testRows.filter((row, index) => {
-      // Create a key from the parameter columns to detect duplicates
-      // For now, we'll be less aggressive with deduplication and mainly focus on exact parameter matches
-      const paramCols = [];
-      row.forEach((val, idx) => {
-        // Assume columns after index 8 are typically parameters (simplified approach)
-        if (idx >= 8 && val && val.toString().trim()) {
-          paramCols.push(val.toString().trim());
-        }
-      });
-      const paramKey = paramCols.join("|");
-
-      // Only filter out if we have an exact parameter match and it's not empty
-      if (paramKey && paramKey !== "" && seen.has(paramKey)) {
-        return false;
+  applyRelatedListSampling(testRows, fileCount) {
+    const targetTotal = 38000;
+    const perFileQuota = Math.floor(targetTotal / fileCount);
+    
+    console.log(`Related list sampling: ${targetTotal} total target, ${perFileQuota} per file across ${fileCount} files`);
+    
+    // Group rows by source file
+    const rowsByFile = new Map();
+    testRows.forEach((row, index) => {
+      // Find the tags column that contains the source file info
+      const tagsColumn = row.find(col => typeof col === 'string' && col.includes('backend-logs,'));
+      const sourceFile = tagsColumn ? tagsColumn.split(',')[1] : 'unknown';
+      
+      if (!rowsByFile.has(sourceFile)) {
+        rowsByFile.set(sourceFile, []);
       }
-      if (paramKey) {
-        seen.add(paramKey);
-      }
-      return true;
+      rowsByFile.get(sourceFile).push({ row, index });
     });
+    
+    const sampledRows = [];
+    let totalOriginal = { agent: 0, concept: 0, place: 0, other: 0 };
+    let totalSelected = { agent: 0, concept: 0, place: 0, other: 0 };
+    
+    // Process each file
+    for (const [sourceFile, fileRows] of rowsByFile.entries()) {
+      // Categorize rows by relation type
+      const categories = {
+        agent: fileRows.filter(item => this.isRelatedToAgent(item.row)),
+        concept: fileRows.filter(item => this.isRelatedToConcept(item.row)),
+        place: fileRows.filter(item => this.isRelatedToPlace(item.row))
+      };
+      
+      const originalCounts = {
+        agent: categories.agent.length,
+        concept: categories.concept.length,
+        place: categories.place.length
+      };
+      
+      const originalTotal = originalCounts.agent + originalCounts.concept + originalCounts.place;
+      
+      // Update total original counts
+      totalOriginal.agent += originalCounts.agent;
+      totalOriginal.concept += originalCounts.concept;
+      totalOriginal.place += originalCounts.place;
+      
+      if (originalTotal === 0) continue;
+      
+      // Calculate target counts while preserving ratios
+      const targetForFile = Math.min(perFileQuota, originalTotal);
+      const selectedCounts = {
+        agent: Math.floor((originalCounts.agent / originalTotal) * targetForFile),
+        concept: Math.floor((originalCounts.concept / originalTotal) * targetForFile),
+        place: Math.floor((originalCounts.place / originalTotal) * targetForFile)
+      };
+      
+      // Distribute any remainder to maintain the target
+      const selectedTotal = selectedCounts.agent + selectedCounts.concept + selectedCounts.place;
+      const remainder = targetForFile - selectedTotal;
+      
+      if (remainder > 0) {
+        // Add remainder to categories proportionally
+        const sortedByRatio = ['agent', 'concept', 'place']
+          .map(type => ({ type, ratio: originalCounts[type] / originalTotal }))
+          .sort((a, b) => b.ratio - a.ratio);
+        
+        for (let i = 0; i < remainder && i < sortedByRatio.length; i++) {
+          selectedCounts[sortedByRatio[i].type]++;
+        }
+      }
+      
+      // Randomly sample from each category
+      const fileSelectedRows = [];
+      for (const [type, targetCount] of Object.entries(selectedCounts)) {
+        if (targetCount > 0 && categories[type].length > 0) {
+          const shuffled = [...categories[type]].sort(() => Math.random() - 0.5);
+          const selected = shuffled.slice(0, targetCount);
+          fileSelectedRows.push(...selected.map(item => item.row));
+          totalSelected[type] += selected.length;
+        }
+      }
+      
+      sampledRows.push(...fileSelectedRows);
+      
+      // Log per-file statistics with percentages
+      const originalPercentages = this.calculatePercentages(originalCounts, originalTotal);
+      const selectedTotalForFile = selectedCounts.agent + selectedCounts.concept + selectedCounts.place;
+      const selectedPercentages = this.calculatePercentages(selectedCounts, selectedTotalForFile);
+      
+      console.log(`  ${sourceFile}: Original [Agent: ${originalCounts.agent} (${originalPercentages.agent}%), Concept: ${originalCounts.concept} (${originalPercentages.concept}%), Place: ${originalCounts.place} (${originalPercentages.place}%)]`);
+      console.log(`  ${sourceFile}: Selected [Agent: ${selectedCounts.agent} (${selectedPercentages.agent}%), Concept: ${selectedCounts.concept} (${selectedPercentages.concept}%), Place: ${selectedCounts.place} (${selectedPercentages.place}%)]`);
+    }
+    
+    // Log aggregate totals with percentages
+    const aggregateOriginalTotal = totalOriginal.agent + totalOriginal.concept + totalOriginal.place;
+    const aggregateSelectedTotal = totalSelected.agent + totalSelected.concept + totalSelected.place;
+    const aggregateOriginalPercentages = this.calculatePercentages(totalOriginal, aggregateOriginalTotal);
+    const aggregateSelectedPercentages = this.calculatePercentages(totalSelected, aggregateSelectedTotal);
+    
+    console.log(`\nAggregate Totals:`);
+    console.log(`  Original [Agent: ${totalOriginal.agent} (${aggregateOriginalPercentages.agent}%), Concept: ${totalOriginal.concept} (${aggregateOriginalPercentages.concept}%), Place: ${totalOriginal.place} (${aggregateOriginalPercentages.place}%)] = ${aggregateOriginalTotal}`);
+    console.log(`  Selected [Agent: ${totalSelected.agent} (${aggregateSelectedPercentages.agent}%), Concept: ${totalSelected.concept} (${aggregateSelectedPercentages.concept}%), Place: ${totalSelected.place} (${aggregateSelectedPercentages.place}%)] = ${aggregateSelectedTotal}`);
+    
+    return sampledRows;
+  }
 
-    return filtered;
+  /**
+   * Calculate percentages for counts
+   * @param {Object} counts - Object with numeric values
+   * @param {number} total - Total count
+   * @returns {Object} - Object with percentage strings
+   */
+  calculatePercentages(counts, total) {
+    if (total === 0) {
+      return Object.keys(counts).reduce((acc, key) => ({ ...acc, [key]: '0.0' }), {});
+    }
+    
+    const percentages = {};
+    for (const [key, value] of Object.entries(counts)) {
+      percentages[key] = ((value / total) * 100).toFixed(1);
+    }
+    return percentages;
+  }
+
+  /**
+   * Check if a test row represents a relatedToAgent request
+   * @param {Array} row - Test data row
+   * @returns {boolean}
+   */
+  isRelatedToAgent(row) {
+    // Look for 'name' parameter column that contains 'relatedToAgent'
+    return row.some(col => 
+      typeof col === 'string' && col.includes('relatedToAgent')
+    );
+  }
+
+  /**
+   * Check if a test row represents a relatedToConcept request
+   * @param {Array} row - Test data row
+   * @returns {boolean}
+   */
+  isRelatedToConcept(row) {
+    // Look for 'name' parameter column that contains 'relatedToConcept'
+    return row.some(col => 
+      typeof col === 'string' && col.includes('relatedToConcept')
+    );
+  }
+
+  /**
+   * Check if a test row represents a relatedToPlace request
+   * @param {Array} row - Test data row
+   * @returns {boolean}
+   */
+  isRelatedToPlace(row) {
+    // Look for 'name' parameter column that contains 'relatedToPlace'
+    return row.some(col => 
+      typeof col === 'string' && col.includes('relatedToPlace')
+    );
   }
 
   /**
