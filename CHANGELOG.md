@@ -13,6 +13,9 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Unreleased
+- Add a HAL link 'lux:conceptRelatedSets' ([206](https://github.com/project-lux/lux-middletier/issues/206)).
+  
 ## v1.3.8
 - Enable multiple relay targets ([198](https://github.com/project-lux/lux-middletier/issues/198)).
 
