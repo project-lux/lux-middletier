@@ -1,0 +1,73 @@
+name: Docker Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Target environment for deployment'
+        required: true
+        default: 'DEV'
+        type: choice
+        options:
+          - PRD
+          - TST
+          - DEV
+          - SBX
+          - EXP
+          - DATA-DEV
+          - BYUNIT-DEV2
+          - RDATA
+          - MINIML-GRAVITON
+jobs:
+  deploy:
+    runs-on: [self-hosted, X64]
+    environment:
+      name: ${{ inputs.target_env }}
+    env:
+      TAG: ${{ vars.TAG_TO_DEPLOY }}
+      ECR_URI: "${{ vars.ECR_HOST }}/${{ vars.DOCKER_IMAGE_NAME }}"
+      CLUSTER: ${{ vars.ECS_CLUSTER }}
+      SERVICE: ${{ vars.ECS_SERVICE }}
+      MIN_PERC: 100 # minumum healthy percent
+      TIMEOUT: 300 # deployment timeout in seconds
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID_CDS2_DEVTOOLS_DEV }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_CDS2_DEVTOOLS_DEV }}
+      KMS_KEY_ID: ${{ vars.CDS2_KMS_KEY_ID_DEV }}
+      S3URL: ${{ vars.CONFIG_STORE_S3 }}
+      MANIFEST_STORE_BUCKET: ${{ vars.MANIFEST_STORE_BUCKET }}
+      DB_HOST: ${{ vars.DB_HOST }}
+      DB_PORT: ${{ vars.DB_PORT }}
+      DB_NAME: ${{ vars.DB_NAME }}
+      DB_USER: ${{ vars.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      YCBA_SECRET: ${{ secrets.YCBA_SECRET }}
+      YUAG_SECRET: ${{ secrets.YUAG_SECRET }}
+      YPM_SECRET: ${{ secrets.YPM_SECRET }}
+    steps:
+      - name: Pack environment variables
+        run: |
+          echo "AWS_REGION=${AWS_REGION}" > _env
+          echo "DB_HOST=${DB_HOST}" >> _env
+          echo "DB_PORT=${DB_PORT}" >> _env
+          echo "DB_NAME=${DB_NAME}" >> _env
+          echo "DB_USER=${DB_USER}" >> _env
+          echo "DB_PASSWORD=${DB_PASSWORD}" >> _env
+          echo "MANIFEST_STORE_BUCKET=${MANIFEST_STORE_BUCKET}" >> _env
+          echo "YCBA_SECRET=${YCBA_SECRET}" >> _env
+          echo "YUAG_SECRET=${YUAG_SECRET}" >> _env
+          echo "YPM_SECRET=${YPM_SECRET}" >> _env
+          set -x
+          env-to-json.py _env config.json
+      - name: Deploy Docker Image
+        run: |
+          set -x
+          aws kms encrypt --region us-east-1 --key-id ${KMS_KEY_ID} \
+            --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
+            > config.encrypted
+          aws s3 cp config.encrypted ${S3URL}/config.encrypted
+          rm -f _env config.json config.encrypted
+          ecs-deploy --use-latest-task-def -r us-east-1 \
+            -t ${{ env.TIMEOUT }} -m ${{ env.MIN_PERC }} \
+            -c ${{ env.CLUSTER }} -n ${{ env.SERVICE }} \
+            -i ${{ env.ECR_URI }}:${{ env.TAG }}
