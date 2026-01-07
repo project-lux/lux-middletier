@@ -35,28 +35,19 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_CDS2_DEVTOOLS_DEV }}
       KMS_KEY_ID: ${{ vars.CDS2_KMS_KEY_ID_DEV }}
       S3URL: ${{ vars.CONFIG_STORE_S3 }}
-      MANIFEST_STORE_BUCKET: ${{ vars.MANIFEST_STORE_BUCKET }}
-      DB_HOST: ${{ vars.DB_HOST }}
-      DB_PORT: ${{ vars.DB_PORT }}
-      DB_NAME: ${{ vars.DB_NAME }}
-      DB_USER: ${{ vars.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      YCBA_SECRET: ${{ secrets.YCBA_SECRET }}
-      YUAG_SECRET: ${{ secrets.YUAG_SECRET }}
-      YPM_SECRET: ${{ secrets.YPM_SECRET }}
+      ML_HOST: ${{ vars.ML_HOST }}
+      M_PORT: ${{ vars.ML_PORT }}
+      ML_USER: ${{ vars.ML_USER }}
+      ML_PASS: ${{ secrets.ML_PASS }}
+      LOG_LEVEL: ${{ vars.LOG_LEVEL }}
     steps:
       - name: Pack environment variables
         run: |
-          echo "AWS_REGION=${AWS_REGION}" > _env
-          echo "DB_HOST=${DB_HOST}" >> _env
-          echo "DB_PORT=${DB_PORT}" >> _env
-          echo "DB_NAME=${DB_NAME}" >> _env
-          echo "DB_USER=${DB_USER}" >> _env
-          echo "DB_PASSWORD=${DB_PASSWORD}" >> _env
-          echo "MANIFEST_STORE_BUCKET=${MANIFEST_STORE_BUCKET}" >> _env
-          echo "YCBA_SECRET=${YCBA_SECRET}" >> _env
-          echo "YUAG_SECRET=${YUAG_SECRET}" >> _env
-          echo "YPM_SECRET=${YPM_SECRET}" >> _env
+          echo "ML_HOST=${ML_HOST}" >> _env
+          echo "M_PORT=${ML_PORT}" >> _env
+          echo "ML_USER=${ML_USER}" >> _env
+          echo "ML_PASS=${ML_PASS}" >> _env
+          echo "LOG_LEVEL=${LOG_LEVEL}" >> _env
           set -x
           env-to-json.py _env config.json
       - name: Deploy Docker Image
