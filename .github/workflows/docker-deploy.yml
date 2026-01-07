@@ -44,7 +44,7 @@ jobs:
       - name: Pack environment variables
         run: |
           echo "ML_HOST=${ML_HOST}" >> _env
-          echo "M_PORT=${ML_PORT}" >> _env
+          echo "ML_PORT=${ML_PORT}" >> _env
           echo "ML_USER=${ML_USER}" >> _env
           echo "ML_PASS=${ML_PASS}" >> _env
           echo "LOG_LEVEL=${LOG_LEVEL}" >> _env
