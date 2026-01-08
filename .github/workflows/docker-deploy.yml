@@ -70,11 +70,9 @@ jobs:
           echo "LOG_LEVEL=${LOG_LEVEL}" >> _env
           set -x
           env-to-json.py _env config.json
-          cat config.json
       - name: Deploy Docker Image
         run: |
           set -x
-          exit 0
           aws kms encrypt --region us-east-1 --key-id ${KMS_KEY_ID} \
             --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
             > config.encrypted
