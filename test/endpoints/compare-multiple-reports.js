@@ -6,23 +6,29 @@ const baseDir = '/test-data/lux-middletier/test/endpoints';
 
 // Define your combinations here
 const configurations = [
+  // {
+  //   comparisonName: 'ML Full to ML-Mini-16',
+  //   baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
+  //   currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
+  // {
+  //   comparisonName: 'ML Full to QL-Dev-2',
+  //   baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
+  //   currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
+  // {
+  //   comparisonName: 'ML-Mini-16 to QL-Dev-2',
+  //   baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
+  //   currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
   {
-    baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
-    currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML Full to ML-Mini-16'
-  },
-  {
-    baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
-    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML Full to QL-Dev-2'
-  },
-  {
-    baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
-    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML-Mini-16 to QL-Dev-2'
+    comparisonName: 'PRD to ML Mini on Graviton',
+    baselineEndpointsDir: 'reports/Full-ML-v3-2026-01-09_23-25-19/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
+    baseOutputDir: 'reports/comparisons'
   },
 ];
 
