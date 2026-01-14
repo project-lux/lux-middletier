@@ -30,6 +30,18 @@ const configurations = [
     currentEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
     baseOutputDir: 'reports/comparisons'
   },
+  {
+    comparisonName: 'PRD to ML Mini on Intel',
+    baselineEndpointsDir: 'reports/Full-ML-v3-2026-01-09_23-25-19/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-27-v3-2026-01-13_23-27-18/endpoints',
+    baseOutputDir: 'reports/comparisons'
+  },
+  {
+    comparisonName: 'ML Mini on Intel to ML Mini on Graviton',
+    baselineEndpointsDir: 'reports/ML-Mini-27-v3-2026-01-13_23-27-18/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
+    baseOutputDir: 'reports/comparisons'
+  },
 ];
 
 const endpointsToCompare = [
