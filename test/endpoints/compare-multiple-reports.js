@@ -6,24 +6,64 @@ const baseDir = '/test-data/lux-middletier/test/endpoints';
 
 // Define your combinations here
 const configurations = [
+  // Version 1 of the dashboard, made available 12 Jan 26.
+  // {
+  //   comparisonName: 'ML Full to ML-Mini-16',
+  //   baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
+  //   currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
+  // {
+  //   comparisonName: 'ML Full to QL-Dev-2',
+  //   baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
+  //   currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
+  // {
+  //   comparisonName: 'ML-Mini-16 to QL-Dev-2',
+  //   baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
+  //   currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
+  //   baseOutputDir: 'reports/comparisons'
+  // },
+
+  // Version 2 of the dashboard.
   {
-    baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
-    currentEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML Full to ML-Mini-16'
+    comparisonName: 'PRD to ML Mini on Graviton',
+    baselineEndpointsDir: 'reports/Full-ML-v3-2026-01-09_23-25-19/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
+    baseOutputDir: 'reports/comparisons'
   },
   {
-    baselineEndpointsDir: 'reports/ML-PRD-2-2025-11-03_19-33-05/endpoints',
-    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML Full to QL-Dev-2'
+    comparisonName: 'PRD to ML Mini on Intel',
+    baselineEndpointsDir: 'reports/Full-ML-v3-2026-01-09_23-25-19/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-27-v3-2026-01-13_23-27-18/endpoints',
+    baseOutputDir: 'reports/comparisons'
   },
   {
-    baselineEndpointsDir: 'reports/ML-Mini-16-2025-11-14_19-14-58/endpoints',
-    currentEndpointsDir: 'reports/ql-dev-2-2025-11-10_23-47-13/endpoints',
-    baseOutputDir: 'reports/comparisons',
-    comparisonName: 'ML-Mini-16 to QL-Dev-2'
+    comparisonName: 'ML Mini on Intel to ML Mini on Graviton',
+    baselineEndpointsDir: 'reports/ML-Mini-27-v3-2026-01-13_23-27-18/endpoints',
+    currentEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
+    baseOutputDir: 'reports/comparisons'
   },
+  {
+    comparisonName: 'PRD to QL',
+    baselineEndpointsDir: 'reports/Full-ML-v3-2026-01-09_23-25-19/endpoints',
+    currentEndpointsDir: 'reports/QL-Update-1-2026-01-15_22-42-48/endpoints',
+    baseOutputDir: 'reports/comparisons'
+  },
+  {
+    comparisonName: 'ML Mini on Intel to QL',
+    baselineEndpointsDir: 'reports/ML-Mini-27-v3-2026-01-13_23-27-18/endpoints',
+    currentEndpointsDir: 'reports/QL-Update-1-2026-01-15_22-42-48/endpoints',
+    baseOutputDir: 'reports/comparisons'
+  },
+  {
+    comparisonName: 'ML Mini on Graviton to QL',
+    baselineEndpointsDir: 'reports/ML-Mini-28-2026-01-08_19-44-53/endpoints',
+    currentEndpointsDir: 'reports/QL-Update-1-2026-01-15_22-42-48/endpoints',
+    baseOutputDir: 'reports/comparisons'
+  },
+
 ];
 
 const endpointsToCompare = [
