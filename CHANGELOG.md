@@ -13,34 +13,44 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+
 ## Unreleased
+
 - Add a HAL link 'lux:conceptRelatedSets' ([206](https://github.com/project-lux/lux-middletier/issues/206)).
-  
+- Add a HAL links 'lux:setCreatedPublishedInfluencedByAgent', 'lux:agentSetCreatedTime', and 'lux:agentSetPublishedTime' ([209](https://github.com/project-lux/lux-middletier/issues/209)).
+
 ## v1.3.8
+
 - Enable multiple relay targets ([198](https://github.com/project-lux/lux-middletier/issues/198)).
 
 ## v1.3.5
+
 - Relay all requests to QLever withouth processsing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).
 
 ## v1.3.4
+
 - Fix Delete document endpoint URI formation
 
 ## v1.3.3
+
 - Added the Get Tenant Status endpoint ([#158](https://github.com/project-lux/lux-middletier/issues/158)).
 
 ## v1.3.2
+
 - Added Update document endpoint ([#153](https://github.com/project-lux/lux-middletier/issues/153)).
 - Added Delete document endpoint ([#154](https://github.com/project-lux/lux-middletier/issues/154)).
 - Remove unused and incorrect hal link 'lux:placeDepictingWork'
 - Remove "about concept influenced by" from HAL links now that pre-coordinated subject headings are included directly in the about search terms ([#172](https://github.com/project-lux/lux-middletier/issues/172)).
 
 ## v1.3.1
+
 - Added HAL links for Collections About on timelines for Places and Events ([#168](https://github.com/project-lux/lux-middletier/issues/168)).
 - Added Create document endpoint ([#152](https://github.com/project-lux/lux-middletier/issues/152)).
 - Switch from two ML app servers to one ([#146](https://github.com/project-lux/lux-middletier/issues/146)).
 - Start sending filterResults parameter ([#170](https://github.com/project-lux/lux-middletier/issues/170)).
 
 ## v1.3.0
+
 - Added HAL links for Collection tabs and accordions on People and Group pages ([#141](https://github.com/project-lux/lux-middletier/issues/141)).
 - Added support for the filterResults parameter to the search and related list endpoints, correcting a bug introduced in 1.2.9 whereby results were no longer filtered ([#170](https://github.com/project-lux/lux-middletier/issues/170)). The search endpoint also now supports the mayChangeScope parameter, which was previously hard coded to false and still defaults to false.
 - Added "create data" endpoint at "/data" ([#152](https://github.com/project-lux/lux-middletier/issues/152)).
@@ -48,29 +58,36 @@
 - Merged MyCollections branch and added a feature flag (FEATURE_MY_COLLECTIONS) to turn it off and on ([166](https://github.com/project-lux/lux-middletier/issues/166), [162](https://github.com/project-lux/lux-middletier/issues/162)).
 
 ## 1.2.9
+
 - Changed path to backend Read Document endpoint ([#163](https://github.com/project-lux/lux-middletier/issues/163)).
 
 ## 1.2.8
+
 - Added HAL links for Collection tabs and accordions on Place pages ([#142](https://github.com/project-lux/lux-middletier/issues/142)).
 - Added HAL links for Collection tabs and accordions on Event pages ([#143](https://github.com/project-lux/lux-middletier/issues/143)).
 
 ## 1.2.7
+
 - Added HAL links for Place timelines ([#113](https://github.com/project-lux/lux-middletier/issues/113)).
 
 ## 1.2.6
+
 - Added back the configuration for setIncludedItems HAL link ([#135](https://github.com/project-lux/lux-middletier/issues/135)).
 
 ## 1.2.5
+
 - Enabled using pageWith parameter for search ([#133](https://github.com/project-lux/lux-middletier/issues/133)).
 - Change "lux:setItemsWithImages" so that users don't see the check for archive classification ([#87](https://github.com/project-lux/lux-middletier/issues/87)).
 - Replace "lux:setIncludedItems" and "lux:setIncludedSets" HAL links with "lux:objectOrSetMemberOfSet" ([#135](https://github.com/project-lux/lux-middletier/pull/135)).
 - Add new HAL links "lux:itemCurrentHierarchyPage" and "lux:setCurrentHierarchyPage" so that the front end can get the current page of hierarchy results. ([#136](https://github.com/project-lux/lux-middletier/pull/136)).
 
 ## 1.2.4
+
 - Fixed lux:setUnit HAL link ([#128](https://github.com/project-lux/lux-middletier/issues/128)).
 - Add optional LLM translate
 
 ## 1.2.3
+
 - Removed unused queries ([#125](https://github.com/project-lux/lux-middletier/issues/125)).
 - Changed archive-related hal links to use the Sets scope instead of Works ([#120](https://github.com/project-lux/lux-middletier/issues/120)).
 
