@@ -17,7 +17,7 @@
 ## Unreleased
 
 - Add a HAL link 'lux:conceptRelatedSets' ([206](https://github.com/project-lux/lux-middletier/issues/206)).
-- Add a HAL link 'lux:setCreatedPublishedInfluencedByAgent' ([209](https://github.com/project-lux/lux-middletier/issues/209)).
+- Add a HAL links 'lux:setCreatedPublishedInfluencedByAgent', 'lux:agentSetCreatedTime', and 'lux:agentSetPublishedTime' ([209](https://github.com/project-lux/lux-middletier/issues/209)).
 
 ## v1.3.8
 
