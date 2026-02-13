@@ -16,6 +16,7 @@ import {
 } from '../lib/resolve.js'
 import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
 import AiUtility from '../lib/ai/ai-utility.js'
+import DisabledError from '../lib/disabled-error.js'
 
 import json from '../package.json' with {type: "json"}
 
@@ -157,23 +158,28 @@ class App {
 
   async handleAiTranslate(req, res) {
     const start = hrtime.bigint()
-    const qstr = decodeURIComponent(req.query.q)
-    const mlProxy = await this.getMLProxy(req)
-    let errorCopy = {}
-    this.ai.aiTranslate(qstr, mlProxy)
-      .then(result => {
-        res.json(replaceStringsInObject(
-          result,
-          this.searchUriHost,
-          this.resultUriHost,
-        ))
-      })
-      .catch(err => {
-        errorCopy = handleError(err, `failed to ai translate query '${qstr}'`, res)
-      })
-      .finally(() => {
-        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-       })
+    if(!env.aiEnabled) {
+      const errorCopy = handleError(new DisabledError('AI translation is not enabled'), 'Returning 404', res)
+      log.logResult(req, null, hrtime.bigint() - start, errorCopy)
+    } else {
+      const qstr = decodeURIComponent(req.query.q)
+      const mlProxy = await this.getMLProxy(req)
+      let errorCopy = {}
+      this.ai.aiTranslate(qstr, mlProxy)
+        .then(result => {
+          res.json(replaceStringsInObject(
+            result,
+            this.searchUriHost,
+            this.resultUriHost,
+          ))
+        })
+        .catch(err => {
+          errorCopy = handleError(err, `failed to ai translate query '${qstr}'`, res)
+        })
+        .finally(() => {
+          log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+         })
+    }
   }
   
   async handleAutoComplete(req, res) {
@@ -693,7 +699,7 @@ function newAppWithDigestAuth() {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
-  const ai = new AiUtility()
+  const ai = env.aiEnabled ? new AiUtility() : null
   const app = new App({
     useOAuth: false,
     port: env.appPort,
@@ -705,7 +711,7 @@ function newAppWithDigestAuth() {
 
 async function newAppWithOAuth() {
   const mlProxy = new MLProxy()
-  const ai = new AiUtility()
+  const ai = env.aiEnabled ? new AiUtility() : null
   const app = new App({
     useOAuth: true,
     port: env.appPort,

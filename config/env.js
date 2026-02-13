@@ -27,6 +27,7 @@ const env = {
   mlUser: process.env.ML_USER,
   mlPass: process.env.ML_PASS,
 
+  aiEnabled: process.env.GCP_PROJECT_ID !== undefined && process.env.GCP_PROJECT_ID !== '' && process.env.GOOGLE_APPLICATION_CREDENTIALS !== undefined && process.env.GOOGLE_APPLICATION_CREDENTIALS !== '',
   gcpProjectId: process.env.GCP_PROJECT_ID,
 
   cognitoJwksUri: process.env.COGNITO_JWKS_URI,
