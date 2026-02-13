@@ -15,10 +15,9 @@ import {
   validUnits as validResolveUnits,
 } from '../lib/resolve.js'
 import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
+import AiUtility from '../lib/ai/ai-utility.js'
 
 import json from '../package.json' with {type: "json"}
-
-import * as http from 'http'
 
 /**
  * Create error response based on the error object passed in and send it
@@ -55,9 +54,9 @@ class App {
     this.useOAuth = config.useOAuth
     this.port = config.port // port on which the Express app listens
     this.mlProxy = config.mlProxy
+    this.ai = config.ai
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
-    this.aiHost = env.aiHost || null
   }
 
   run() {
@@ -76,6 +75,7 @@ class App {
 
     // Routes
     exp.get('/api/advanced-search-config', this.handleAdvancedSearchConfig.bind(this))
+    exp.get('/api/ai-translate', this.handleAiTranslate.bind(this))
     exp.get('/api/auto-complete', this.handleAutoComplete.bind(this))
     exp.get('/api/facets/:scope', this.handleFacets.bind(this))
     exp.get('/api/related-list/:scope', this.handleRelatedList.bind(this))
@@ -155,6 +155,27 @@ class App {
       })
   }
 
+  async handleAiTranslate(req, res) {
+    const start = hrtime.bigint()
+    const qstr = decodeURIComponent(req.query.q)
+    const mlProxy = await this.getMLProxy(req)
+    let errorCopy = {}
+    this.ai.aiTranslate(qstr, mlProxy)
+      .then(result => {
+        res.json(replaceStringsInObject(
+          result,
+          this.searchUriHost,
+          this.resultUriHost,
+        ))
+      })
+      .catch(err => {
+        errorCopy = handleError(err, `failed to ai translate query '${qstr}'`, res)
+      })
+      .finally(() => {
+        log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
+       })
+  }
+  
   async handleAutoComplete(req, res) {
     const start = hrtime.bigint()
     const q = req.query
@@ -609,46 +630,23 @@ class App {
     const scope = req.params.scope || ''
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
-
-    // Issue a redirect here to python AI code
-    if (this.aiHost != null && qstr.startsWith("I want")) {
-      try {
-        http.get(this.aiHost+"/api/translate/"+scope+"?q="+qstr,
-          res2 => {
-            let rawdata = ''
-            res2.on('data', chunk => {rawdata += chunk})
-            res2.on('end', () => {
-              const parsedData = JSON.parse(rawdata);
-              res.json(parsedData);
-            });
-          }
-        )
-      }
-      catch(err){
-        errorCopy = handleError(err, `failed to use ai translate for query '${qstr}' and scope '${scope}'`, res)
-      }
-      finally{
+    mlProxy.translate(
+      qstr,
+      scope,
+    )
+      .then(result => {
+        res.json(replaceStringsInObject(
+          result,
+          this.searchUriHost,
+          this.resultUriHost,
+        ))
+      })
+      .catch(err => {
+        errorCopy = handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
+      })
+      .finally(() => {
         log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-      }
-    } else {
-      mlProxy.translate(
-        qstr,
-        scope,
-      )
-        .then(result => {
-          res.json(replaceStringsInObject(
-            result,
-            this.searchUriHost,
-            this.resultUriHost,
-          ))
-        })
-        .catch(err => {
-          errorCopy = handleError(err, `failed to translate query '${qstr}' and scope '${scope}'`, res)
-        })
-        .finally(() => {
-          log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-        })
-    }
+      })
   }
 
   async handleVersionInfo(req, res) {
@@ -695,20 +693,24 @@ function newAppWithDigestAuth() {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
+  const ai = new AiUtility()
   const app = new App({
     useOAuth: false,
     port: env.appPort,
     mlProxy,
+    ai,
   })
   return app
 }
 
 async function newAppWithOAuth() {
   const mlProxy = new MLProxy()
+  const ai = new AiUtility()
   const app = new App({
     useOAuth: true,
     port: env.appPort,
     mlProxy,
+    ai,
   })
   return app
 }
