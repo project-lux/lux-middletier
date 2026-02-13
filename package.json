@@ -14,6 +14,7 @@
     "@aws-sdk/client-cognito-identity": "^3.810.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.810.0",
     "@aws-sdk/client-cognito-sync": "^3.810.0",
+    "@google/genai": "^1.41.0",
     "cors": "^2.8.5",
     "express": "^4.20.0",
     "jsonwebtoken": "^9.0.2",

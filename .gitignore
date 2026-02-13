@@ -10,3 +10,5 @@ package-lock.json
 !.env.template
 .config*.json
 !.config.json.templates
+
+lux-gcp-key.json
