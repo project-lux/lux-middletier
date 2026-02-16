@@ -18,6 +18,7 @@ on:
           - BYUNIT-DEV2
           - RDATA
           - MINIML-GRAVITON
+          - AI-SEARCH
 jobs:
   deploy:
     runs-on: [self-hosted, X64]
