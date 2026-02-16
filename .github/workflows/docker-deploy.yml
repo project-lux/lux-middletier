@@ -24,50 +24,43 @@ jobs:
     environment:
       name: ${{ inputs.target_env }}
     env:
-      TAG: ${{ vars.TAG_TO_DEPLOY }}
       ECR_URI: "${{ vars.ECR_HOST }}/${{ vars.DOCKER_IMAGE_NAME }}"
-      CLUSTER: ${{ vars.ECS_CLUSTER }}
-      SERVICE: ${{ vars.ECS_SERVICE }}
       MIN_PERC: 100 # minumum healthy percent
       TIMEOUT: 300 # deployment timeout in seconds
-      AWS_REGION: ${{ vars.AWS_REGION }}
       AWS_ACCESS_KEY_ID: ${{ vars.AWS_ACCESS_KEY_ID_CDS2_DEVTOOLS_DEV }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_CDS2_DEVTOOLS_DEV }}
-      KMS_KEY_ID: ${{ vars.CDS2_KMS_KEY_ID_DEV }}
-      S3URL: ${{ vars.CONFIG_STORE_S3 }}
-      MANIFEST_STORE_BUCKET: ${{ vars.MANIFEST_STORE_BUCKET }}
-      DB_HOST: ${{ vars.DB_HOST }}
-      DB_PORT: ${{ vars.DB_PORT }}
-      DB_NAME: ${{ vars.DB_NAME }}
-      DB_USER: ${{ vars.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      YCBA_SECRET: ${{ secrets.YCBA_SECRET }}
-      YUAG_SECRET: ${{ secrets.YUAG_SECRET }}
-      YPM_SECRET: ${{ secrets.YPM_SECRET }}
     steps:
       - name: Pack environment variables
         run: |
-          echo "AWS_REGION=${AWS_REGION}" > _env
-          echo "DB_HOST=${DB_HOST}" >> _env
-          echo "DB_PORT=${DB_PORT}" >> _env
-          echo "DB_NAME=${DB_NAME}" >> _env
-          echo "DB_USER=${DB_USER}" >> _env
-          echo "DB_PASSWORD=${DB_PASSWORD}" >> _env
-          echo "MANIFEST_STORE_BUCKET=${MANIFEST_STORE_BUCKET}" >> _env
-          echo "YCBA_SECRET=${YCBA_SECRET}" >> _env
-          echo "YUAG_SECRET=${YUAG_SECRET}" >> _env
-          echo "YPM_SECRET=${YPM_SECRET}" >> _env
+          echo "NUM_INSTANCES=${{ vars.NUM_INSTANCES }}" >> _env
+          echo "ML_HOST=${{ vars.ML_HOST }}" >> _env
+          echo "ML_PORT=${{ vars.ML_PORT }}" >> _env
+          echo "ML_PORT2=${{ vars.ML_PORT2 }}" >> _env
+          echo "ML_USER=${{ vars.ML_USER }}" >> _env
+          echo "ML_PASS=${{ secrets.ML_PASS }}" >> _env
+          echo "ML_AUTH_TYPE=${{ vars.ML_AUTH_TYPE }}" >> _env
+          echo "ML_SSL=${{ vars.ML_SSL }}" >> _env
+          echo "SEARCH_URI_HOST=${{ vars.SEARCH_URI_HOST }}" >> _env
+          echo "RESULT_URI_HOST=${{ vars.RESULT_URI_HOST }}" >> _env
+          echo "ALT_ROUTE_REQ_TYPES=${{ vars.ALT_ROUTE_REQ_TYPES }}" >> _env
+          echo "HAL_TIMEOUT_MS=${{ vars.HAL_TIMEOUT_MS }}" >> _env
+          echo "HAL_BATCH_SIZE=${{ vars.HAL_BATCH_SIZE }}" >> _env
+          echo "HAL_MAX_CONCURRENT_BATCHES=${{ vars.HAL_MAX_CONCURRENT_BATCHES }}" >> _env
+          echo "LOG_LEVEL=${{ vars.LOG_LEVEL }}" >> _env
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ vars.GOOGLE_APPLICATION_CREDENTIALS }}" >> _env
+          echo "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}" >> _env
+          echo "GOOGLE_APPLICATION_CREDENTIALS_CONTENT=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_CONTENT }}" >> _env
           set -x
           env-to-json.py _env config.json
       - name: Deploy Docker Image
         run: |
           set -x
-          aws kms encrypt --region us-east-1 --key-id ${KMS_KEY_ID} \
+          aws kms encrypt --region us-east-1 --key-id ${{ vars.CDS2_KMS_KEY_ID_DEV }} \
             --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
             > config.encrypted
-          aws s3 cp config.encrypted ${S3URL}/config.encrypted
+          aws s3 cp config.encrypted ${{ vars.CONFIG_STORE_S3 }}/config.encrypted
           rm -f _env config.json config.encrypted
           ecs-deploy --use-latest-task-def -r us-east-1 \
             -t ${{ env.TIMEOUT }} -m ${{ env.MIN_PERC }} \
-            -c ${{ env.CLUSTER }} -n ${{ env.SERVICE }} \
-            -i ${{ env.ECR_URI }}:${{ env.TAG }}
+            -c ${{ vars.ECS_CLUSTER }} -n ${{ vars.ECS_SERVICE }} \
+            -i ${{ env.ECR_URI }}:${{ vars.TAG_TO_DEPLOY }}
