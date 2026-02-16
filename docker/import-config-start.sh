@@ -35,6 +35,10 @@ fi
 
 . ./env
 
+cat $GOOGLE_APPLICATION_CREDENTIALS_CONTENT > "/app/${GOOGLE_APPLICATION_CREDENTIALS}"
+
+echo "DODO [$(ls -l /app)]"
+
 echo "/app:"
 ls -lrt /app
 echo "df:"
