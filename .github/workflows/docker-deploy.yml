@@ -51,8 +51,12 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=${{ vars.GOOGLE_APPLICATION_CREDENTIALS }}" >> _env
           echo "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}" >> _env
           echo "GOOGLE_APPLICATION_CREDENTIALS_CONTENT=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_CONTENT }}" >> _env
+          TOTO=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_CONTENT }}
+          echo "TOTO [${TOTO}]"
           set -x
           env-to-json.py _env config.json
+          JOJO=$(cat config.json)
+          echo "JOJO [${JOJO}]"
       - name: Deploy Docker Image
         run: |
           set -x
