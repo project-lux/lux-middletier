@@ -62,5 +62,5 @@ jobs:
           rm -f _env config.json config.encrypted
           ecs-deploy --use-latest-task-def -r us-east-1 \
             -t ${{ env.TIMEOUT }} -m ${{ env.MIN_PERC }} \
-            -c ${{ vars.CLUSTER }} -n ${{ vars.SERVICE }} \
+            -c ${{ vars.ECS_CLUSTER }} -n ${{ vars.ECS_SERVICE }} \
             -i ${{ env.ECR_URI }}:${{ vars.TAG_TO_DEPLOY }}
