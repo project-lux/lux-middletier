@@ -20,7 +20,11 @@ RUN apt-get update && \
     apt-get install -y curl && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends ca-certificates wget unzip jq procps nodejs && \
-    wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip" && \
+    if [ "$(dpkg --print-architecture)" = "arm64" ]; then \
+      wget "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -O "awscliv2.zip"; \
+    else \
+      wget "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -O "awscliv2.zip"; \
+    fi && \
     unzip awscliv2.zip && \
     ./aws/install && \
     rm -rf ./aws && \
