@@ -7,13 +7,15 @@ CONTAINER=${DOCKER_CONTAINER_NAME:-lux-middle}
 # HOST_CONFIG_JSON should be set to the actual path of config.json on
 # your machine. See .config.json.template for required entries.
 HOST_CONFIG_JSON=${HOST_CONFIG_JSON:-./docker/.config.json}
-
 echo "HOST_CONFIG_JSON=${HOST_CONFIG_JSON}"
+
+USE_LOCAL_CONFIG_JSON=${USE_LOCAL_CONFIG_JSON:-yes}
+echo "USE_LOCAL_CONFIG_JSON=${USE_LOCAL_CONFIG_JSON}"
 
 # By setting USE_LOCAL_CONFIG_JSON to yes, container will use local config.json
 # instead of trying to# download it from S3, which requires kms:Decrypt privelege.
-ENVS="-e USE_LOCAL_CONFIG_JSON=yes \
--e S3URL=dummy"
+ENVS="-e USE_LOCAL_CONFIG_JSON=${USE_LOCAL_CONFIG_JSON} \
+-e S3URL=${S3URL:-dummy}"
 VOLUMES="-v ${HOST_CONFIG_JSON}:/app/config.json"
 
 echo "Stopping the running $CONTAINER container (if any)"

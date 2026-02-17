@@ -31,9 +31,17 @@ cat config.json| jq -r $'.[] | "export \(.key)=\'\(.value)\'"' > ./env
 
 if [ "${USE_LOCAL_CONFIG_JSON}" != "yes" ]; then
   rm -f config.json config.encrypted
+  if [ -f gac.encrypted ]; then
+    rm -f gac.encrypted
+  fi
 fi
 
 . ./env
+
+if [[ "${USE_LOCAL_CONFIG_JSON}" != "yes" && -n "${GOOGLE_APPLICATION_CREDENTIALS}" ]]; then
+  aws --region us-east-1 s3 cp ${S3URL}/gac.encrypted ./gac.encrypted
+  aws --region us-east-1 kms decrypt --ciphertext-blob fileb://gac.encrypted --output text --query Plaintext | base64 -d > "/app/${GOOGLE_APPLICATION_CREDENTIALS}"
+fi
 
 echo "/app:"
 ls -lrt /app
