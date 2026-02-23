@@ -54,6 +54,10 @@ const env = {
   featureMyCollections: process.env.FEATURE_MY_COLLECTIONS === 'true',
 
   relayAndForgetTargets: getStringArray(process.env.RELAY_AND_FORGET_TARGETS),
+
+  halTimeoutMs: getInt(process.env.HAL_TIMEOUT_MS),
+  halBatchSize: getInt(process.env.HAL_BATCH_SIZE),
+  halMaxConcurrentBatches: getInt(process.env.HAL_MAX_CONCURRENT_BATCHES),
 }
 
 export default env
