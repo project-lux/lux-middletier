@@ -16,12 +16,12 @@
 
 ## Unreleased
 
-## v1.4.0
+## v1.5.0
+
 - Added HAL links 'lux:eventItemIncludedTime', 'lux:eventSetsAboutTime', 'lux:eventSetsCausedByTime', 'lux:eventWorksAboutTime', 'lux:eventWorksCausedByTime' ([114](https://github.com/project-lux/lux-middletier/issues/114)).
 
-## v1.3.8
+## v1.4.0
 
-- Add a HAL link 'lux:conceptRelatedSets' ([206](https://github.com/project-lux/lux-middletier/issues/206)).
 - Add a HAL links 'lux:setCreatedPublishedInfluencedByAgent', 'lux:agentSetCreatedTime', and 'lux:agentSetPublishedTime' ([209](https://github.com/project-lux/lux-middletier/issues/209)).
 - Add ai-translate endpoint ([211](https://github.com/project-lux/lux-middletier/issues/211)).
 
