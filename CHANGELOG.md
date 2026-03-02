@@ -16,7 +16,7 @@
 
 ## Unreleased
 
-## v1.5.0
+## v1.4.1
 
 - Added HAL links 'lux:eventItemIncludedTime', 'lux:eventSetsAboutTime', 'lux:eventSetsCausedByTime', 'lux:eventWorksAboutTime', 'lux:eventWorksCausedByTime' ([114](https://github.com/project-lux/lux-middletier/issues/114)).
 
