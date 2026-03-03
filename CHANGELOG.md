@@ -18,7 +18,7 @@
 ## Unreleased
 
 - To allow the backend to support elevated concurrent demand, by request type, middle tier requests may be routed between two backend application servers (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).
-- To reduce the chance of retry storms, the middle tier adopted a cut of the [MarkLogic Node Client](https://github.com/marklogic/node-client-api) that modified the retry logic (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).
+- To reduce the chance of retry storms, the middle tier adopted [MarkLogic Node Client](https://github.com/marklogic/node-client-api) version 3.6.0-retry-1.0.1, which is a custom version that modifies the retry logic and is managed in a private repo (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).
 
 ## v1.4.1
 
