@@ -5924,9 +5924,10 @@ map-visit@^1.0.0:
   dependencies:
     object-visit "^1.0.0"
 
-"marklogic@file:./marklogic-v3.6.0-retry-mod-01.tgz":
-  version "3.6.0-retry-mod-01"
-  resolved "file:./marklogic-v3.6.0-retry-mod-01.tgz#c95c6f87492a8fcbbaf2da519aa79450f30e90a2"
+"marklogic@file:./marklogic-3.6.0-retry-1.0.1.tgz":
+  version "3.6.0-retry-1.0.1"
+  resolved "file:./marklogic-3.6.0-retry-1.0.1.tgz"
+  integrity: sha512-dReATZ6qMoRQTLA3oQwy6bVrUy79IcHQst3OAr7c4u2m+VBPn56oeEeKaK4TLWx98ityGGKy5Mg4wmBV4NAqWA==
   dependencies:
     "@fastify/busboy" "^1.1.0"
     big-integer "^1.6.51"
