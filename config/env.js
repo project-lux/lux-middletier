@@ -12,6 +12,18 @@ function getStringArray(s) {
   return s.trim().split(',').map((item) => item.trim())
 }
 
+function getAltRouteKeyMap() {
+  const envStr = process.env.ALT_ROUTE_REQ_TYPES || ''
+  const keys = (envStr ? envStr.split(',') : [])
+    .map(k => k.trim()).filter(k => k.length > 0)
+  const keyMap = {}
+
+  keys.forEach(k => {
+    keyMap[k] = true
+  })
+  return keyMap
+}
+
 // All environment variables should be imported here.
 const env = {
   appPort: process.env.APP_PORT === undefined ? 8080 : parseInt(process.env.APP_PORT, 10),
@@ -26,7 +38,10 @@ const env = {
   mlPort: process.env.ML_PORT,
   mlUser: process.env.ML_USER,
   mlPass: process.env.ML_PASS,
+  mlPort2: process.env.ML_PORT2,
 
+  altRouteKeyMap: getAltRouteKeyMap(),
+  
   aiEnabled: process.env.GCP_PROJECT_ID !== undefined && process.env.GCP_PROJECT_ID !== '' && process.env.GOOGLE_APPLICATION_CREDENTIALS !== undefined && process.env.GOOGLE_APPLICATION_CREDENTIALS !== '',
   gcpProjectId: process.env.GCP_PROJECT_ID,
 

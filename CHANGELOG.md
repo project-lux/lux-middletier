@@ -2,6 +2,7 @@
 
 ## MarkLogic Dependencies
 
+- With v1.5.0 MarkLogic client code was regenerated against ML v3.0.0 dated 03/16/26
 - With v1.3.3 MarkLogic client code was regenerated against ML v1.43.0 dated 07/14/25
 - With v1.3.2 MarkLogic client code was regenerated against ML v1.42.0 dated 06/30/25
 - With v1.2.9 MarkLogic client code was regenerated against ML v1.39.0 dated 05/05/25
@@ -15,6 +16,11 @@
 ---
 
 ## Unreleased
+
+## v1.5.0
+
+- To allow the backend to support elevated concurrent demand, by request type, middle tier requests may be routed between two backend application servers configured to the digest authentication scheme (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).  OAuth support for both backend application servers is planned for a future release but presently limited to a single backend application server.
+- To reduce the chance of retry storms, the middle tier adopted [MarkLogic Node Client](https://github.com/marklogic/node-client-api) version 3.6.0-retry-1.0.1, which is a custom version that modifies the retry logic and is managed in a private repo (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).
 
 ## v1.4.1
 
@@ -35,7 +41,7 @@
 
 ## v1.3.5
 
-- Relay all requests to QLever withouth processsing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).
+- Relay all requests to QLever without processing the responses ([192](https://github.com/project-lux/lux-middletier/issues/192)).
 
 ## v1.3.4
 
@@ -130,7 +136,7 @@
 ## 1.1.16
 
 - Added HAL links for objects/works that are subject of other objects/works (#28)
-- Added resolve endpoint to help units provide links to LUX while using their internal indentifiers instead of LUX IRIs (#93)
+- Added resolve endpoint to help units provide links to LUX while using their internal identifiers instead of LUX IRIs (#93)
 
 ## 1.1.15
 

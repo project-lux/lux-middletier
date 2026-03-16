@@ -17,6 +17,7 @@ import {
 import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
 import AiUtility from '../lib/ai/ai-utility.js'
 import DisabledError from '../lib/disabled-error.js'
+import { belongsToAltRoute } from '../lib/util.js'
 
 import json from '../package.json' with {type: "json"}
 
@@ -55,6 +56,7 @@ class App {
     this.useOAuth = config.useOAuth
     this.port = config.port // port on which the Express app listens
     this.mlProxy = config.mlProxy
+    this.mlProxy2 = config.mlProxy2 || null
     this.ai = config.ai
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
     this.resultUriHost = env.resultUriHost || null
@@ -128,7 +130,7 @@ class App {
       this.mlProxy.initOAuth(accessToken, username)
       return this.mlProxy
     }
-    return this.mlProxy
+    return belongsToAltRoute(req) ? this.mlProxy2 : this.mlProxy
   }
 
   async handleAdvancedSearchConfig(req, res) {
@@ -235,8 +237,10 @@ class App {
         } else {
           let links = null
           if (!profile) {
+            //HAL links use search-will-match, use the mlProxy for that kind of request:
+            const halProxy = await this.getMLProxy({url: '/api/search-will-match'})
             // Create HAL links only when no profile has been requested
-            const linksBuilder = new HalLinksBuilder(mlProxy, env.unitName)
+            const linksBuilder = new HalLinksBuilder(halProxy, env.unitName)
             links = await linksBuilder.getLinks(doc)
           }
           const doc2 = transformEntityDoc(
@@ -677,6 +681,8 @@ class App {
     res.json({
       version: json.version,
       backend: `${env.mlHost}:${env.mlPort}`,
+      backendAlt: `${env.mlHost}:${env.mlPort2}`,
+      altRouteTypes: Object.keys(env.altRouteKeyMap),
       numInstances: env.numInstances,
       relayTargets: env.relayAndForgetTargets,
       mem: memUsage,
@@ -699,11 +705,20 @@ function newAppWithDigestAuth() {
     authType: env.mlAuthType,
     ssl: env.mlSsl,
   })
+  const mlProxy2 = new MLProxy().initDigestAuth({
+    host: env.mlHost,
+    port: env.mlPort2,
+    user: env.mlUser,
+    password: env.mlPass,
+    authType: env.mlAuthType,
+    ssl: env.mlSsl,
+  })
   const ai = env.aiEnabled ? new AiUtility() : null
   const app = new App({
     useOAuth: false,
     port: env.appPort,
     mlProxy,
+    mlProxy2,
     ai,
   })
   return app
