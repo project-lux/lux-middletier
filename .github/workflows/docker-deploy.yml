@@ -51,6 +51,7 @@ jobs:
           env-to-json.py _env config.json
       - name: Deploy Docker Image
         run: |
+          echo "Deploying ${{ vars.TAG_TO_DEPLOY }}"
           set -x
           echo "KEY_DIR=${KEY_DIR}"
           aws kms encrypt --region us-east-1 --key-id ${{ vars.CDS2_KMS_KEY_ID_DEV }} \
