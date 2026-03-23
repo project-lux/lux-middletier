@@ -64,6 +64,7 @@ const exampleDocs = {
     'activity/6297d4d4-ea61-45b2-8c47-9a0e6298fdcc', // Ming dynasty
     'activity/eb4ab523-5cfe-4a0a-b616-ef45a5e0c4ed', // Brewer's Industrial Exhibition
     'activity/e2298c8a-3ca3-4859-81e7-017ef154f036', // Yale Seminar on Music Education (1963 : New Haven, Conn.)
+    'activity/0a647e8f-776d-48ae-81b6-d6ea152e7692', // Utah War
   ],
   item: [
     'object/36e11102-dae3-4d76-98a3-2c1a8f73ad1e', // Peyote 41
