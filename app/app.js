@@ -14,7 +14,7 @@ import {
   getSecondaryResolveQuery, ResolveError, validScopes as validResolveScopes,
   validUnits as validResolveUnits,
 } from '../lib/resolve.js'
-import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
+// import { relayAndForget } from '../lib/middleware/relay-and-forget.js'
 import AiUtility from '../lib/ai/ai-utility.js'
 import DisabledError from '../lib/disabled-error.js'
 import { belongsToAltRoute } from '../lib/util.js'
@@ -68,7 +68,7 @@ class App {
     exp.use(cors())
     exp.use(express.json({ limit: '2mb' }))
     exp.use(express.static('public'))
-    exp.use(relayAndForget)
+    // exp.use(relayAndForget)
 
     exp.options('*', (req, res) => {
       res.header('Access-Control-Allow-Origin', '*')
@@ -684,7 +684,7 @@ class App {
       backendAlt: `${env.mlHost}:${env.mlPort2}`,
       altRouteTypes: Object.keys(env.altRouteKeyMap),
       numInstances: env.numInstances,
-      relayTargets: env.relayAndForgetTargets,
+      relayTargets: 'relay disabled',//env.relayAndForgetTargets,
       mem: memUsage,
       rsrc: process.resourceUsage(),
       node: process.version,
