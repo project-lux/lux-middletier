@@ -501,7 +501,6 @@ class App {
     const start = hrtime.bigint()
     const searchCriteria = decodeURIComponent(translateQuery(req.query.q))
     const searchScope = req.params.scope || ''
-    const mayChangeScope = req.query.mayChangeScope === 'true' // default to false
     const page = req.query.page || 1
     const pageLength = req.query.pageLength || 20
     const pageWith = req.query.pageWith || ''
@@ -518,7 +517,6 @@ class App {
       unitName: env.unitName,
       searchCriteria,
       searchScope,
-      mayChangeScope,
       page,
       pageLength,
       pageWith,
