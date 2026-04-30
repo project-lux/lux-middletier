@@ -17,6 +17,9 @@
 
 ## Unreleased
 
+## Optic
+- search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
+
 ## v1.8.0
 - Added TAG_TO_DEPLOY env variable for displaying current version [238](https://github.com/project-lux/lux-middletier/issues/238).
 
