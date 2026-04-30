@@ -14,6 +14,8 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## Optic
+- search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
 
 ## Unreleased
 
