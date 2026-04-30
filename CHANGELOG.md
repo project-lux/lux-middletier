@@ -17,6 +17,10 @@
 
 ## Unreleased
 
+## Optic
+- search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
+
+
 ## v1.5.0
 
 - To allow the backend to support elevated concurrent demand, by request type, middle tier requests may be routed between two backend application servers configured to the digest authentication scheme (part of [220](https://github.com/project-lux/lux-middletier/issues/220)).  OAuth support for both backend application servers is planned for a future release but presently limited to a single backend application server.

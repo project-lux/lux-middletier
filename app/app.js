@@ -506,10 +506,6 @@ class App {
     const pageWith = req.query.pageWith || ''
     const sortDelimitedStr = req.query.sort || ''
     const filterResults = req.query.filterResults !== 'false' // default to true
-    const facetsSoon = req.query.facetsSoon === ''
-      || req.query.facetsSoon === 'true'
-    const synonymsEnabled = req.query.synonymsEnabled === ''
-      || req.query.synonymsEnabled === 'true'
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
@@ -522,8 +518,6 @@ class App {
       pageWith,
       sortDelimitedStr,
       filterResults,
-      facetsSoon,
-      synonymsEnabled,
     })
       .then(result => {
         res.json(replaceStringsInObject(
