@@ -17,6 +17,9 @@
 
 ## Unreleased
 
+## Optic
+- search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
+
 ## v1.6.0
 
 - Change placeCreatedWork and placePublishedWork [229](https://github.com/project-lux/lux-middletier/issues/229).
