@@ -67,6 +67,7 @@ class ReportComparator {
         current_timestamp: current.summary.timestamp,
         comparison_timestamp: new Date().toISOString()
       },
+      functional_comparison: this.performFunctionalComparison(baselineTests, currentTests),
       summary: this.compareSummaries(baseline.summary, current.summary),
       detailed_performance: this.performDetailedPerformanceAnalysis(baseline.results, current.results),
       test_differences: this.compareTests(baselineTests, currentTests),
@@ -230,6 +231,272 @@ class ReportComparator {
       min: values.length > 0 ? values.reduce((min, val) => val < min ? val : min, values[0]) : 0,
       max: values.length > 0 ? values.reduce((max, val) => val > max ? val : max, values[0]) : 0
     };
+  }
+
+  /**
+   * Perform functional comparison between baseline and current test results
+   * Compares actual response content for functional parity
+   */
+  performFunctionalComparison(baselineTests, currentTests) {
+    console.log('Performing functional comparison...');
+    
+    // Convert Maps to arrays of keys for analysis
+    const baselineKeys = Array.from(baselineTests.keys());
+    const currentKeys = Array.from(currentTests.keys());
+    
+    // Find tests that exist in both, baseline-only, and current-only
+    const commonKeys = baselineKeys.filter(key => currentTests.has(key));
+    const baselineOnlyKeys = baselineKeys.filter(key => !currentTests.has(key));
+    const currentOnlyKeys = currentKeys.filter(key => !baselineTests.has(key));
+    
+    const functionalResults = {
+      summary: {
+        total_tests_baseline: baselineKeys.length,
+        total_tests_current: currentKeys.length,
+        common_tests: commonKeys.length,
+        baseline_only_tests: baselineOnlyKeys.length,
+        current_only_tests: currentOnlyKeys.length,
+        total_comparisons: 0,
+        successful_comparisons: 0,
+        failed_comparisons: 0,
+        missing_responses: 0
+      },
+      test_set_differences: {
+        baseline_only: baselineOnlyKeys.map(key => ({
+          key: key,
+          test_name: baselineTests.get(key).test_name,
+          endpoint_type: baselineTests.get(key).endpoint_type
+        })),
+        current_only: currentOnlyKeys.map(key => ({
+          key: key,
+          test_name: currentTests.get(key).test_name,
+          endpoint_type: currentTests.get(key).endpoint_type
+        }))
+      },
+      endpoint_results: {},
+      detailed_differences: []
+    };
+
+    // Get all tests that exist in both baseline and current
+    for (const key of commonKeys) {
+      const baselineTest = baselineTests.get(key);
+      const currentTest = currentTests.get(key);
+      
+      // Skip if either test doesn't have response body files
+      if (!baselineTest.response_body_file || !currentTest.response_body_file) {
+        functionalResults.summary.missing_responses++;
+        continue;
+      }
+
+      functionalResults.summary.total_comparisons++;
+      
+      try {
+        const comparison = this.compareFunctionalResponse(baselineTest, currentTest);
+        
+        if (comparison.has_differences) {
+          functionalResults.summary.failed_comparisons++;
+          functionalResults.detailed_differences.push(comparison);
+        } else {
+          functionalResults.summary.successful_comparisons++;
+        }
+        
+        // Group by endpoint for analysis
+        const endpointType = baselineTest.endpoint_type || 'unknown';
+        if (!functionalResults.endpoint_results[endpointType]) {
+          functionalResults.endpoint_results[endpointType] = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            differences: []
+          };
+        }
+        
+        functionalResults.endpoint_results[endpointType].total++;
+        if (comparison.has_differences) {
+          functionalResults.endpoint_results[endpointType].failed++;
+          functionalResults.endpoint_results[endpointType].differences.push(comparison);
+        } else {
+          functionalResults.endpoint_results[endpointType].passed++;
+        }
+        
+      } catch (error) {
+        functionalResults.summary.failed_comparisons++;
+        functionalResults.detailed_differences.push({
+          test_key: key,
+          endpoint_type: baselineTest.endpoint_type,
+          has_differences: true,
+          error: `Failed to compare responses: ${error.message}`,
+          baseline_file: baselineTest.response_body_file,
+          current_file: currentTest.response_body_file
+        });
+      }
+    }
+    
+    // Log warnings about test set mismatches
+    if (functionalResults.summary.baseline_only_tests > 0 || functionalResults.summary.current_only_tests > 0) {
+      console.log(`⚠️  WARNING: Test set mismatch detected!`);
+      console.log(`   Baseline-only tests: ${functionalResults.summary.baseline_only_tests}`);
+      console.log(`   Current-only tests: ${functionalResults.summary.current_only_tests}`);
+      console.log(`   This may indicate different test configurations were used.`);
+    }
+    
+    console.log(`Functional comparison complete: ${functionalResults.summary.successful_comparisons}/${functionalResults.summary.total_comparisons} tests passed`);
+    return functionalResults;
+  }
+
+  /**
+   * Compare functional aspects of two response bodies
+   */
+  compareFunctionalResponse(baselineTest, currentTest) {
+    const baselineResponse = this.loadResponseBody(baselineTest.response_body_file, this.baselineFile);
+    const currentResponse = this.loadResponseBody(currentTest.response_body_file, this.currentFile);
+    
+    const comparison = {
+      test_key: baselineTest._stable_key,
+      endpoint_type: baselineTest.endpoint_type,
+      has_differences: false,
+      differences: [],
+      baseline_file: baselineTest.response_body_file,
+      current_file: currentTest.response_body_file
+    };
+
+    // Perform endpoint-specific functional comparison
+    const endpointType = baselineTest.endpoint_type;
+    
+    if (endpointType === 'get-search') {
+      this.compareSearchResponses(baselineResponse, currentResponse, comparison);
+    } else if (endpointType === 'get-facets') {
+      this.compareFacetResponses(baselineResponse, currentResponse, comparison);
+    } else if (endpointType === 'get-related-list') {
+      this.compareRelatedListResponses(baselineResponse, currentResponse, comparison);
+    }
+    // Add more endpoint types as needed
+    
+    comparison.has_differences = comparison.differences.length > 0;
+    return comparison;
+  }
+
+  /**
+   * Load response body from file
+   */
+  loadResponseBody(responseBodyFile, reportFile) {
+    try {
+      // Response body files are in the responses directory structure, not endpoints
+      // e.g., reportFile: cts-v-optic/cts/endpoints/get-search/endpoint-test-report.json
+      // Need to map to: cts-v-optic/cts/responses/get-search-tests/JsonArrayTestDataProvider/...
+      
+      const reportDir = path.dirname(reportFile);
+      
+      // Replace the endpoint name (get-search) with responses directory
+      // Keep the full path structure but replace endpoints/get-search with responses
+      let responseDir = reportDir;
+      
+      // Replace /endpoints/get-search with /responses (preserving the rest of the path)
+      responseDir = responseDir.replace(/([\/\\])endpoints([\/\\])[^\/\\]*$/, '$1responses');
+      
+      // Extract just the filename from the response body file path
+      // Skip the reports/test-run-*/responses/ prefix and use just the final parts
+      let cleanedResponseFile = responseBodyFile;
+      if (responseBodyFile.includes('responses' + path.sep)) {
+        const responsesIndex = responseBodyFile.lastIndexOf('responses' + path.sep);
+        cleanedResponseFile = responseBodyFile.substring(responsesIndex + 'responses'.length + 1);
+      } else if (responseBodyFile.includes('responses/')) {
+        const responsesIndex = responseBodyFile.lastIndexOf('responses/');
+        cleanedResponseFile = responseBodyFile.substring(responsesIndex + 'responses/'.length);
+      }
+      
+      const fullPath = path.resolve(responseDir, cleanedResponseFile);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const response = JSON.parse(content);
+      return response.data; // Extract the actual response data
+    } catch (error) {
+      throw new Error(`Failed to load response body ${responseBodyFile}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Compare search endpoint responses for functional parity
+   */
+  compareSearchResponses(baselineData, currentData, comparison) {
+    // Compare total items count
+    const baselineTotalItems = baselineData?.partOf?.[0]?.totalItems;
+    const currentTotalItems = currentData?.partOf?.[0]?.totalItems;
+    
+    if (baselineTotalItems !== currentTotalItems) {
+      comparison.differences.push({
+        type: 'total_items_mismatch',
+        baseline_total: baselineTotalItems,
+        current_total: currentTotalItems,
+        difference: currentTotalItems - baselineTotalItems
+      });
+    }
+    
+    // Compare ordered items (result ordering)
+    const baselineItems = baselineData?.orderedItems || [];
+    const currentItems = currentData?.orderedItems || [];
+    
+    if (baselineItems.length !== currentItems.length) {
+      comparison.differences.push({
+        type: 'result_count_mismatch',
+        baseline_count: baselineItems.length,
+        current_count: currentItems.length
+      });
+    }
+    
+    // Check if the same items are present (regardless of order)
+    const baselineIds = new Set(baselineItems.map(item => item.id));
+    const currentIds = new Set(currentItems.map(item => item.id));
+    
+    const missingInCurrent = [...baselineIds].filter(id => !currentIds.has(id));
+    const extraInCurrent = [...currentIds].filter(id => !baselineIds.has(id));
+    
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      comparison.differences.push({
+        type: 'result_set_mismatch',
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length
+      });
+    }
+    
+    // Check ordering differences (only if same result sets)
+    if (missingInCurrent.length === 0 && extraInCurrent.length === 0 && baselineItems.length === currentItems.length) {
+      const orderingDifferences = [];
+      for (let i = 0; i < Math.min(baselineItems.length, currentItems.length); i++) {
+        if (baselineItems[i].id !== currentItems[i].id) {
+          orderingDifferences.push({
+            position: i + 1,
+            baseline_id: baselineItems[i].id,
+            current_id: currentItems[i].id
+          });
+        }
+      }
+      
+      if (orderingDifferences.length > 0) {
+        comparison.differences.push({
+          type: 'ordering_differences',
+          differences: orderingDifferences,
+          total_position_changes: orderingDifferences.length
+        });
+      }
+    }
+  }
+
+  /**
+   * Compare facet endpoint responses (placeholder for future implementation)
+   */
+  compareFacetResponses(baselineData, currentData, comparison) {
+    // TODO: Implement facet-specific comparison logic
+    // This will compare facet categories, counts, etc.
+  }
+
+  /**
+   * Compare related list endpoint responses (placeholder for future implementation)
+   */
+  compareRelatedListResponses(baselineData, currentData, comparison) {
+    // TODO: Implement related list-specific comparison logic
+    // This will compare related items, relationships, etc.
   }
 
   /**
@@ -649,12 +916,42 @@ class ReportComparator {
    * Print summary to console
    */
   printConsoleSummary(comparison) {
-    const { summary, test_differences } = comparison;
+    const { summary, test_differences, functional_comparison } = comparison;
 
     console.log('\n=== COMPARISON SUMMARY ===');
     console.log(`Test Count: ${summary.test_count.baseline} → ${summary.test_count.current} (${summary.test_count.difference >= 0 ? '+' : ''}${summary.test_count.difference})`);
     console.log(`Pass Rate: ${summary.pass_rate.baseline}% → ${summary.pass_rate.current}% (${summary.pass_rate.change >= 0 ? '+' : ''}${summary.pass_rate.change}%)`);
     console.log(`Avg Duration: ${summary.performance.avg_duration_baseline}ms → ${summary.performance.avg_duration_current}ms (${summary.performance.duration_change >= 0 ? '+' : ''}${summary.performance.duration_change}ms)`);
+
+    if (functional_comparison) {
+      console.log('\n=== FUNCTIONAL PARITY ===');
+      
+      // Check for test set mismatches and show prominent warning
+      const hasMismatches = functional_comparison.summary.baseline_only_tests > 0 || 
+                           functional_comparison.summary.current_only_tests > 0;
+      
+      if (hasMismatches) {
+        console.log('⚠️  🚨 WARNING: TEST SET MISMATCH DETECTED! 🚨');
+        console.log(`   Tests only in baseline: ${functional_comparison.summary.baseline_only_tests}`);
+        console.log(`   Tests only in current:  ${functional_comparison.summary.current_only_tests}`);
+        console.log(`   Common tests:           ${functional_comparison.summary.common_tests}`);
+        console.log('   ❗ This suggests different test configurations were used.');
+        console.log('   ❗ Comparison results may not be valid.');
+        console.log('');
+      }
+      
+      console.log(`🔍 Functional Tests: ${functional_comparison.summary.successful_comparisons}/${functional_comparison.summary.total_comparisons} passed`);
+      console.log(`❌ Failed Comparisons: ${functional_comparison.summary.failed_comparisons}`);
+      console.log(`📄 Missing Response Files: ${functional_comparison.summary.missing_responses}`);
+      
+      if (Object.keys(functional_comparison.endpoint_results).length > 0) {
+        console.log('\n📊 By Endpoint:');
+        Object.entries(functional_comparison.endpoint_results).forEach(([endpoint, results]) => {
+          const passRate = (results.passed / results.total * 100).toFixed(1);
+          console.log(`  ${endpoint}: ${results.passed}/${results.total} (${passRate}%)`);
+        });
+      }
+    }
 
     console.log('\n=== CHANGES ===');
     console.log(`🔴 Regressions: ${test_differences.regressions.length}`);
@@ -687,14 +984,16 @@ class ReportComparator {
     const title = this.comparisonName || "Test Report Comparison";
     
     // Read Chart.js from node_modules for inline inclusion
-    const chartJsPath = path.resolve(__dirname, './node_modules/chart.js/dist/chart.umd.min.js');
-    const chartJsContent = await fs.promises.readFile(chartJsPath, 'utf8');
+    // COMMENTED OUT for performance: Chart.js library is ~200KB inline
+    // const chartJsPath = path.resolve(__dirname, './node_modules/chart.js/dist/chart.umd.min.js');
+    // const chartJsContent = await fs.promises.readFile(chartJsPath, 'utf8');
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <title>${title}</title>
-    <script>${chartJsContent}</script>
+    <!-- COMMENTED OUT: Chart.js library for performance -->
+    <!-- <script>Chart.js library would be embedded here</script> -->
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .header { background: #f0f0f0; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
@@ -727,12 +1026,14 @@ class ReportComparator {
         <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #dee2e6;">
             <ul style="list-style: none; padding-left: 0; margin: 0; line-height: 1.6;">
                 <li><a href="#summary" style="text-decoration: none; color: #007bff; font-weight: bold;">Summary</a></li>
+                ${comparison.functional_comparison ? `<li><a href="#functional-comparison" style="text-decoration: none; color: #007bff; font-weight: bold;">Functional Comparison</a></li>` : ''}
                 <li><a href="#visualizations" style="text-decoration: none; color: #007bff; font-weight: bold;">Performance Visualizations</a>
                     <ul style="list-style: none; padding-left: 20px; margin-top: 5px;">
-                        <li><a href="#chronological-chart" style="text-decoration: none; color: #6c757d;">Chronological Response Times</a></li>
-                        <li><a href="#percentile-chart" style="text-decoration: none; color: #6c757d;">Performance Percentiles</a></li>
-                        <li><a href="#provider-chart" style="text-decoration: none; color: #6c757d;">Provider Performance Changes</a></li>
-                        <li><a href="#size-chart" style="text-decoration: none; color: #6c757d;">Response Size Impact Analysis</a></li>
+                        <!-- COMMENTED OUT: Chart navigation links -->
+                        <!-- <li><a href="#chronological-chart" style="text-decoration: none; color: #6c757d;">Chronological Response Times</a></li> -->
+                        <!-- <li><a href="#percentile-chart" style="text-decoration: none; color: #6c757d;">Performance Percentiles</a></li> -->
+                        <!-- <li><a href="#provider-chart" style="text-decoration: none; color: #6c757d;">Provider Performance Changes</a></li> -->
+                        <!-- <li><a href="#size-chart" style="text-decoration: none; color: #6c757d;">Response Size Impact Analysis</a></li> -->
                     </ul>
                 </li>
                 ${detailed_performance && !detailed_performance.error ? `<li><a href="#performance-analysis" style="text-decoration: none; color: #007bff; font-weight: bold;">Detailed Performance Analysis</a>
@@ -779,8 +1080,131 @@ class ReportComparator {
             </div>
         </div>
     </div>
+    
+    ${comparison.functional_comparison ? `
+    <div class="section" id="functional-comparison">
+        <h2>🔍 Functional Comparison</h2>
+        
+        ${(comparison.functional_comparison.summary.baseline_only_tests > 0 || comparison.functional_comparison.summary.current_only_tests > 0) ? `
+        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+            <h3 style="color: #856404; margin-top: 0; display: flex; align-items: center;">
+                <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                🚨 TEST SET MISMATCH DETECTED!
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 15px;">
+                <div style="text-align: center; padding: 10px; background: #fff; border-radius: 5px; border: 1px solid #ffc107;">
+                    <div style="font-size: 24px; font-weight: bold; color: #856404;">${comparison.functional_comparison.summary.baseline_only_tests}</div>
+                    <div style="font-size: 14px; color: #856404;">Baseline-Only Tests</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: #fff; border-radius: 5px; border: 1px solid #ffc107;">
+                    <div style="font-size: 24px; font-weight: bold; color: #856404;">${comparison.functional_comparison.summary.current_only_tests}</div>
+                    <div style="font-size: 14px; color: #856404;">Current-Only Tests</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: #fff; border-radius: 5px; border: 1px solid #ffc107;">
+                    <div style="font-size: 24px; font-weight: bold; color: #856404;">${comparison.functional_comparison.summary.common_tests}</div>
+                    <div style="font-size: 14px; color: #856404;">Common Tests</div>
+                </div>
+            </div>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545;">
+                <p style="margin: 0; color: #721c24; font-weight: bold;">
+                    ❗ This suggests different test configurations were used for baseline and current runs.
+                    <br>❗ Functional comparison results may not be reliable or valid.
+                </p>
+            </div>
+        </div>
+        ` : ''}
+        
+        <div class="summary-grid">
+            <div class="metric-card">
+                <div class="metric-value ${comparison.functional_comparison.summary.successful_comparisons === comparison.functional_comparison.summary.total_comparisons ? 'positive' : 'negative'}">${comparison.functional_comparison.summary.successful_comparisons}/${comparison.functional_comparison.summary.total_comparisons}</div>
+                <div>Functional Parity Tests</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value ${comparison.functional_comparison.summary.failed_comparisons === 0 ? 'positive' : 'negative'}">${comparison.functional_comparison.summary.failed_comparisons}</div>
+                <div>Failed Comparisons</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value ${comparison.functional_comparison.summary.missing_responses === 0 ? 'positive' : 'negative'}">${comparison.functional_comparison.summary.missing_responses}</div>
+                <div>Missing Response Files</div>
+            </div>
+        </div>
+        
+        ${Object.keys(comparison.functional_comparison.endpoint_results).length > 0 ? `
+        <h3>Results by Endpoint</h3>
+        <div class="table-container">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Total Tests</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
+                        <th>Pass Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.entries(comparison.functional_comparison.endpoint_results).map(([endpoint, results]) => `
+                    <tr>
+                        <td>${endpoint}</td>
+                        <td>${results.total}</td>
+                        <td class="positive">${results.passed}</td>
+                        <td class="${results.failed === 0 ? 'positive' : 'negative'}">${results.failed}</td>
+                        <td class="${results.passed === results.total ? 'positive' : 'negative'}">${(results.passed / results.total * 100).toFixed(1)}%</td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        ` : ''}
+        
+        ${comparison.functional_comparison.detailed_differences.length > 0 ? `
+        <h3>Functional Differences</h3>
+        <div class="table-container">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Endpoint</th>
+                        <th>Difference Type</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${comparison.functional_comparison.detailed_differences.map(diff => `
+                    <tr>
+                        <td><code>${diff.test_key}</code></td>
+                        <td>${diff.endpoint_type}</td>
+                        <td>
+                            ${diff.error ? 'Error' : diff.differences.map(d => d.type).join(', ')}
+                        </td>
+                        <td>
+                            ${diff.error ? `<span class="negative">${diff.error}</span>` : 
+                            diff.differences.map(d => {
+                                if (d.type === 'total_items_mismatch') {
+                                    return `Total items: ${d.baseline_total} → ${d.current_total} (${d.difference >= 0 ? '+' : ''}${d.difference})`;
+                                } else if (d.type === 'result_count_mismatch') {
+                                    return `Result count: ${d.baseline_count} → ${d.current_count}`;
+                                } else if (d.type === 'result_set_mismatch') {
+                                    return `Missing: ${d.missing_count}, Extra: ${d.extra_count}`;
+                                } else if (d.type === 'ordering_differences') {
+                                    return `${d.total_position_changes} position changes`;
+                                }
+                                return d.type;
+                            }).join('<br>')}
+                        </td>
+                    </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        ` : ''}
+    </div>
+    ` : ''}
+    
     <div class="section" id="visualizations">
         <h2>📊 Performance Visualizations</h2>
+        <!-- COMMENTED OUT: Chronological chart section for performance -->
+        <!--
         <div style="margin-bottom: 40px;" id="chronological-chart">
             <h3>🕒 Chronological Response Times: Baseline vs Current</h3>
             <p><small><strong>Blue:</strong> Baseline Performance | <strong>Red:</strong> Current Performance | <em>Tests in execution order (left to right = chronological)</em></small></p>
@@ -821,6 +1245,9 @@ class ReportComparator {
                 <canvas id="chronologicalChart"></canvas>
             </div>
         </div>
+        -->
+        <!-- COMMENTED OUT: Chart sections for performance -->
+        <!--
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
             <div id="percentile-chart">
                 <h3>📊 Performance Percentiles: Baseline vs Current</h3>
@@ -838,6 +1265,7 @@ class ReportComparator {
             <p><small><strong>Shows:</strong> How response size correlates with performance degradation | <em>Higher = worse impact</em></small></p>
             <canvas id="sizeChart" height="85"></canvas>
         </div>
+        -->
     </div>
     ${detailed_performance && !detailed_performance.error ? `
     <div class="section" id="performance-analysis">
@@ -1173,6 +1601,8 @@ class ReportComparator {
     </div>
     ` : ''}
     
+    <!-- COMMENTED OUT: All Chart.js JavaScript for performance (~200KB) -->
+    <!--
     <script>
     // Chart.js configuration and rendering
     document.addEventListener('DOMContentLoaded', function() {
@@ -1677,6 +2107,7 @@ class ReportComparator {
         }
     });
     </script>
+    -->
 </body>
 </html>`;
   }
