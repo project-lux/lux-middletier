@@ -333,14 +333,11 @@ function analyzeComplexQueryParams(handlerCode, handlerInfo) {
   else if (handlerCode.includes('handleSearch')) {
     const searchParams = [
       { name: 'q', type: 'string' },
-      { name: 'mayChangeScope', type: 'boolean', default: false },
       { name: 'page', type: 'integer', default: 1 },
       { name: 'pageLength', type: 'integer', default: 20 },
       { name: 'pageWith', type: 'string', default: '' },
       { name: 'sort', type: 'string', default: '' },
       { name: 'filterResults', type: 'boolean', default: true },
-      { name: 'facetsSoon', type: 'boolean', default: true },
-      { name: 'synonymsEnabled', type: 'boolean', default: true }
     ];
     
     handlerInfo.queryParams = searchParams;

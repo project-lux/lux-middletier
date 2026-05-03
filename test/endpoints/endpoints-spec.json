@@ -15,6 +15,25 @@
       }
     },
     {
+      "path": "/api/ai-translate",
+      "method": "GET",
+      "description": "Handler: handleAiTranslate",
+      "parameters": {
+        "path": [],
+        "query": [
+          {
+            "name": "q",
+            "type": "string"
+          }
+        ],
+        "body": null
+      },
+      "required": {
+        "path": [],
+        "query": []
+      }
+    },
+    {
       "path": "/api/auto-complete",
       "method": "GET",
       "description": "Auto-complete functionality for search terms",
@@ -233,11 +252,6 @@
             "type": "string"
           },
           {
-            "name": "mayChangeScope",
-            "type": "boolean",
-            "default": false
-          },
-          {
             "name": "page",
             "type": "integer",
             "default": 1
@@ -259,16 +273,6 @@
           },
           {
             "name": "filterResults",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "facetsSoon",
-            "type": "boolean",
-            "default": true
-          },
-          {
-            "name": "synonymsEnabled",
             "type": "boolean",
             "default": true
           }

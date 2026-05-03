@@ -501,16 +501,11 @@ class App {
     const start = hrtime.bigint()
     const searchCriteria = decodeURIComponent(translateQuery(req.query.q))
     const searchScope = req.params.scope || ''
-    const mayChangeScope = req.query.mayChangeScope === 'true' // default to false
     const page = req.query.page || 1
     const pageLength = req.query.pageLength || 20
     const pageWith = req.query.pageWith || ''
     const sortDelimitedStr = req.query.sort || ''
     const filterResults = req.query.filterResults !== 'false' // default to true
-    const facetsSoon = req.query.facetsSoon === ''
-      || req.query.facetsSoon === 'true'
-    const synonymsEnabled = req.query.synonymsEnabled === ''
-      || req.query.synonymsEnabled === 'true'
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
@@ -518,14 +513,11 @@ class App {
       unitName: env.unitName,
       searchCriteria,
       searchScope,
-      mayChangeScope,
       page,
       pageLength,
       pageWith,
       sortDelimitedStr,
       filterResults,
-      facetsSoon,
-      synonymsEnabled,
     })
       .then(result => {
         res.json(replaceStringsInObject(
