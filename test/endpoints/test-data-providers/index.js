@@ -17,6 +17,8 @@ import { UpdatedAdvancedSearchQueriesTestDataProvider } from
   './google-sheets/search-and-query-tasks-and-test-cases/updated-advanced-search-queries/UpdatedAdvancedSearchQueriesTestDataProvider.js';
 import { BackendLogsTestDataProvider } from 
   './backend-logs/BackendLogsTestDataProvider.js';
+  import { JsonArrayTestDataProvider } from 
+  './json-arrays/JsonArrayTestDataProvider.js';
 
 // Register all available providers
 TestDataProviderFactory.registerProvider(GetDataTestDataProvider);
@@ -25,6 +27,7 @@ TestDataProviderFactory.registerProvider(BenchmarkQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(Prd2PrdTestQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(UpdatedAdvancedSearchQueriesTestDataProvider);
 TestDataProviderFactory.registerProvider(BackendLogsTestDataProvider);
+TestDataProviderFactory.registerProvider(JsonArrayTestDataProvider);
 
 // Export the main classes and interfaces
 export {
