@@ -323,6 +323,8 @@ class ReportComparator {
         functionalResults.summary.failed_comparisons++;
         functionalResults.detailed_differences.push({
           test_key: key,
+          test_name: baselineTest.test_name,
+          description: baselineTest.description,
           endpoint_type: baselineTest.endpoint_type,
           has_differences: true,
           error: `Failed to compare responses: ${error.message}`,
@@ -353,6 +355,8 @@ class ReportComparator {
     
     const comparison = {
       test_key: baselineTest._stable_key,
+      test_name: baselineTest.test_name,
+      description: baselineTest.description,
       endpoint_type: baselineTest.endpoint_type,
       has_differences: false,
       differences: [],
@@ -1129,33 +1133,7 @@ class ReportComparator {
             </div>
         </div>
         
-        ${Object.keys(comparison.functional_comparison.endpoint_results).length > 0 ? `
-        <h3>Results by Endpoint</h3>
-        <div class="table-container">
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th>Endpoint</th>
-                        <th>Total Tests</th>
-                        <th>Passed</th>
-                        <th>Failed</th>
-                        <th>Pass Rate</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${Object.entries(comparison.functional_comparison.endpoint_results).map(([endpoint, results]) => `
-                    <tr>
-                        <td>${endpoint}</td>
-                        <td>${results.total}</td>
-                        <td class="positive">${results.passed}</td>
-                        <td class="${results.failed === 0 ? 'positive' : 'negative'}">${results.failed}</td>
-                        <td class="${results.passed === results.total ? 'positive' : 'negative'}">${(results.passed / results.total * 100).toFixed(1)}%</td>
-                    </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-        ` : ''}
+        <!-- REMOVED: Results by Endpoint section - redundant with summary metrics above -->
         
         ${comparison.functional_comparison.detailed_differences.length > 0 ? `
         <h3>Functional Differences</h3>
@@ -1164,36 +1142,39 @@ class ReportComparator {
                 <thead>
                     <tr>
                         <th>Test</th>
-                        <th>Endpoint</th>
-                        <th>Difference Type</th>
-                        <th>Details</th>
+                        <th>Description</th>
+                        <th>Total Items</th>
+                        <th>Result Count</th>
+                        <th>Result Set</th>
+                        <th>Ordering</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${comparison.functional_comparison.detailed_differences.map(diff => `
+                    ${comparison.functional_comparison.detailed_differences.map(diff => {
+                        // Use the proper test name from the configuration (Column B)
+                        const testName = diff.test_name || diff.test_key || 'Unknown Test';
+                        // Use description for hover tooltip (Column C)
+                        const description = diff.description || 'No description available';
+                        
+                        // Parse differences by type
+                        const totalItemsDiff = diff.differences?.find(d => d.type === 'total_items_mismatch');
+                        const resultCountDiff = diff.differences?.find(d => d.type === 'result_count_mismatch');
+                        const resultSetDiff = diff.differences?.find(d => d.type === 'result_set_mismatch');
+                        const orderingDiff = diff.differences?.find(d => d.type === 'ordering_differences');
+                        
+                        return `
                     <tr>
-                        <td><code>${diff.test_key}</code></td>
-                        <td>${diff.endpoint_type}</td>
-                        <td>
-                            ${diff.error ? 'Error' : diff.differences.map(d => d.type).join(', ')}
-                        </td>
-                        <td>
-                            ${diff.error ? `<span class="negative">${diff.error}</span>` : 
-                            diff.differences.map(d => {
-                                if (d.type === 'total_items_mismatch') {
-                                    return `Total items: ${d.baseline_total} → ${d.current_total} (${d.difference >= 0 ? '+' : ''}${d.difference})`;
-                                } else if (d.type === 'result_count_mismatch') {
-                                    return `Result count: ${d.baseline_count} → ${d.current_count}`;
-                                } else if (d.type === 'result_set_mismatch') {
-                                    return `Missing: ${d.missing_count}, Extra: ${d.extra_count}`;
-                                } else if (d.type === 'ordering_differences') {
-                                    return `${d.total_position_changes} position changes`;
-                                }
-                                return d.type;
-                            }).join('<br>')}
-                        </td>
+                        <td><code>${testName}</code></td>
+                        <td>${description}</td>
+                        <td>${totalItemsDiff ? `<span class="negative">${totalItemsDiff.baseline_total} → ${totalItemsDiff.current_total} (${totalItemsDiff.difference >= 0 ? '+' : ''}${totalItemsDiff.difference})</span>` : '<span class="positive">✓ Match</span>'}</td>
+                        <td>${resultCountDiff ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
+                        <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
+                        <td>${orderingDiff ? `<span class="negative">${orderingDiff.total_position_changes} changes</span>` : (resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>')}</td>
+                        <td>${diff.error ? `<span class="negative">❌ Error</span>` : (diff.differences && diff.differences.length > 0 ? '<span class="negative">❌ Failed</span>' : '<span class="positive">✅ Passed</span>')}</td>
                     </tr>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </tbody>
             </table>
         </div>
