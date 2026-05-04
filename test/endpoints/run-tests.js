@@ -630,7 +630,8 @@ class ResponseSaver {
     response,
     sourceFile,
     rowNumber,
-    totalRows
+    totalRows,
+    parameters = {}
   ) {
     if (!this.enabled) return null;
 
@@ -649,6 +650,7 @@ class ResponseSaver {
           method: response.config?.method,
           headers: response.config?.headers,
         },
+        endpoint_parameters: parameters,
       };
 
       fs.writeFileSync(filePath, JSON.stringify(responseData, null, 2));
@@ -721,7 +723,10 @@ class EndpointTester {
       .replace(/[:.]/g, "-")
       .replace("T", "_")
       .slice(0, 19);
-    this.executionDir = path.join(this.reportsDir, `test-run-${timestamp}`);
+    
+    // Use custom subdirectory name if provided, otherwise use timestamp
+    const subdirName = this.options.reportsSubdir || `test-run-${timestamp}`;
+    this.executionDir = path.join(this.reportsDir, subdirName);
     this.responsesDir = path.join(this.executionDir, "responses");
 
     if (!this.options.dryRun) {
@@ -1382,7 +1387,8 @@ class EndpointTester {
         response,
         testConfig.source_file,
         testConfig.row_number,
-        testConfig.total_rows
+        testConfig.total_rows,
+        testConfig.parameters
       );
 
       // Extract additional info
@@ -1500,7 +1506,8 @@ class EndpointTester {
         error.response,
         testConfig.source_file,
         testConfig.row_number,
-        testConfig.total_rows
+        testConfig.total_rows,
+        testConfig.parameters
       );
       additionalInfo = this.responseAnalyzer.extractAdditionalInfo(
         testConfig,
@@ -3428,6 +3435,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   // Parse arguments
   let configDir = "./configs";
   let reportsDir = "./reports";
+  let reportsSubdir = null; // null means use auto-generated timestamp
   let saveResponseBodies = false;
   let embedResponseBodies = false;
   let providers = null; // null means use all available providers
@@ -3437,7 +3445,6 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let testDescription = null; // custom description for the test run
   let baseUrl = null; // custom base URL for API requests
   let requestCounterStart = 0; // initial value for request counter (default: 0)
-  let positionalArgIndex = 0;
 
   // Process command line arguments
   for (let i = 0; i < args.length; i++) {
@@ -3501,6 +3508,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         console.error("Error: --base-url requires a URL");
         process.exit(1);
       }
+    } else if (arg.startsWith("--base-url=")) {
+      baseUrl = arg.substring(11);
     } else if (arg === "--request-counter-start") {
       // Next argument should be the initial request counter value
       i++;
@@ -3522,22 +3531,60 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         process.exit(1);
       }
       requestCounterStart = value;
+    } else if (arg === "--config-dir" || arg === "--configs") {
+      // Next argument should be the config directory
+      i++;
+      if (i < args.length) {
+        configDir = args[i];
+      } else {
+        console.error("Error: --config-dir requires a directory path");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--config-dir=")) {
+      configDir = arg.substring(13);
+    } else if (arg.startsWith("--configs=")) {
+      configDir = arg.substring(10);
+    } else if (arg === "--reports-dir" || arg === "--reports") {
+      // Next argument should be the reports directory
+      i++;
+      if (i < args.length) {
+        reportsDir = args[i];
+      } else {
+        console.error("Error: --reports-dir requires a directory path");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--reports-dir=")) {
+      reportsDir = arg.substring(14);
+    } else if (arg.startsWith("--reports=")) {
+      reportsDir = arg.substring(10);
+    } else if (arg === "--reports-subdir") {
+      // Next argument should be the reports subdirectory name
+      i++;
+      if (i < args.length) {
+        reportsSubdir = args[i];
+      } else {
+        console.error("Error: --reports-subdir requires a directory name");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--reports-subdir=")) {
+      reportsSubdir = arg.substring(17);
     } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]"
-      );
-      console.log("");
-      console.log("Arguments:");
-      console.log(
-        "  configDir    Directory containing test configuration files (default: ./configs)"
-      );
-      console.log(
-        "  reportsDir   Directory for test reports (default: ./reports)"
+        "Usage: node run-tests.js --base-url <url> [options]"
       );
       console.log("");
       console.log("Options:");
       console.log(
         "  --base-url <url>               Base URL for API requests (REQUIRED)"
+      );
+      console.log(
+        "  --config-dir, --configs <dir>  Directory containing test configuration files (default: ./configs)"
+      );
+      console.log(
+        "  --reports-dir, --reports <dir> Directory for test reports (default: ./reports)"
+      );
+      console.log(
+        "  --reports-subdir <name>        Custom name for reports subdirectory (default: auto-generated timestamp)"
       );
       console.log(
         "  --request-counter-start <num>  Initial value for request counter (default: 0)"
@@ -3585,7 +3632,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       console.log("");
       console.log("Examples:");
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu ./configs ./reports");
+      console.log("  node run-tests.js --base-url=https://lux-middle-???.collections.yale.edu");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --config-dir ./configs --reports-dir ./reports");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --reports-subdir cts-baseline");
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses");
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --embed-responses");
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses --embed-responses");
@@ -3602,14 +3651,10 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       );
       process.exit(0);
     } else if (!arg.startsWith("-")) {
-      // Positional arguments
-      if (positionalArgIndex === 0) {
-        configDir = arg;
-        positionalArgIndex++;
-      } else if (positionalArgIndex === 1) {
-        reportsDir = arg;
-        positionalArgIndex++;
-      }
+      // No positional arguments - all must be named
+      console.error(`Error: Unexpected argument '${arg}'. All arguments must be named options.`);
+      console.log("Use --help for a list of available options");
+      process.exit(1);
     } else {
       // Unknown option starting with "-"
       console.error(`Error: Unknown option '${arg}'`);
@@ -3620,13 +3665,16 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 
   if (!dryRun && !fs.existsSync(configDir)) {
     console.error(`Configuration directory not found: ${configDir}`);
-    console.log("Usage: node run-tests.js --base-url <url> [configDir] [reportsDir] [options]");
+    console.log("Usage: node run-tests.js --base-url <url> [options]");
     console.log("Use --help for more information");
     process.exit(1);
   }
 
   console.log(`Configuration directory: ${configDir}`);
   console.log(`Reports directory: ${reportsDir}`);
+  if (reportsSubdir) {
+    console.log(`Reports subdirectory: ${reportsSubdir} (custom)`);
+  }
   if (testName) {
     console.log(`Test name: ${testName}`);
   }
@@ -3716,6 +3764,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     testName,
     testDescription,
     requestCounterStart,
+    reportsSubdir,
   };
   const tester = new EndpointTester(configDir, reportsDir, options);
 

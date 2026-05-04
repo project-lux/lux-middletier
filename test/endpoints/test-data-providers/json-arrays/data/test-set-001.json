@@ -1,6 +1,7 @@
 [
   {
     "name": "agent by ID",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -11,16 +12,18 @@
   },
   {
     "name": "agent by IRI",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
-        "iri": "https://lux.collections.yale.edu/data/group/f49ccc7b-5d4e-4121-8210-b57bc89aad5a"
+        "id": "https://lux.collections.yale.edu/data/group/f49ccc7b-5d4e-4121-8210-b57bc89aad5a"
       }
     },
     "expected": { "error": false, "value": 1 }
   },
   {
     "name": "either agent by ID or IRI",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -29,7 +32,7 @@
             "id": "https://lux.collections.yale.edu/data/person/13a15edf-65d1-4d93-910d-ef006d5fab47"
           },
           {
-            "iri": "https://lux.collections.yale.edu/data/group/f49ccc7b-5d4e-4121-8210-b57bc89aad5a"
+            "id": "https://lux.collections.yale.edu/data/group/f49ccc7b-5d4e-4121-8210-b57bc89aad5a"
           }
         ]
       }
@@ -38,6 +41,7 @@
   },
   {
     "name": "agent started anytime in 2012 (=) --CTS TO RETURN 8",
+    "opticOnly": false,
     "input": {
       "searchCriteria": { "_scope": "agent", "startDate": "2012", "_comp": "=" }
     },
@@ -45,6 +49,7 @@
   },
   {
     "name": "agent *not* started anytime in 2012 (!=)",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -56,6 +61,7 @@
   },
   {
     "name": "agent started in or after 2012 (>=) --CTS TO RETURN 107",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -67,6 +73,7 @@
   },
   {
     "name": "agent started after 2012 (>)",
+    "opticOnly": false,
     "input": {
       "searchCriteria": { "_scope": "agent", "startDate": "2012", "_comp": ">" }
     },
@@ -74,6 +81,7 @@
   },
   {
     "name": "agent started before 2012 (<)",
+    "opticOnly": false,
     "input": {
       "searchCriteria": { "_scope": "agent", "startDate": "2012", "_comp": "<" }
     },
@@ -81,6 +89,7 @@
   },
   {
     "name": "agent started in or before 2012 (<=) --CTS TO RETURN 23277",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -92,6 +101,7 @@
   },
   {
     "name": "date search term without comparator",
+    "opticOnly": false,
     "input": { "searchCriteria": { "_scope": "agent", "startDate": "2012" } },
     "expected": {
       "error": true,
@@ -100,16 +110,19 @@
   },
   {
     "name": "agent name search",
+    "opticOnly": false,
     "input": { "searchCriteria": { "_scope": "agent", "name": "Pablo" } },
     "expected": { "error": false, "value": 16 }
   },
   {
     "name": "item text search",
+    "opticOnly": false,
     "input": { "searchCriteria": { "_scope": "item", "text": "blue" } },
     "expected": { "error": false, "value": 4917 }
   },
   {
     "name": "item AND text search",
+    "opticOnly": false,
     "input": {
       "searchCriteria": { "_scope": "item", "AND": [{ "text": "lobster" }] }
     },
@@ -117,6 +130,7 @@
   },
   {
     "name": "item OR with nested AND, name, and producedBy",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -136,6 +150,7 @@
   },
   {
     "name": "item AND with nested AND and producedBy",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -154,6 +169,7 @@
   },
   {
     "name": "item AND with nested OR and name",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -172,6 +188,7 @@
   },
   {
     "name": "item AND with nested OR and NOT",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -191,6 +208,7 @@
   },
   {
     "name": "item OR with ranges, name, and text",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -206,6 +224,7 @@
   },
   {
     "name": "item OR with single producedBy hop",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "item",
@@ -216,6 +235,7 @@
   },
   {
     "name": "agent AND with name and produced (hopInverse) OR ranges",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -236,6 +256,7 @@
   },
   {
     "name": "agent AND with text and produced (hopInverse) OR ranges",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -256,6 +277,7 @@
   },
   {
     "name": "agent OR with unlikely name and produced (hopInverse) OR ranges",
+    "opticOnly": false,
     "input": {
       "searchCriteria": {
         "_scope": "agent",
@@ -276,6 +298,7 @@
   },
   {
     "name": "similar event",
+    "opticOnly": true,
     "input": {
       "searchCriteria": {
         "_scope": "event",
@@ -286,6 +309,7 @@
   },
   {
     "name": "Valid multi-scope search",
+    "opticOnly": false,
     "input": {
       "allowMultiScope": true,
       "searchCriteria": {

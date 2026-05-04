@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { TestDataProvider } from '../interface.js';
-import { ENDPOINT_KEYS } from '../../constants.js';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { TestDataProvider } from "../interface.js";
+import { ENDPOINT_KEYS } from "../../constants.js";
 
 /**
  * Test data provider that extracts test cases from JSON array files
@@ -16,7 +16,7 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
   constructor(options = {}) {
     super(options);
     this.sourceDir = path.dirname(fileURLToPath(import.meta.url));
-    this.dataDir = path.join(this.sourceDir, 'data');
+    this.dataDir = path.join(this.sourceDir, "data");
   }
 
   /**
@@ -32,8 +32,8 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
 
       const files = fs.readdirSync(this.dataDir);
       return files
-        .filter(file => file.endsWith('.json'))
-        .map(file => path.join(this.dataDir, file));
+        .filter((file) => file.endsWith(".json"))
+        .map((file) => path.join(this.dataDir, file));
     } catch (error) {
       console.error(`Error discovering JSON files: ${error.message}`);
       return [];
@@ -60,7 +60,9 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
     try {
       // Check if we should process this endpoint
       if (!this.shouldProcessEndpoint(endpointKey)) {
-        console.log(`JsonArrayTestDataProvider: Skipping ${endpointKey} endpoint`);
+        console.log(
+          `JsonArrayTestDataProvider: Skipping ${endpointKey} endpoint`,
+        );
         return [];
       }
 
@@ -69,11 +71,13 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
       const jsonFiles = this.discoverJsonFiles();
 
       if (jsonFiles.length === 0) {
-        console.log('No JSON files found in data directory');
+        console.log("No JSON files found in data directory");
         return [];
       }
 
-      console.log(`Processing ${jsonFiles.length} JSON file(s) for ${endpointKey} endpoint...`);
+      console.log(
+        `Processing ${jsonFiles.length} JSON file(s) for ${endpointKey} endpoint...`,
+      );
 
       let allTestCases = [];
 
@@ -83,7 +87,9 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
           const testCases = await this.parseJsonFile(jsonFilePath, endpointKey);
           allTestCases = allTestCases.concat(testCases);
         } catch (error) {
-          console.error(`Error processing file ${jsonFilePath}: ${error.message}`);
+          console.error(
+            `Error processing file ${jsonFilePath}: ${error.message}`,
+          );
           // Continue processing other files
         }
       }
@@ -91,11 +97,16 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
       // Convert test cases to rows matching the column structure
       const testRows = this.convertToTestRows(allTestCases, columns);
 
-      console.log(`✓ Generated ${testRows.length} test cases for ${endpointKey} from JSON arrays`);
-      
+      console.log(
+        `✓ Generated ${testRows.length} test cases for ${endpointKey} from JSON arrays`,
+      );
+
       return testRows;
     } catch (error) {
-      console.error(`Error processing JSON arrays for ${endpointKey}:`, error.message);
+      console.error(
+        `Error processing JSON arrays for ${endpointKey}:`,
+        error.message,
+      );
       return []; // Return empty array to not break other providers
     }
   }
@@ -108,9 +119,9 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
    */
   async parseJsonFile(jsonFilePath, endpointKey) {
     try {
-      const jsonContent = fs.readFileSync(jsonFilePath, 'utf8');
+      const jsonContent = fs.readFileSync(jsonFilePath, "utf8");
       const jsonArray = JSON.parse(jsonContent);
-      
+
       if (!Array.isArray(jsonArray)) {
         console.warn(`JSON file ${jsonFilePath} does not contain an array`);
         return [];
@@ -121,9 +132,20 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
 
       for (let i = 0; i < jsonArray.length; i++) {
         const item = jsonArray[i];
-        
+
         // Skip items where expected.error = true
         if (item.expected?.error === true) {
+          console.log(
+            `Skipping the '${item.name}' test case in ${sourceFile} because it is marked as expected.error`,
+          );
+          continue;
+        }
+
+        // Skip items marked as Optic only.
+        if (item.opticOnly === true) {
+          console.log(
+            `Skipping the '${item.name}' test case in ${sourceFile} because it is marked as opticOnly`,
+          );
           continue;
         }
 
@@ -138,7 +160,9 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
 
       return testCases;
     } catch (error) {
-      throw new Error(`Failed to parse JSON file ${jsonFilePath}: ${error.message}`);
+      throw new Error(
+        `Failed to parse JSON file ${jsonFilePath}: ${error.message}`,
+      );
     }
   }
 
@@ -153,18 +177,20 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
     try {
       // Validate required structure
       if (!item.input || !item.input.searchCriteria) {
-        console.warn(`Item ${index + 1} in ${sourceFile} missing input.searchCriteria`);
+        console.warn(
+          `Item ${index + 1} in ${sourceFile} missing input.searchCriteria`,
+        );
         return null;
       }
 
       const searchCriteria = item.input.searchCriteria;
-      
+
       // Extract scope from searchCriteria._scope or default to "item"
       const scope = searchCriteria._scope || "item";
-      
+
       // Use searchCriteria as the q parameter (serialize as JSON string)
       const qParam = JSON.stringify(searchCriteria);
-      
+
       // Create test case object similar to BackendLogsTestDataProvider
       const testCase = {
         testName: item.name || `Test ${index + 1} in ${sourceFile}`,
@@ -178,16 +204,20 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
           q: qParam,
           // Add any other search parameters that might be at the top level of searchCriteria
           ...(searchCriteria.page && { page: searchCriteria.page }),
-          ...(searchCriteria.pageLength && { pageLength: searchCriteria.pageLength })
+          ...(searchCriteria.pageLength && {
+            pageLength: searchCriteria.pageLength,
+          }),
         },
         sourceFile: sourceFile,
         rawData: item, // Store original item for reference
-        expectedValue: item.expected ? item.expected.value : null
+        expectedValue: item.expected ? item.expected.value : null,
       };
 
       return testCase;
     } catch (error) {
-      console.warn(`Error extracting test case ${index + 1} from ${sourceFile}: ${error.message}`);
+      console.warn(
+        `Error extracting test case ${index + 1} from ${sourceFile}: ${error.message}`,
+      );
       return null;
     }
   }
@@ -241,7 +271,7 @@ export class JsonArrayTestDataProvider extends TestDataProvider {
       dataDirectory: this.dataDir,
       jsonFileCount: jsonFiles.length,
       lastModified: this.getLastModified(jsonFiles),
-      recordCount: 0 // Will be updated after extraction
+      recordCount: 0, // Will be updated after extraction
     };
   }
 
