@@ -7,9 +7,15 @@ const baseDir = 'C:\\workspaces\\yale\\clones\\lux-middletier\\test\\endpoints';
 // Define your combinations here
 const configurations = [
   {
-    comparisonName: 'CTS v Optic',
+    comparisonName: 'JsonArrayTestDataProvider',
     baselineEndpointsDir: 'cts-v-optic/cts/endpoints',
     currentEndpointsDir: 'cts-v-optic/optic/endpoints',
+    baseOutputDir: 'cts-v-optic/comparisons'
+  },
+  {
+    comparisonName: '338-BackendLogTestDataProvider',
+    baselineEndpointsDir: 'cts-v-optic/cts-338/endpoints',
+    currentEndpointsDir: 'cts-v-optic/optic-338/endpoints',
     baseOutputDir: 'cts-v-optic/comparisons'
   },
 ];

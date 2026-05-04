@@ -140,7 +140,8 @@ export async function processPriorityEndpoint(
   allProviders,
   options,
   statistics,
-  createTestsForEndpoint
+  createTestsForEndpoint,
+  requestIdCounter = { value: 1 }
 ) {
   const getSearchKey = ENDPOINT_KEYS.GET_SEARCH;
   let searchTestConfigs = null;
@@ -155,7 +156,9 @@ export async function processPriorityEndpoint(
       getSearchKey,
       testsDir,
       allProviders,
-      options
+      options,
+      null, // searchTestConfigs
+      requestIdCounter
     );
     const endTime = Date.now();
     const duration = endTime - startTime;
@@ -194,7 +197,8 @@ export async function processRemainingEndpoints(
   options,
   statistics,
   searchTestConfigs,
-  createTestsForEndpoint
+  createTestsForEndpoint,
+  requestIdCounter = { value: 1 }
 ) {
   const getSearchKey = ENDPOINT_KEYS.GET_SEARCH;
 
@@ -216,7 +220,8 @@ export async function processRemainingEndpoints(
         testsDir,
         allProviders,
         options,
-        searchTestConfigs
+        searchTestConfigs,
+        requestIdCounter
       );
       const endTime = Date.now();
       const duration = endTime - startTime;

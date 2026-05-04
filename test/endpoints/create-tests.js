@@ -51,8 +51,9 @@ async function createEndpointTests(testsDir, options = {}) {
     return;
   }
 
-  // Initialize statistics tracking
+  // Initialize statistics tracking and global request ID counter
   const statistics = new TestStatistics();
+  const requestIdCounter = { value: 1 }; // Use object to pass by reference
 
   // Process priority endpoint first (GET_SEARCH)
   const searchTestConfigs = await processPriorityEndpoint(
@@ -62,7 +63,8 @@ async function createEndpointTests(testsDir, options = {}) {
     allProviders,
     options,
     statistics,
-    createTestsForEndpoint
+    createTestsForEndpoint,
+    requestIdCounter
   );
 
   // Process remaining endpoints
@@ -74,7 +76,8 @@ async function createEndpointTests(testsDir, options = {}) {
     options,
     statistics,
     searchTestConfigs,
-    createTestsForEndpoint
+    createTestsForEndpoint,
+    requestIdCounter
   );
 
   // Print comprehensive summary
@@ -192,7 +195,8 @@ async function createTestsForEndpoint(
   testsDir,
   allProviders,
   options = {},
-  searchTestConfigs = null
+  searchTestConfigs = null,
+  requestIdCounter = { value: 1 }
 ) {
   const filename = `${endpointKey}-tests.xlsx`;
   const filePath = path.join(testsDir, filename);
@@ -201,7 +205,8 @@ async function createTestsForEndpoint(
 
   // Build columns array
   const baseColumns = [
-    "provider_id",
+    "request_id",
+    "provider_id", 
     "test_name",
     "description",
     "enabled",
@@ -236,7 +241,8 @@ async function createTestsForEndpoint(
     endpointKey,
     columns,
     searchTestConfigs,
-    options
+    options,
+    requestIdCounter
   );
 
   let allTestData = collectionResult.testData;
@@ -467,10 +473,11 @@ function filterSearchTestConfigsByProvider(searchTestRows, searchColumns, provid
   return searchTestRows.filter(row => row[providerIdIndex] === providerId);
 }
 
-// Add provider ID to each test row
-function enrichTestDataWithProviderInfo(providerId, testData, columns) {
+// Add provider ID and request ID to each test row
+function enrichTestDataWithProviderInfo(providerId, testData, columns, requestIdCounter) {
   if (testData && testData.length > 0) {
     const providerIdIndex = columns.indexOf("provider_id");
+    const requestIdIndex = columns.indexOf("request_id");
     const enrichedTestData = testData.map((row) => {
       // Create a copy of the row to avoid modifying the original
       const enrichedRow = [...row];
@@ -478,6 +485,11 @@ function enrichTestDataWithProviderInfo(providerId, testData, columns) {
       // Set the provider ID at the correct column index
       if (providerIdIndex !== -1) {
         enrichedRow[providerIdIndex] = providerId;
+      }
+
+      // Set the request ID at the correct column index
+      if (requestIdIndex !== -1) {
+        enrichedRow[requestIdIndex] = requestIdCounter.value++;
       }
 
       return enrichedRow;
@@ -498,7 +510,8 @@ async function collectTestDataFromAllProviders(
   endpointKey,
   columns,
   searchTestConfigs = null,
-  options = {}
+  options = {},
+  requestIdCounter = { value: 1 }
 ) {
   let allTestData = [];
 
@@ -524,7 +537,8 @@ async function collectTestDataFromAllProviders(
       providerTestData = enrichTestDataWithProviderInfo(
         provider.getProviderId(),
         providerTestData,
-        columns
+        columns,
+        requestIdCounter
       );
       allTestData = allTestData.concat(providerTestData);
 
@@ -563,7 +577,8 @@ async function collectTestDataFromAllProviders(
           derivedTestData = enrichTestDataWithProviderInfo(
             provider.getProviderId(),
             derivedTestData,
-            columns
+            columns,
+            requestIdCounter
           );
           allTestData = allTestData.concat(derivedTestData);
         } else {
@@ -608,6 +623,7 @@ function createDocumentationSheetForAPI(
     ["Description:", apiDef.description],
     [""],
     ["Column Descriptions:"],
+    ["request_id", "Sequential unique identifier for comparing tests across runs (1, 2, 3...)"],
     ["provider_id", "Identifier of the data provider that generated this test"],
     ["test_name", "Unique identifier for the test"],
     ["description", "Human-readable description of what the test does"],

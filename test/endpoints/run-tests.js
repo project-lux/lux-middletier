@@ -188,6 +188,7 @@ class ConfigurationLoader {
    */
   transformRowToConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     const testConfig = {
+      request_id: row.request_id || `fallback_${endpointType}_${rowIndex}_${Date.now()}`,
       provider_id: row.provider_id || "",
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
@@ -706,7 +707,7 @@ class EndpointTester {
     this.reportsDir = reportsDir;
     this.results = [];
     this.options = options;
-    this.requestCounter = options.requestCounterStart || 0; // Initialize request counter for unique request IDs
+    this.requestCounter = options.requestCounterStart || 0; // Initialize counter for test sequencing and optional skipping
 
     // Initialize configuration
     this.initializeDirectories();
@@ -1349,16 +1350,41 @@ class EndpointTester {
       this.shouldRunTest(config)
     );
     const totalTests = validTestConfigs.length;
+    
+    // Apply request counter start offset for skipping tests
+    const startIndex = Math.min(this.options.requestCounterStart || 0, totalTests);
+    const testsToRun = validTestConfigs.slice(startIndex);
+    
+    if (startIndex > 0) {
+      console.log(`Skipping first ${startIndex} tests (--request-counter-start=${this.options.requestCounterStart})`);
+      console.log(`Running ${testsToRun.length} of ${totalTests} total tests`);
+    }
 
-    for (let testIndex = 0; testIndex < validTestConfigs.length; testIndex++) {
-      const testConfig = validTestConfigs[testIndex];
+    const maxConcurrent = this.options.maxConcurrent || 1;
+    if (maxConcurrent > 1) {
+      console.log(`Using concurrent execution with max ${maxConcurrent} simultaneous requests`);
+      await this.executeTestsConcurrently(endpointType, testsToRun, startIndex, totalTests, maxConcurrent);
+    } else {
+      console.log(`Using sequential execution (--max-concurrent=1)`);
+      await this.executeTestsSequentially(endpointType, testsToRun, startIndex, totalTests);
+    }
+  }
+
+  /**
+   * Execute tests sequentially (original behavior)
+   */
+  async executeTestsSequentially(endpointType, testsToRun, startIndex, totalTests) {
+    for (let testIndex = 0; testIndex < testsToRun.length; testIndex++) {
+      const testConfig = testsToRun[testIndex];
+      const globalIndex = startIndex + testIndex + 1; // 1-based for display
+      
       console.log(
-        `Running ${endpointType} test ${testIndex + 1} of ${totalTests}: [${
+        `Running ${endpointType} test ${globalIndex} of ${totalTests}: [${
           testConfig.test_name
         }] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
       );
 
-      const result = await this.runSingleTest(testConfig);
+      const result = await this.runSingleTest(testConfig, globalIndex);
       this.results.push(result);
 
       // if (testConfig.delay_after_ms > 0) {
@@ -1369,11 +1395,128 @@ class EndpointTester {
   }
 
   /**
+   * Execute tests concurrently with controlled concurrency (BATCH VERSION - BACKUP)
+   * This version processes tests in batches which can lead to underutilization when 
+   * some tests in a batch finish early. Kept as backup before implementing semaphore approach.
+   */
+  async executeTestsConcurrently_batchVersion(endpointType, testsToRun, startIndex, totalTests, maxConcurrent) {
+    const results = [];
+    let completedCount = 0;
+    
+    // Process tests in batches
+    for (let i = 0; i < testsToRun.length; i += maxConcurrent) {
+      const batch = testsToRun.slice(i, Math.min(i + maxConcurrent, testsToRun.length));
+      
+      // Create promises for this batch
+      const batchPromises = batch.map(async (testConfig, batchIndex) => {
+        const testIndex = i + batchIndex;
+        const globalIndex = startIndex + testIndex + 1; // 1-based for display
+        
+        console.log(
+          `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
+        );
+
+        try {
+          const result = await this.runSingleTest(testConfig, globalIndex);
+          console.log(`Completed test ${globalIndex}: ${result.success ? '✓' : '✗'} ${testConfig.test_name}`);
+          return result;
+        } catch (error) {
+          console.log(`Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`);
+          const requestId = testConfig.request_id;
+          const executionSequence = globalIndex;
+          return this.createErrorResult(testConfig, error, 0, requestId, executionSequence);
+        }
+      });
+      
+      // Wait for this batch to complete
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+      completedCount += batchResults.length;
+      
+      console.log(`Batch complete: ${completedCount}/${testsToRun.length} tests finished`);
+    }
+    
+    // Add results to main results array (preserve order)
+    this.results.push(...results);
+  }
+
+  /**
+   * Execute tests concurrently with semaphore-based concurrency control
+   * This version maintains continuous concurrency and better resource utilization
+   */
+  async executeTestsConcurrently(endpointType, testsToRun, startIndex, totalTests, maxConcurrent) {
+    const results = [];
+    let runningTests = 0;
+    let testIndex = 0;
+    let completedCount = 0;
+
+    return new Promise((resolve, reject) => {
+      const startNextTest = () => {
+        // Start as many tests as we can up to the concurrency limit
+        while (runningTests < maxConcurrent && testIndex < testsToRun.length) {
+          const currentTestIndex = testIndex++;
+          const testConfig = testsToRun[currentTestIndex];
+          const globalIndex = startIndex + currentTestIndex + 1; // 1-based for display
+          
+          runningTests++;
+          
+          console.log(
+            `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
+          );
+
+          // Run the test
+          this.runSingleTest(testConfig, globalIndex)
+            .then(result => {
+              console.log(`Completed test ${globalIndex}: ${result.status === 'PASS' ? '✓' : '✗'} ${testConfig.test_name}`);
+              results[currentTestIndex] = result; // Preserve order using index
+              completedCount++;
+              runningTests--;
+
+              // Check if we're done
+              if (completedCount === testsToRun.length) {
+                console.log(`All ${testsToRun.length} tests completed`);
+                // Add results to main results array (preserve order)
+                this.results.push(...results);
+                resolve();
+              } else {
+                // Start the next test if available
+                startNextTest();
+              }
+            })
+            .catch(error => {
+              console.log(`Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`);
+              const requestId = testConfig.request_id;
+              const executionSequence = globalIndex;
+              results[currentTestIndex] = this.createErrorResult(testConfig, error, 0, requestId, executionSequence);
+              completedCount++;
+              runningTests--;
+
+              // Check if we're done
+              if (completedCount === testsToRun.length) {
+                console.log(`All ${testsToRun.length} tests completed`);
+                // Add results to main results array (preserve order)
+                this.results.push(...results);
+                resolve();
+              } else {
+                // Start the next test if available
+                startNextTest();
+              }
+            });
+        }
+      };
+
+      // Start initial batch of tests
+      startNextTest();
+    });
+  }
+
+  /**
    * Run a single test configuration
    */
-  async runSingleTest(testConfig) {
+  async runSingleTest(testConfig, sequenceNumber = null) {
     const startTime = Date.now();
-    const requestId = ++this.requestCounter; // Increment and assign unique request ID
+    const requestId = testConfig.request_id; // Use stable request ID from spreadsheet
+    const executionSequence = sequenceNumber || (++this.requestCounter); // Sequential number for this execution
 
     try {
       const response = await this.requestHandler.executeRequest(testConfig);
@@ -1404,10 +1547,11 @@ class EndpointTester {
         timestamp,
         additionalInfo,
         responseBodyFile,
-        requestId
+        requestId,
+        executionSequence
       );
     } catch (error) {
-      return this.createErrorResult(testConfig, error, Date.now() - startTime, requestId);
+      return this.createErrorResult(testConfig, error, Date.now() - startTime, requestId, executionSequence);
     }
   }
 
@@ -1421,7 +1565,8 @@ class EndpointTester {
     timestamp,
     additionalInfo,
     responseBodyFile,
-    requestId
+    requestId,
+    executionSequence
   ) {
     const statusMatches = response.status === testConfig.expected_status;
     let status = statusMatches ? "PASS" : "FAIL";
@@ -1437,6 +1582,7 @@ class EndpointTester {
 
     const result = {
       request_id: requestId,
+      execution_sequence: executionSequence,
       provider_id: testConfig.provider_id,
       test_name: testConfig.test_name,
       endpoint_type: testConfig.endpoint_type,
@@ -1495,7 +1641,7 @@ class EndpointTester {
   /**
    * Create error result object
    */
-  createErrorResult(testConfig, error, duration, requestId) {
+  createErrorResult(testConfig, error, duration, requestId, executionSequence) {
     let responseBodyFile = null;
     let additionalInfo = null;
 
@@ -1517,6 +1663,7 @@ class EndpointTester {
 
     const result = {
       request_id: requestId,
+      execution_sequence: executionSequence,
       test_name: testConfig.test_name,
       provider_id: testConfig.provider_id,
       endpoint_type: testConfig.endpoint_type,
@@ -3445,6 +3592,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   let testDescription = null; // custom description for the test run
   let baseUrl = null; // custom base URL for API requests
   let requestCounterStart = 0; // initial value for request counter (default: 0)
+  let maxConcurrent = 1; // maximum concurrent requests (default: 1 = sequential)
 
   // Process command line arguments
   for (let i = 0; i < args.length; i++) {
@@ -3531,6 +3679,27 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         process.exit(1);
       }
       requestCounterStart = value;
+    } else if (arg === "--max-concurrent") {
+      // Next argument should be the maximum concurrent requests
+      i++;
+      if (i < args.length) {
+        const value = parseInt(args[i], 10);
+        if (isNaN(value) || value < 1) {
+          console.error("Error: --max-concurrent requires a positive integer >= 1");
+          process.exit(1);
+        }
+        maxConcurrent = value;
+      } else {
+        console.error("Error: --max-concurrent requires a number");
+        process.exit(1);
+      }
+    } else if (arg.startsWith("--max-concurrent=")) {
+      const value = parseInt(arg.substring(17), 10);
+      if (isNaN(value) || value < 1) {
+        console.error("Error: --max-concurrent requires a positive integer >= 1");
+        process.exit(1);
+      }
+      maxConcurrent = value;
     } else if (arg === "--config-dir" || arg === "--configs") {
       // Next argument should be the config directory
       i++;
@@ -3587,7 +3756,13 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         "  --reports-subdir <name>        Custom name for reports subdirectory (default: auto-generated timestamp)"
       );
       console.log(
-        "  --request-counter-start <num>  Initial value for request counter (default: 0)"
+        "  --request-counter-start <num>  Skip first N tests / set execution sequence start (default: 0)"
+      );
+      console.log(
+        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)"
+      );
+      console.log(
+        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)"
       );
       console.log(
         "  --save-responses, -r          Save response bodies to disk"
@@ -3646,6 +3821,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       );
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete");
       console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 5");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 3 --endpoints get-search");
+      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --request-counter-start 100 --max-concurrent 10");
       console.log(
         "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search"
       );
@@ -3674,6 +3852,14 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   console.log(`Reports directory: ${reportsDir}`);
   if (reportsSubdir) {
     console.log(`Reports subdirectory: ${reportsSubdir} (custom)`);
+  }
+  if (requestCounterStart > 0) {
+    console.log(`Request counter start: ${requestCounterStart} (skip first ${requestCounterStart} tests)`);
+  }
+  if (maxConcurrent > 1) {
+    console.log(`Max concurrent requests: ${maxConcurrent}`);
+  } else {
+    console.log(`Execution mode: Sequential (--max-concurrent=1)`);
   }
   if (testName) {
     console.log(`Test name: ${testName}`);
@@ -3764,6 +3950,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     testName,
     testDescription,
     requestCounterStart,
+    maxConcurrent,
     reportsSubdir,
   };
   const tester = new EndpointTester(configDir, reportsDir, options);
