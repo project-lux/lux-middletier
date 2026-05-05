@@ -1202,10 +1202,18 @@ class ReportComparator {
                           try {
                             const urlObj = new URL(diff.baseline_url);
                             const qParam = urlObj.searchParams.get('q');
+                            // Extract scope from URL path: /api/search/[scope]?...
+                            const scopeMatch = diff.baseline_url.match(/\/api\/search\/([a-z]+)[\/?]/);
+                            const scopeParam = scopeMatch ? scopeMatch[1] : null;
                             if (qParam) {
                               try {
-                                JSON.parse(decodeURIComponent(qParam));
-                                const encodedQParam = encodeURIComponent(qParam);
+                                const parsedJson = JSON.parse(decodeURIComponent(qParam));
+                                // Add _scope property if scope exists in URL path
+                                if (scopeParam) {
+                                  parsedJson._scope = scopeParam;
+                                }
+                                const modifiedJsonString = JSON.stringify(parsedJson);
+                                const encodedQParam = encodeURIComponent(modifiedJsonString);
                                 criteriaHtml = `<span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the criteria">📄 Criteria</span>`;
                               } catch (e) {
                                 // Not valid JSON, show as text
