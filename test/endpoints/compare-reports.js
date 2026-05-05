@@ -426,25 +426,35 @@ class ReportComparator {
     const baselineTotalItems = baselineData?.partOf?.[0]?.totalItems;
     const currentTotalItems = currentData?.partOf?.[0]?.totalItems;
     
+    // Always store total items info for display purposes
+    comparison.total_items_info = {
+      type: 'total_items_info',
+      baseline_total: baselineTotalItems,
+      current_total: currentTotalItems,
+      difference: currentTotalItems - baselineTotalItems,
+      is_mismatch: baselineTotalItems !== currentTotalItems
+    };
+    
+    // Only add to differences if there's a mismatch
     if (baselineTotalItems !== currentTotalItems) {
-      comparison.differences.push({
-        type: 'total_items_mismatch',
-        baseline_total: baselineTotalItems,
-        current_total: currentTotalItems,
-        difference: currentTotalItems - baselineTotalItems
-      });
+      comparison.differences.push(comparison.total_items_info);
     }
     
     // Compare ordered items (result ordering)
     const baselineItems = baselineData?.orderedItems || [];
     const currentItems = currentData?.orderedItems || [];
     
+    // Always store result count info for display purposes
+    comparison.result_count_info = {
+      type: 'result_count_mismatch',
+      baseline_count: baselineItems.length,
+      current_count: currentItems.length,
+      is_mismatch: baselineItems.length !== currentItems.length
+    };
+    
+    // Only add to differences if there's a mismatch
     if (baselineItems.length !== currentItems.length) {
-      comparison.differences.push({
-        type: 'result_count_mismatch',
-        baseline_count: baselineItems.length,
-        current_count: currentItems.length
-      });
+      comparison.differences.push(comparison.result_count_info);
     }
     
     // Check if the same items are present (regardless of order)
@@ -464,24 +474,35 @@ class ReportComparator {
       });
     }
     
-    // Check ordering differences (only if same result sets)
-    if (missingInCurrent.length === 0 && extraInCurrent.length === 0 && baselineItems.length === currentItems.length) {
-      const orderingDifferences = [];
-      for (let i = 0; i < Math.min(baselineItems.length, currentItems.length); i++) {
-        if (baselineItems[i].id !== currentItems[i].id) {
-          orderingDifferences.push({
-            position: i + 1,
-            baseline_id: baselineItems[i].id,
-            current_id: currentItems[i].id
-          });
+    // Check ordering differences for overlapping items (regardless of missing/extra items)
+    const overlappingIds = [...baselineIds].filter(id => currentIds.has(id));
+    
+    if (overlappingIds.length > 0) {
+      // Create ordered lists of overlapping items based on their appearance in each result set
+      const baselineOverlapOrder = baselineItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
+      const currentOverlapOrder = currentItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
+      
+      // Count how many individual items moved from their baseline position
+      let itemsMoved = 0;
+      for (let i = 0; i < baselineOverlapOrder.length; i++) {
+        const itemId = baselineOverlapOrder[i];
+        const currentPosition = currentOverlapOrder.indexOf(itemId);
+        
+        // If the item is not at the same position, it moved
+        if (currentPosition !== i) {
+          itemsMoved++;
         }
       }
       
-      if (orderingDifferences.length > 0) {
+      if (itemsMoved > 0) {
         comparison.differences.push({
           type: 'ordering_differences',
-          differences: orderingDifferences,
-          total_position_changes: orderingDifferences.length
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_moved: itemsMoved,
+          baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
+          current_order: currentOverlapOrder.slice(0, 5)
         });
       }
     }
@@ -1147,7 +1168,6 @@ class ReportComparator {
                         <th>Result Count</th>
                         <th>Result Set</th>
                         <th>Ordering</th>
-                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1158,8 +1178,8 @@ class ReportComparator {
                         const description = diff.description || 'No description available';
                         
                         // Parse differences by type
-                        const totalItemsDiff = diff.differences?.find(d => d.type === 'total_items_mismatch');
-                        const resultCountDiff = diff.differences?.find(d => d.type === 'result_count_mismatch');
+                        const totalItemsInfo = diff.total_items_info || diff.differences?.find(d => d.type === 'total_items_info');
+                        const resultCountDiff = diff.result_count_info || diff.differences?.find(d => d.type === 'result_count_mismatch');
                         const resultSetDiff = diff.differences?.find(d => d.type === 'result_set_mismatch');
                         const orderingDiff = diff.differences?.find(d => d.type === 'ordering_differences');
                         
@@ -1167,11 +1187,10 @@ class ReportComparator {
                     <tr>
                         <td><code>${testName}</code></td>
                         <td>${description}</td>
-                        <td>${totalItemsDiff ? `<span class="negative">${totalItemsDiff.baseline_total} → ${totalItemsDiff.current_total} (${totalItemsDiff.difference >= 0 ? '+' : ''}${totalItemsDiff.difference})</span>` : '<span class="positive">✓ Match</span>'}</td>
-                        <td>${resultCountDiff ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
+                        <td>${totalItemsInfo?.is_mismatch ? `<span class="negative">${totalItemsInfo.baseline_total} → ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? '+' : ''}${totalItemsInfo.difference})</span>` : `<span class="positive">✓ Match: ${totalItemsInfo?.baseline_total ?? '?'}</span>`}</td>
+                        <td>${resultCountDiff?.is_mismatch ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : `<span class="positive">✓ Match: ${resultCountDiff?.baseline_count ?? '?'}</span>`}</td>
                         <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
-                        <td>${orderingDiff ? `<span class="negative">${orderingDiff.total_position_changes} changes</span>` : (resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>')}</td>
-                        <td>${diff.error ? `<span class="negative">❌ Error</span>` : (diff.differences && diff.differences.length > 0 ? '<span class="negative">❌ Failed</span>' : '<span class="positive">✅ Passed</span>')}</td>
+                        <td>${orderingDiff ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>` : (resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>')}</td>
                     </tr>
                     `;
                     }).join('')}
