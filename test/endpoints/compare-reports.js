@@ -358,6 +358,7 @@ class ReportComparator {
       test_name: baselineTest.test_name,
       description: baselineTest.description,
       endpoint_type: baselineTest.endpoint_type,
+      baseline_url: baselineTest.url || '',
       has_differences: false,
       differences: [],
       baseline_file: baselineTest.response_body_file,
@@ -1028,6 +1029,17 @@ class ReportComparator {
         .positive { color: green; }
         .negative { color: red; }
         .neutral { color: #667; }
+        .json-link { color: #0066cc; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 14px; padding: 2px 6px; background-color: #f0f8ff; border: 1px solid #0066cc; border-radius: 3px; display: inline-block; vertical-align: middle; }
+        .json-link:hover { background-color: #e6f3ff; color: #0052a3; }
+        .json-popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; }
+        .json-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+        .json-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .json-popup-buttons { display: flex; gap: 10px; }
+        .json-popup-copy { background: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .json-popup-copy:hover { background: #45a049; }
+        .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .json-popup-close:hover { background: #d32f2f; }
+        .json-content { background: #f8f9fa; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; max-height: 60vh; overflow: auto; border: 1px solid #dee2e6; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -1168,6 +1180,7 @@ class ReportComparator {
                         <th>Result Count</th>
                         <th>Result Set</th>
                         <th>Ordering</th>
+                        <th>Criteria</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1182,6 +1195,27 @@ class ReportComparator {
                         const resultCountDiff = diff.result_count_info || diff.differences?.find(d => d.type === 'result_count_mismatch');
                         const resultSetDiff = diff.differences?.find(d => d.type === 'result_set_mismatch');
                         const orderingDiff = diff.differences?.find(d => d.type === 'ordering_differences');
+
+                        // Extract query criteria from URL
+                        let criteriaHtml = 'N/A';
+                        if (diff.baseline_url) {
+                          try {
+                            const urlObj = new URL(diff.baseline_url);
+                            const qParam = urlObj.searchParams.get('q');
+                            if (qParam) {
+                              try {
+                                JSON.parse(decodeURIComponent(qParam));
+                                const encodedQParam = encodeURIComponent(qParam);
+                                criteriaHtml = `<span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the criteria">📄 Criteria</span>`;
+                              } catch (e) {
+                                // Not valid JSON, show as text
+                                criteriaHtml = qParam.length > 30 ? qParam.substring(0, 30) + '...' : qParam;
+                              }
+                            }
+                          } catch (e) {
+                            // URL parsing failed
+                          }
+                        }
                         
                         return `
                     <tr>
@@ -1191,6 +1225,7 @@ class ReportComparator {
                         <td>${resultCountDiff?.is_mismatch ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : `<span class="positive">✓ Match: ${resultCountDiff?.baseline_count ?? '?'}</span>`}</td>
                         <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
                         <td>${orderingDiff ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>` : (resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>')}</td>
+                        <td>${criteriaHtml}</td>
                     </tr>
                     `;
                     }).join('')}
@@ -1600,6 +1635,90 @@ class ReportComparator {
         </table>
     </div>
     ` : ''}
+    
+    <!-- JSON Popup Modal -->
+    <div id="jsonPopup" class="json-popup" onclick="closeJsonPopup(event)">
+        <div class="json-popup-content" onclick="event.stopPropagation()">
+            <div class="json-popup-header">
+                <h3>Search Criteria</h3>
+                <div class="json-popup-buttons">
+                    <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
+                    <button class="json-popup-copy" onclick="copyJsonAsEncoded(event)" title="Copy JSON as URL-encoded">Copy URL-Encoded</button>
+                    <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
+                </div>
+            </div>
+            <div id="jsonContent" class="json-content"></div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // JSON Popup Functions
+        function showJsonPopup(jsonString) {
+            try {
+                const parsed = JSON.parse(decodeURIComponent(jsonString));
+                const formatted = JSON.stringify(parsed, null, 2);
+                document.getElementById('jsonContent').textContent = formatted;
+                document.getElementById('jsonPopup').style.display = 'block';
+                
+                // Store the original and formatted JSON for copy functions
+                window.currentJsonData = {
+                    formatted: formatted,
+                    encoded: jsonString
+                };
+            } catch (e) {
+                document.getElementById('jsonContent').textContent = 'Invalid JSON: ' + decodeURIComponent(jsonString);
+                document.getElementById('jsonPopup').style.display = 'block';
+                
+                // Store error data for copy functions
+                window.currentJsonData = {
+                    formatted: 'Invalid JSON: ' + decodeURIComponent(jsonString),
+                    encoded: jsonString
+                };
+            }
+        }
+        
+        function copyToClipboard(event, dataSource, dataKey, buttonName) {
+            const data = window[dataSource];
+            if (data && data[dataKey]) {
+                navigator.clipboard.writeText(data[dataKey]).then(function() {
+                    // Temporarily change button text to show success
+                    const button = event ? event.target : document.querySelector('button[onclick*="' + buttonName + '"]');
+                    const originalText = button.textContent;
+                    button.textContent = 'Copied!';
+                    button.style.background = '#2196F3';
+                    setTimeout(function() {
+                        button.textContent = originalText;
+                        button.style.background = '#4CAF50';
+                    }, 1000);
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy to clipboard');
+                });
+            }
+        }
+        
+        function copyJsonAsDisplayed(event) {
+            copyToClipboard(event, 'currentJsonData', 'formatted', 'copyJsonAsDisplayed');
+        }
+        
+        function copyJsonAsEncoded(event) {
+            copyToClipboard(event, 'currentJsonData', 'encoded', 'copyJsonAsEncoded');
+        }
+        
+        function closeJsonPopup(event) {
+            if (!event || event.target === document.getElementById('jsonPopup')) {
+                document.getElementById('jsonPopup').style.display = 'none';
+            }
+        }
+        
+        // Make functions globally available
+        window.showJsonPopup = showJsonPopup;
+        window.copyJsonAsDisplayed = copyJsonAsDisplayed;
+        window.copyJsonAsEncoded = copyJsonAsEncoded;
+        window.closeJsonPopup = closeJsonPopup;
+    });
+    </script>
     
     <!-- COMMENTED OUT: All Chart.js JavaScript for performance (~200KB) -->
     <!--
