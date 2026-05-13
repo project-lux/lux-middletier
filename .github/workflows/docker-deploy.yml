@@ -9,16 +9,14 @@ on:
         default: 'DEV'
         type: choice
         options:
-          - PRD
-          - TST
+          - BLUE
+          - GREEN
           - DEV
-          - SBX
-          - EXP
           - DATA-DEV
-          - BYUNIT-DEV2
-          - RDATA
-          - MINIML-GRAVITON
+          - BYUNIT-2
           - AI-SEARCH
+          - EXP
+          - POLLUX-GREEN
 jobs:
   deploy:
     runs-on: [self-hosted, X64]
@@ -33,6 +31,7 @@ jobs:
     steps:
       - name: Pack environment variables
         run: |
+          echo "VERSION=${{ vars.TAG_TO_DEPLOY }}" > _env
           echo "NUM_INSTANCES=${{ vars.NUM_INSTANCES }}" >> _env
           echo "ML_HOST=${{ vars.ML_HOST }}" >> _env
           echo "ML_PORT=${{ vars.ML_PORT }}" >> _env
@@ -51,8 +50,8 @@ jobs:
           env-to-json.py _env config.json
       - name: Deploy Docker Image
         run: |
+          echo "Deploying ${{ vars.TAG_TO_DEPLOY }}"
           set -x
-          echo "KEY_DIR=${KEY_DIR}"
           aws kms encrypt --region us-east-1 --key-id ${{ vars.CDS2_KMS_KEY_ID_DEV }} \
             --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
             > config.encrypted
