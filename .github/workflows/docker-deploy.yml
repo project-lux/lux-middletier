@@ -16,6 +16,7 @@ on:
           - BYUNIT-2
           - AI-SEARCH
           - EXP
+          - POLLUX-BLUE
           - POLLUX-GREEN
 jobs:
   deploy:
@@ -56,11 +57,6 @@ jobs:
             --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
             > config.encrypted
           aws s3 cp config.encrypted ${{ vars.CONFIG_STORE_S3 }}/config.encrypted
-          aws kms encrypt --region us-east-1 --key-id ${{ vars.CDS2_KMS_KEY_ID_DEV }} \
-            --plaintext fileb://${KEY_DIR}/${{ vars.GOOGLE_APPLICATION_CREDENTIALS }} --query CiphertextBlob --output text | base64 --decode \
-            > gac.encrypted
-          aws s3 cp gac.encrypted ${{ vars.CONFIG_STORE_S3 }}/gac.encrypted
-          rm -f _env config.json config.encrypted gac.encrypted
           ecs-deploy --use-latest-task-def -r us-east-1 \
             -t ${{ env.TIMEOUT }} -m ${{ env.MIN_PERC }} \
             -c ${{ vars.ECS_CLUSTER }} -n ${{ vars.ECS_SERVICE }} \
