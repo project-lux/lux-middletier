@@ -166,8 +166,9 @@ class App {
     } else {
       const qstr = decodeURIComponent(req.query.q)
       const mlProxy = await this.getMLProxy(req)
+      const prevQuery = req.query.prevQuery ? decodeURIComponent(req.query.prevQuery) : undefined
       let errorCopy = {}
-      this.ai.aiTranslate(qstr, mlProxy)
+      this.ai.aiTranslate(qstr, mlProxy, prevQuery)
         .then(result => {
           res.json(replaceStringsInObject(
             result,
