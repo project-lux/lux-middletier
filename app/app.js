@@ -59,7 +59,7 @@ class App {
     this.mlProxy2 = config.mlProxy2 || null
     this.ai = config.ai
     this.searchUriHost = env.searchUriHost || 'https://lux.collections.yale.edu'
-    this.resultUriHost = env.resultUriHost || null
+    //this.resultUriHost = env.resultUriHost || null
   }
 
   run() {
@@ -91,6 +91,10 @@ class App {
     exp.get('/api/tenant-status', this.handleTenantStatus.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
     exp.get('/api/version-info', this.handleVersionInfo.bind(this))
+    exp.get(
+      '/api/get-host',
+      this.handleGetHost.bind(this)
+    )
 
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
     exp.post('/data', this.handleCreateDocument.bind(this))
@@ -137,13 +141,14 @@ class App {
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
+    const requestHost = `${req.protocol}://${req.get('host')}`;
 
     mlProxy.advancedSearchConfig(env.unitName)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -159,6 +164,8 @@ class App {
   }
 
   async handleAiTranslate(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     if(!env.aiEnabled) {
       const errorCopy = handleError(new DisabledError('AI translation is not enabled'), 'Returning 404', res)
@@ -173,7 +180,7 @@ class App {
           res.json(replaceStringsInObject(
             result,
             this.searchUriHost,
-            this.resultUriHost,
+            requestHost,
           ))
         })
         .catch(err => {
@@ -184,8 +191,14 @@ class App {
          })
     }
   }
+
+  async handleGetHost(req, res) {
+    const host = req.get('host');
+    res.json({ host });
+  }
   
   async handleAutoComplete(req, res) {
+    const requestHost = `${req.protocol}://${req.get('host')}`;
     const start = hrtime.bigint()
     const q = req.query
     const text = q.text || ''
@@ -223,6 +236,8 @@ class App {
   }
 
   async handleGetDocument(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const { type, uuid } = req.params
     const uri = this.buildUri(type, uuid)
@@ -247,7 +262,7 @@ class App {
           const doc2 = transformEntityDoc(
             doc,
             this.searchUriHost,
-            this.resultUriHost,
+            requestHost,
             links,
           )
           res.json(doc2)
@@ -262,6 +277,8 @@ class App {
   }
 
   async handleCreateDocument(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     let errorCopy = {}
     const mlProxy = await this.getMLProxy(req)
@@ -269,14 +286,14 @@ class App {
     try {
       const inDoc = replaceStringsInObject(
         req.body,
-        this.resultUriHost,
+        requestHost,
         this.searchUriHost,
       )
       const result = await mlProxy.createDocument(env.unitName, inDoc)
       const outDoc = replaceStringsInObject(
         result,
         this.searchUriHost,
-        this.resultUriHost,
+        requestHost,
       )
       res.status(201).json(outDoc)
     } catch (err) {
@@ -287,6 +304,8 @@ class App {
   }
 
   async handleUpdateDocument(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const { type, uuid } = req.params
     const uri = this.buildUri(type, uuid)
@@ -296,14 +315,14 @@ class App {
     try {
       const inDoc = replaceStringsInObject(
         req.body,
-        this.resultUriHost,
+        requestHost,
         this.searchUriHost,
       )
       const result = await mlProxy.updateDocument(env.unitName, uri, inDoc)
       const outDoc = replaceStringsInObject(
         result,
         this.searchUriHost,
-        this.resultUriHost,
+        requestHost,
       )
       res.status(200).json(outDoc)
     } catch (err) {
@@ -331,6 +350,8 @@ class App {
   }
 
   async handleFacets(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const { scope } = req.params
     const {
@@ -340,7 +361,7 @@ class App {
       pageLength,
       sort,
     } = req.query
-    const qstr = translateQuery(q || '')
+    const qstr = translateQuery(q || '', this.searchUriHost, requestHost)
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
@@ -349,7 +370,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -361,10 +382,12 @@ class App {
   }
 
   async handleRelatedList(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const searchScopeName = req.params.scope || ''
     const relatedListName = req.query.name || ''
-    const uri = translateQuery(req.query.uri || '')
+    const uri = translateQuery(req.query.uri || '', this.searchUriHost, requestHost)
     const page = getNumArg(req.query.page, 1)
     const pageLength = getNumArg(req.query.pageLength, null)
     const filterResults = req.query.filterResults !== 'false' // default to true
@@ -389,7 +412,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -401,6 +424,8 @@ class App {
   }
 
   async handleResolve(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const { scope, unit, identifier } = req.params
     const mlProxy = await this.getMLProxy(req)
@@ -447,7 +472,7 @@ class App {
                 // we found a unique result, send a redirect to that record
                   res.redirect(
                     secondaryResult.orderedItems[0].id
-                      .replace(this.searchUriHost, this.resultUriHost)
+                      .replace(this.searchUriHost, requestHost)
                       .replace('data', 'view'),
                   )
                 } else {
@@ -471,7 +496,7 @@ class App {
           // we found a unique result, send a redirect to that record
             res.redirect(
               result.orderedItems[0].id
-                .replace(this.searchUriHost, this.resultUriHost)
+                .replace(this.searchUriHost, requestHost)
                 .replace('data', 'view'),
             )
           } else {
@@ -500,7 +525,8 @@ class App {
 
   async handleSearch(req, res) {
     const start = hrtime.bigint()
-    const searchCriteria = decodeURIComponent(translateQuery(req.query.q))
+    const requestHost = `${req.protocol}://${req.get('host')}`;
+    const searchCriteria = decodeURIComponent(translateQuery(req.query.q, this.searchUriHost, requestHost))
     const searchScope = req.params.scope || ''
     const mayChangeScope = req.query.mayChangeScope === 'true' // default to false
     const page = req.query.page || 1
@@ -532,7 +558,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -544,9 +570,11 @@ class App {
   }
 
   async handleSearchEstimate(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const scope = req.params.scope || ''
-    const qstr = translateQuery(req.query.q || '')
+    const qstr = translateQuery(req.query.q || '', this.searchUriHost, requestHost)
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
@@ -555,7 +583,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -567,6 +595,8 @@ class App {
   }
 
   async handleSearchInfo(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
@@ -582,8 +612,10 @@ class App {
   }
 
   async handleSearchWillMatch(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
-    const qstr = translateQuery(req.query.q || '')
+    const qstr = translateQuery(req.query.q || '', this.searchUriHost, requestHost)
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
@@ -592,7 +624,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -604,6 +636,8 @@ class App {
   }
 
   async handleStats(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
@@ -621,6 +655,8 @@ class App {
   }
 
   async handleTenantStatus(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
@@ -636,6 +672,8 @@ class App {
   }
 
   async handleTranslate(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const qstr = decodeURIComponent(req.query.q)
     const scope = req.params.scope || ''
@@ -649,7 +687,7 @@ class App {
         res.json(replaceStringsInObject(
           result,
           this.searchUriHost,
-          this.resultUriHost,
+          requestHost,
         ))
       })
       .catch(err => {
@@ -661,6 +699,8 @@ class App {
   }
 
   async handleVersionInfo(req, res) {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const start = hrtime.bigint()
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
@@ -678,6 +718,8 @@ class App {
   }
 
   static _handleInfo = (req, res) => {
+        const requestHost = `${req.protocol}://${req.get('host')}`;
+
     const memUsage = process.memoryUsage()
     res.json({
       version: json.version,
