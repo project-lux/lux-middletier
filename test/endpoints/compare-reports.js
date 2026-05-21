@@ -442,19 +442,28 @@ class ReportComparator {
     }
     
     // Compare ordered items (result ordering)
+    const PAGE_SIZE = 20;
     const baselineItems = baselineData?.orderedItems || [];
     const currentItems = currentData?.orderedItems || [];
+    
+    // Use orderedItems count when available, otherwise estimate from totalItems
+    const baselineResultCount = baselineItems.length > 0
+      ? baselineItems.length
+      : Math.min(baselineTotalItems || 0, PAGE_SIZE);
+    const currentResultCount = currentItems.length > 0
+      ? currentItems.length
+      : Math.min(currentTotalItems || 0, PAGE_SIZE);
     
     // Always store result count info for display purposes
     comparison.result_count_info = {
       type: 'result_count_mismatch',
-      baseline_count: baselineItems.length,
-      current_count: currentItems.length,
-      is_mismatch: baselineItems.length !== currentItems.length
+      baseline_count: baselineResultCount,
+      current_count: currentResultCount,
+      is_mismatch: baselineResultCount !== currentResultCount
     };
     
     // Only add to differences if there's a mismatch
-    if (baselineItems.length !== currentItems.length) {
+    if (baselineResultCount !== currentResultCount) {
       comparison.differences.push(comparison.result_count_info);
     }
 
