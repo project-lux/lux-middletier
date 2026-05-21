@@ -32,26 +32,27 @@ jobs:
     steps:
       - name: Pack environment variables
         run: |
-          echo "VERSION=${{ vars.TAG_TO_DEPLOY }}" > _env
-          echo "NUM_INSTANCES=${{ vars.NUM_INSTANCES }}" >> _env
-          echo "ML_HOST=${{ vars.ML_HOST }}" >> _env
-          echo "ML_PORT=${{ vars.ML_PORT }}" >> _env
-          echo "ML_PORT2=${{ vars.ML_PORT2 }}" >> _env
-          echo "ML_USER=${{ vars.ML_USER }}" >> _env
-          echo "ML_PASS=${{ secrets.ML_PASS }}" >> _env
-          echo "ML_AUTH_TYPE=${{ vars.ML_AUTH_TYPE }}" >> _env
-          echo "ML_SSL=${{ vars.ML_SSL }}" >> _env
-          echo "SEARCH_URI_HOST=${{ vars.SEARCH_URI_HOST }}" >> _env
-          echo "RESULT_URI_HOST=${{ vars.RESULT_URI_HOST }}" >> _env
-          echo "ALT_ROUTE_REQ_TYPES=${{ vars.ALT_ROUTE_REQ_TYPES }}" >> _env
-          echo "LOG_LEVEL=${{ vars.LOG_LEVEL }}" >> _env
-          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ vars.GOOGLE_APPLICATION_CREDENTIALS }}" >> _env
-          echo "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}" >> _env
+          echo 'VERSION=${{ vars.TAG_TO_DEPLOY }}' > _env
+          echo 'NUM_INSTANCES=${{ vars.NUM_INSTANCES }}' >> _env
+          echo 'ML_HOST=${{ vars.ML_HOST }}' >> _env
+          echo 'ML_PORT=${{ vars.ML_PORT }}' >> _env
+          echo 'ML_PORT2=${{ vars.ML_PORT2 }}' >> _env
+          echo 'ML_USER=${{ vars.ML_USER }}' >> _env
+          # It is important to use single quotes for ML_PASS to prevent special characters from being interpreted by the shell
+          echo 'ML_PASS=${{ secrets.ML_PASS }}' >> _env
+          echo 'ML_AUTH_TYPE=${{ vars.ML_AUTH_TYPE }}' >> _env
+          echo 'ML_SSL=${{ vars.ML_SSL }}' >> _env
+          echo 'SEARCH_URI_HOST=${{ vars.SEARCH_URI_HOST }}' >> _env
+          echo 'RESULT_URI_HOST=${{ vars.RESULT_URI_HOST }}' >> _env
+          echo 'ALT_ROUTE_REQ_TYPES=${{ vars.ALT_ROUTE_REQ_TYPES }}' >> _env
+          echo 'LOG_LEVEL=${{ vars.LOG_LEVEL }}' >> _env
+          echo 'GOOGLE_APPLICATION_CREDENTIALS=${{ vars.GOOGLE_APPLICATION_CREDENTIALS }}' >> _env
+          echo 'GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}' >> _env
           set -x
           env-to-json.py _env config.json
       - name: Deploy Docker Image
         run: |
-          echo "Deploying ${{ vars.TAG_TO_DEPLOY }}"
+          echo "Deploying ${{ vars.TAG_TO_DEPLOY }} to ${{ inputs.target_env }}"
           set -x
           aws kms encrypt --region us-east-1 --key-id ${{ vars.CDS2_KMS_KEY_ID_DEV }} \
             --plaintext fileb://config.json --query CiphertextBlob --output text | base64 --decode \
