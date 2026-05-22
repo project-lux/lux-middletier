@@ -2,20 +2,14 @@ import ReportComparator from "./compare-reports.js";
 import fs from 'fs';
 import path from 'path';
 
-const baseDir = 'C:\\workspaces\\yale\\clones\\lux-middletier\\test\\endpoints';
+const baseDir = '/test-data/lux-middletier/test/endpoints';
 
 // Define your combinations here
 const configurations = [
   {
-    comparisonName: 'JsonArrayTestDataProvider',
-    baselineEndpointsDir: 'cts-v-optic/cts/endpoints',
-    currentEndpointsDir: 'cts-v-optic/optic/endpoints',
-    baseOutputDir: 'cts-v-optic/comparisons'
-  },
-  {
-    comparisonName: '338-BackendLogTestDataProvider',
-    baselineEndpointsDir: 'cts-v-optic/cts-338/endpoints',
-    currentEndpointsDir: 'cts-v-optic/optic-338/endpoints',
+    comparisonName: 'only-keyword-ordering-search-84997',
+    baselineEndpointsDir: 'cts-v-optic/cts-search-84997/endpoints',
+    currentEndpointsDir: 'cts-v-optic/2026-05-22-optic-search-84997/endpoints',
     baseOutputDir: 'cts-v-optic/comparisons'
   },
 ];

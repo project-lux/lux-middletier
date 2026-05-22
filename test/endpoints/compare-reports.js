@@ -13,6 +13,22 @@ import { findFileInSubdir } from './utils.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function isScoringImportant(query){
+    if(query.hasOwnProperty("text") || query.hasOwnProperty("name")){
+        return true;
+    }
+    if(query.hasOwnProperty("AND")){
+        return query.AND.some(isScoringImportant);
+    }
+    if(query.hasOwnProperty("OR")){
+        return query.OR.some(isScoringImportant);
+    }
+    if(query.hasOwnProperty("NOT")){
+        return query.NOT.some(isScoringImportant);
+    }
+    return false;
+}
+
 class ReportComparator {
   constructor(baselineFile, currentFile, outputDir = './comparisons', comparisonName = null) {
     this.baselineFile = baselineFile;
@@ -467,6 +483,10 @@ class ReportComparator {
       comparison.differences.push(comparison.result_count_info);
     }
 
+    const baselineUrl = new URL(baselineData.id);
+    const baselineQuery = baselineUrl.searchParams.get('q');
+
+    if(isScoringImportant(JSON.parse(baselineQuery))){
     // Check if the same items are present (regardless of order)
     // Normalize item IDs to path-only (strip domain) since baseline and current
     // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
@@ -531,6 +551,7 @@ class ReportComparator {
         });
       }
     }
+  }
   }
 
   /**
