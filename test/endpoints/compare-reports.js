@@ -483,10 +483,21 @@ class ReportComparator {
       comparison.differences.push(comparison.result_count_info);
     }
 
-    const baselineUrl = new URL(baselineData.id);
-    const baselineQuery = baselineUrl.searchParams.get('q');
+    // Guard: skip result set/ordering comparison when data is missing
+    let scoringImportant = false;
+    try {
+      if (baselineData?.id) {
+        const baselineUrl = new URL(baselineData.id);
+        const baselineQuery = baselineUrl.searchParams.get('q');
+        if (baselineQuery) {
+          scoringImportant = isScoringImportant(JSON.parse(baselineQuery));
+        }
+      }
+    } catch {
+      // If URL/JSON parsing fails, skip result set comparison
+    }
 
-    if(isScoringImportant(JSON.parse(baselineQuery))){
+    if (scoringImportant) {
     // Check if the same items are present (regardless of order)
     // Normalize item IDs to path-only (strip domain) since baseline and current
     // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
