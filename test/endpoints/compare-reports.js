@@ -467,59 +467,55 @@ class ReportComparator {
       comparison.differences.push(comparison.result_count_info);
     }
 
-    // TODO: reenable once relevance sort is implemented; this populates the "Result Set" column.
-    //
-    // // Check if the same items are present (regardless of order)
-    // const baselineIds = new Set(baselineItems.map(item => item.id));
-    // const currentIds = new Set(currentItems.map(item => item.id));
+    // Check if the same items are present (regardless of order)
+    const baselineIds = new Set(baselineItems.map(item => item.id));
+    const currentIds = new Set(currentItems.map(item => item.id));
     
-    // const missingInCurrent = [...baselineIds].filter(id => !currentIds.has(id));
-    // const extraInCurrent = [...currentIds].filter(id => !baselineIds.has(id));
+    const missingInCurrent = [...baselineIds].filter(id => !currentIds.has(id));
+    const extraInCurrent = [...currentIds].filter(id => !baselineIds.has(id));
     
-    // if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
-    //   comparison.differences.push({
-    //     type: 'result_set_mismatch',
-    //     missing_in_current: missingInCurrent,
-    //     extra_in_current: extraInCurrent,
-    //     missing_count: missingInCurrent.length,
-    //     extra_count: extraInCurrent.length
-    //   });
-    // }
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      comparison.differences.push({
+        type: 'result_set_mismatch',
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length
+      });
+    }
     
-    // TODO: reenable once relevance sort is implemented; this populates the "Ordering" column.
-    //
-    // // Check ordering differences for overlapping items (regardless of missing/extra items)
-    // const overlappingIds = [...baselineIds].filter(id => currentIds.has(id));
+    // Check ordering differences for overlapping items (regardless of missing/extra items)
+    const overlappingIds = [...baselineIds].filter(id => currentIds.has(id));
     
-    // if (overlappingIds.length > 0) {
-    //   // Create ordered lists of overlapping items based on their appearance in each result set
-    //   const baselineOverlapOrder = baselineItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
-    //   const currentOverlapOrder = currentItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
+    if (overlappingIds.length > 0) {
+      // Create ordered lists of overlapping items based on their appearance in each result set
+      const baselineOverlapOrder = baselineItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
+      const currentOverlapOrder = currentItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
       
-    //   // Count how many individual items moved from their baseline position
-    //   let itemsMoved = 0;
-    //   for (let i = 0; i < baselineOverlapOrder.length; i++) {
-    //     const itemId = baselineOverlapOrder[i];
-    //     const currentPosition = currentOverlapOrder.indexOf(itemId);
+      // Count how many individual items moved from their baseline position
+      let itemsMoved = 0;
+      for (let i = 0; i < baselineOverlapOrder.length; i++) {
+        const itemId = baselineOverlapOrder[i];
+        const currentPosition = currentOverlapOrder.indexOf(itemId);
         
-    //     // If the item is not at the same position, it moved
-    //     if (currentPosition !== i) {
-    //       itemsMoved++;
-    //     }
-    //   }
+        // If the item is not at the same position, it moved
+        if (currentPosition !== i) {
+          itemsMoved++;
+        }
+      }
       
-    //   if (itemsMoved > 0) {
-    //     comparison.differences.push({
-    //       type: 'ordering_differences',
-    //       overlapping_items_count: overlappingIds.length,
-    //       total_items_baseline: baselineItems.length,
-    //       total_items_current: currentItems.length,
-    //       items_moved: itemsMoved,
-    //       baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
-    //       current_order: currentOverlapOrder.slice(0, 5)
-    //     });
-    //   }
-    // }
+      if (itemsMoved > 0) {
+        comparison.differences.push({
+          type: 'ordering_differences',
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_moved: itemsMoved,
+          baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
+          current_order: currentOverlapOrder.slice(0, 5)
+        });
+      }
+    }
   }
 
   /**
@@ -1244,12 +1240,8 @@ class ReportComparator {
                         <td>${description}</td>
                         <td>${totalItemsInfo?.is_mismatch ? `<span class="negative">${totalItemsInfo.baseline_total} → ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? '+' : ''}${totalItemsInfo.difference})</span>` : `<span class="positive">✓ Match: ${totalItemsInfo?.baseline_total ?? '?'}</span>`}</td>
                         <td>${resultCountDiff?.is_mismatch ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : `<span class="positive">✓ Match: ${resultCountDiff?.baseline_count ?? '?'}</span>`}</td>
-                        <td>Disabled</td>
-                        <td>Disabled</td>
-                        <!-- TODO: go back to these two once we start populating the columns again.
                         <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
                         <td>${orderingDiff ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>` : (resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>')}</td>
-                        -->
                         <td>${criteriaHtml}</td>
                     </tr>
                     `;
