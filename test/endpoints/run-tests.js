@@ -877,6 +877,9 @@ class EndpointTester {
       return;
     }
 
+    // Capture wall-clock start time for accurate total duration with parallel execution
+    this.testStartTime = new Date();
+
     // Process tests by endpoint file to manage memory usage (33% reduction!)
     await this.executeTestsByEndpoint();
     
@@ -922,6 +925,7 @@ class EndpointTester {
 
     // Track all provider summaries across endpoints
     this.allProviderSummaries = new Map();
+    this.endpointWallClockDurations = new Map();
 
     for (let i = 0; i < endpointFiles.length; i++) {
       const { file, endpointType } = endpointFiles[i];
@@ -938,8 +942,13 @@ class EndpointTester {
         continue;
       }
 
+      // Track wall-clock time per endpoint
+      const endpointStartTime = new Date();
+
       // Process all providers for this endpoint
       await this.processAllProvidersForEndpoint(endpointConfigs, endpointType);
+
+      this.endpointWallClockDurations.set(endpointType, new Date().getTime() - endpointStartTime.getTime());
 
       // Force garbage collection after each endpoint file
       if (global.gc) {
@@ -1111,6 +1120,9 @@ class EndpointTester {
     // Collect all endpoint summaries for dashboard
     const endpointSummaries = this.collectAccumulatedEndpointSummaries();
     
+    // Compute wall-clock duration for accurate total with parallel execution
+    const wallClockDurationMs = new Date().getTime() - this.testStartTime.getTime();
+
     // Generate dashboard report
     const dashboardGenerator = new DashboardGenerator(this.executionDir);
     await dashboardGenerator.generate(endpointSummaries, {
@@ -1119,6 +1131,7 @@ class EndpointTester {
       executionTimestamp: this.getExecutionTimestamp(),
       testName: this.options.testName,
       testDescription: this.options.testDescription,
+      wallClockDurationMs,
     });
 
     console.log("✓ Generated consolidated dashboard reports");
@@ -1157,6 +1170,7 @@ class EndpointTester {
       endpointReportGenerator.generate(endpointData.results, {
         providersIncluded: endpointData.providers,
         endpointsIncluded: [endpointType],
+        wallClockDurationMs: this.endpointWallClockDurations.get(endpointType),
       });
 
       console.log(`  ✓ Generated reports for ${endpointType} endpoint (${endpointData.results.length} total tests from ${endpointData.providers.length} providers)`);
@@ -1850,13 +1864,14 @@ class ReportGenerator {
    * Generate all reports
    */
   generate(results, options = {}) {
-    const { providersIncluded = ["All"], endpointsIncluded = ["All"] } =
+    const { providersIncluded = ["All"], endpointsIncluded = ["All"], wallClockDurationMs = null } =
       options;
 
     const summary = this.createSummary(
       results,
       providersIncluded,
-      endpointsIncluded
+      endpointsIncluded,
+      wallClockDurationMs
     );
     const report = { summary, results };
 
@@ -1872,14 +1887,16 @@ class ReportGenerator {
   /**
    * Create test summary
    */
-  createSummary(results, providersIncluded, endpointsIncluded) {
+  createSummary(results, providersIncluded, endpointsIncluded, wallClockDurationMs = null) {
     const statusCounts = this.getStatusCounts(results);
+    const cumulativeRequestDuration = this.calculateTotalDuration(results);
 
     const summary = {
       total_tests: results.length,
       ...statusCounts,
       average_duration: this.calculateAverageDuration(results),
-      total_duration: this.calculateTotalDuration(results),
+      total_duration: wallClockDurationMs != null ? wallClockDurationMs : cumulativeRequestDuration,
+      cumulative_request_duration: cumulativeRequestDuration,
       tests_by_endpoint_type: this.getTestsByEndpointType(results),
       providers_included: providersIncluded,
       endpoints_included: endpointsIncluded,
@@ -3158,7 +3175,8 @@ class DashboardGenerator {
       endpointsIncluded = ["All"], 
       executionTimestamp,
       testName = null,
-      testDescription = null 
+      testDescription = null,
+      wallClockDurationMs = null
     } = options;
 
     // Create consolidated summary
@@ -3166,7 +3184,8 @@ class DashboardGenerator {
       endpointSummaries,
       providersIncluded,
       endpointsIncluded,
-      executionTimestamp
+      executionTimestamp,
+      wallClockDurationMs
     );
 
     // Generate dashboard files
@@ -3179,13 +3198,13 @@ class DashboardGenerator {
   /**
    * Create consolidated summary from endpoint summaries
    */
-  createConsolidatedSummary(endpointSummaries, providersIncluded, endpointsIncluded, executionTimestamp) {
+  createConsolidatedSummary(endpointSummaries, providersIncluded, endpointsIncluded, executionTimestamp, wallClockDurationMs = null) {
     let totalTests = 0;
     let totalPassed = 0;
     let totalFailed = 0;
     let totalErrors = 0;
     let totalSlow = 0;
-    let totalDuration = 0;
+    let cumulativeRequestDuration = 0;
     const consolidatedEndpointStats = {};
     const allProviders = new Set();
 
@@ -3195,7 +3214,7 @@ class DashboardGenerator {
       totalFailed += summary.failed;
       totalErrors += summary.errors;
       totalSlow += summary.slow;
-      totalDuration += summary.total_duration;
+      cumulativeRequestDuration += summary.total_duration;
 
       // Track all providers that contributed to this endpoint
       summary.providers_included.forEach(provider => allProviders.add(provider));
@@ -3213,14 +3232,19 @@ class DashboardGenerator {
       });
     });
 
+    // Use wall-clock duration when available (accurate with parallel execution),
+    // otherwise fall back to sum of individual request durations
+    const totalDuration = wallClockDurationMs != null ? wallClockDurationMs : cumulativeRequestDuration;
+
     return {
       total_tests: totalTests,
       passed: totalPassed,
       failed: totalFailed,
       errors: totalErrors,
       slow: totalSlow,
-      average_duration: totalTests > 0 ? totalDuration / totalTests : 0,
+      average_duration: totalTests > 0 ? cumulativeRequestDuration / totalTests : 0,
       total_duration: totalDuration,
+      cumulative_request_duration: cumulativeRequestDuration,
       tests_by_endpoint_type: consolidatedEndpointStats,
       providers_included: Array.from(allProviders).sort(),
       endpoints_included: endpointsIncluded,
