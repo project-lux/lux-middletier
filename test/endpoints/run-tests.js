@@ -3,7 +3,13 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
-import { getEndpointKeyFromPath, isDefined, parseBoolean, validateBaseUrl, getRealEndpointKey } from "./utils.js";
+import {
+  getEndpointKeyFromPath,
+  isDefined,
+  parseBoolean,
+  validateBaseUrl,
+  getRealEndpointKey,
+} from "./utils.js";
 import { TestDataProviderFactory } from "./test-data-providers/interface.js";
 import { ENDPOINT_KEYS } from "./constants.js";
 
@@ -67,7 +73,7 @@ class ConfigurationLoader {
    */
   loadSingleEndpointFile(filename, endpointType) {
     const filePath = path.join(this.configDir, filename);
-    
+
     try {
       console.log(`    Loading ${filename} (endpoint: ${endpointType})`);
       return this.loadSingleConfig(filePath, endpointType);
@@ -91,7 +97,7 @@ class ConfigurationLoader {
     const exclusionFilters = [];
 
     for (const filter of endpointFilter) {
-      if (filter.startsWith('^')) {
+      if (filter.startsWith("^")) {
         exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
       } else {
         inclusionFilters.push(filter);
@@ -99,7 +105,10 @@ class ConfigurationLoader {
     }
 
     // If endpoint matches any exclusion filter, exclude it
-    if (exclusionFilters.length > 0 && exclusionFilters.includes(endpointType)) {
+    if (
+      exclusionFilters.length > 0 &&
+      exclusionFilters.includes(endpointType)
+    ) {
       return false;
     }
 
@@ -136,7 +145,9 @@ class ConfigurationLoader {
   loadSingleConfig(filePath, endpointType) {
     let data;
 
-    console.log(`Loading config from ${filePath} for the ${endpointType} endpoint...`);
+    console.log(
+      `Loading config from ${filePath} for the ${endpointType} endpoint...`,
+    );
     if (filePath.endsWith(".xlsx")) {
       data = this.parseExcelFile(filePath);
     } else {
@@ -144,7 +155,13 @@ class ConfigurationLoader {
     }
 
     return data.map((row, index) =>
-      this.transformRowToConfig(row, endpointType, filePath, index, data.length)
+      this.transformRowToConfig(
+        row,
+        endpointType,
+        filePath,
+        index,
+        data.length,
+      ),
     );
   }
 
@@ -188,7 +205,8 @@ class ConfigurationLoader {
    */
   transformRowToConfig(row, endpointType, sourceFile, rowIndex, totalRows) {
     const testConfig = {
-      request_id: row.request_id || `fallback_${endpointType}_${rowIndex}_${Date.now()}`,
+      request_id:
+        row.request_id || `fallback_${endpointType}_${rowIndex}_${Date.now()}`,
       provider_id: row.provider_id || "",
       test_name: row.test_name || `${endpointType}_test_${Date.now()}`,
       endpoint_type: endpointType,
@@ -348,7 +366,7 @@ class RequestHandler {
         finalPath = finalPath.replace(`:${paramName}`, paramValue);
       } else {
         console.warn(
-          `Missing required path parameter '${paramName}' for ${testConfig.test_name}`
+          `Missing required path parameter '${paramName}' for ${testConfig.test_name}`,
         );
       }
     });
@@ -382,7 +400,7 @@ class RequestHandler {
     Object.entries(testConfig.parameters).forEach(([key, value]) => {
       if (this.isQueryParameter(key, testConfig, allPathParams)) {
         queryParams.push(
-          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
         );
       }
     });
@@ -632,7 +650,7 @@ class ResponseSaver {
     sourceFile,
     rowNumber,
     totalRows,
-    parameters = {}
+    parameters = {},
   ) {
     if (!this.enabled) return null;
 
@@ -690,7 +708,7 @@ class ResponseSaver {
       .map((word, index) =>
         index === 0
           ? word.toLowerCase()
-          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
       )
       .join("");
 
@@ -724,7 +742,7 @@ class EndpointTester {
       .replace(/[:.]/g, "-")
       .replace("T", "_")
       .slice(0, 19);
-    
+
     // Use custom subdirectory name if provided, otherwise use timestamp
     const subdirName = this.options.reportsSubdir || `test-run-${timestamp}`;
     this.executionDir = path.join(this.reportsDir, subdirName);
@@ -753,7 +771,9 @@ class EndpointTester {
   initializeComponents() {
     // Base URL configuration - required via command line argument
     if (!this.options.baseUrl) {
-      throw new Error("Base URL is required. Specify using the --base-url argument");
+      throw new Error(
+        "Base URL is required. Specify using the --base-url argument",
+      );
     }
     // Authentication configuration
     const authConfig = {
@@ -768,7 +788,7 @@ class EndpointTester {
       (!authConfig.username || !authConfig.password)
     ) {
       throw new Error(
-        "Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables"
+        "Digest authentication requires both AUTH_USERNAME and AUTH_PASSWORD environment variables",
       );
     }
 
@@ -778,14 +798,14 @@ class EndpointTester {
     this.responseAnalyzer = new ResponseAnalyzer();
     this.responseSaver = new ResponseSaver(
       this.responsesDir,
-      this.options.saveResponseBodies
+      this.options.saveResponseBodies,
     );
     this.reportGenerator = new ReportGenerator(
       this.executionDir,
       this.options.saveResponseBodies,
       this.options.embedResponseBodies,
       this.options.testName,
-      this.options.testDescription
+      this.options.testDescription,
     );
   }
 
@@ -807,16 +827,16 @@ class EndpointTester {
         const spec = JSON.parse(fs.readFileSync(endpointsSpecPath, "utf8"));
         this.configLoader.endpointsSpec = spec;
         console.log(
-          `Loaded ${spec.endpoints?.length || 0} endpoint specifications`
+          `Loaded ${spec.endpoints?.length || 0} endpoint specifications`,
         );
       } else {
         console.warn(
-          `Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`
+          `Warning: endpoints-spec.json not found. Run 'node create-endpoints-spec.js' to generate it.`,
         );
       }
     } catch (error) {
       console.warn(
-        `Warning: Could not load endpoints-spec.json: ${error.message}`
+        `Warning: Could not load endpoints-spec.json: ${error.message}`,
       );
     }
   }
@@ -832,36 +852,32 @@ class EndpointTester {
     if (this.options.providers || this.options.endpoints) {
       if (this.options.providers) {
         const availableProviders = this.getAvailableProviders();
-        const invalidProviders = this.options.providers.filter(
-          (p) => {
-            // Strip ^ prefix for validation
-            const providerName = p.startsWith('^') ? p.substring(1) : p;
-            return !availableProviders.includes(providerName);
-          }
-        );
+        const invalidProviders = this.options.providers.filter((p) => {
+          // Strip ^ prefix for validation
+          const providerName = p.startsWith("^") ? p.substring(1) : p;
+          return !availableProviders.includes(providerName);
+        });
         if (invalidProviders.length > 0) {
           throw new Error(
             `Unknown provider(s): ${invalidProviders.join(
-              ", "
-            )}\nAvailable providers:\n\t${availableProviders.join("\n\t")}`
+              ", ",
+            )}\nAvailable providers:\n\t${availableProviders.join("\n\t")}`,
           );
         }
       }
 
       if (this.options.endpoints) {
         const availableEndpoints = this.getAvailableEndpoints();
-        const invalidEndpoints = this.options.endpoints.filter(
-          (e) => {
-            // Strip ^ prefix for validation
-            const endpointName = e.startsWith('^') ? e.substring(1) : e;
-            return !availableEndpoints.includes(endpointName);
-          }
-        );
+        const invalidEndpoints = this.options.endpoints.filter((e) => {
+          // Strip ^ prefix for validation
+          const endpointName = e.startsWith("^") ? e.substring(1) : e;
+          return !availableEndpoints.includes(endpointName);
+        });
         if (invalidEndpoints.length > 0) {
           throw new Error(
             `Unknown endpoint(s): ${invalidEndpoints.join(
-              ", "
-            )}\nAvailable endpoints:\n\t${availableEndpoints.join("\n\t")}`
+              ", ",
+            )}\nAvailable endpoints:\n\t${availableEndpoints.join("\n\t")}`,
           );
         }
       }
@@ -871,7 +887,9 @@ class EndpointTester {
 
     if (this.options.dryRun) {
       // For dry run, load all configs to show distribution
-      const allTestConfigs = this.configLoader.loadConfigs(this.options.endpoints);
+      const allTestConfigs = this.configLoader.loadConfigs(
+        this.options.endpoints,
+      );
       this.displayTestDistribution(allTestConfigs);
       this.displayDryRunSummary(allTestConfigs);
       return;
@@ -882,7 +900,7 @@ class EndpointTester {
 
     // Process tests by endpoint file to manage memory usage (33% reduction!)
     await this.executeTestsByEndpoint();
-    
+
     // Generate consolidated reports
     await this.generateConsolidatedReports();
   }
@@ -908,17 +926,25 @@ class EndpointTester {
    */
   async executeTestsByEndpoint() {
     const allEndpointFiles = this.getTargetEndpointFiles();
-    
+
     // Separate GET_FACETS endpoint to process last
-    const getFacetsFiles = allEndpointFiles.filter(({ endpointType }) => endpointType === ENDPOINT_KEYS.GET_FACETS);
-    const otherEndpointFiles = allEndpointFiles.filter(({ endpointType }) => endpointType !== ENDPOINT_KEYS.GET_FACETS);
-    
+    const getFacetsFiles = allEndpointFiles.filter(
+      ({ endpointType }) => endpointType === ENDPOINT_KEYS.GET_FACETS,
+    );
+    const otherEndpointFiles = allEndpointFiles.filter(
+      ({ endpointType }) => endpointType !== ENDPOINT_KEYS.GET_FACETS,
+    );
+
     // Process other endpoints first, then GET_FACETS last
     const endpointFiles = [...otherEndpointFiles, ...getFacetsFiles];
     const totalFiles = endpointFiles.length;
-    
-    console.log(`\n=== EXECUTING TESTS BY ENDPOINT FILE (${totalFiles} files) ===`);
-    console.log("Memory-efficient approach: Processing one spreadsheet at a time");
+
+    console.log(
+      `\n=== EXECUTING TESTS BY ENDPOINT FILE (${totalFiles} files) ===`,
+    );
+    console.log(
+      "Memory-efficient approach: Processing one spreadsheet at a time",
+    );
     if (getFacetsFiles.length > 0) {
       console.log(`Note: GET_FACETS endpoint will be processed last`);
     }
@@ -929,13 +955,22 @@ class EndpointTester {
 
     for (let i = 0; i < endpointFiles.length; i++) {
       const { file, endpointType } = endpointFiles[i];
-      console.log(`\n--- Processing endpoint ${i + 1}/${totalFiles}: ${endpointType} (${file}) ---`);
+      console.log(
+        `\n--- Processing endpoint ${i + 1}/${totalFiles}: ${endpointType} (${file}) ---`,
+      );
 
       // Load only this endpoint's configs (max 336K vs 503K total)
-      const endpointConfigs = this.configLoader.loadSingleEndpointFile(file, endpointType);
-      const enabledCount = endpointConfigs.filter(config => this.shouldRunTest(config)).length;
-      
-      console.log(`  Loaded ${endpointConfigs.length} tests (${enabledCount} enabled) from ${file}`);
+      const endpointConfigs = this.configLoader.loadSingleEndpointFile(
+        file,
+        endpointType,
+      );
+      const enabledCount = endpointConfigs.filter((config) =>
+        this.shouldRunTest(config),
+      ).length;
+
+      console.log(
+        `  Loaded ${endpointConfigs.length} tests (${enabledCount} enabled) from ${file}`,
+      );
 
       if (enabledCount === 0) {
         console.log(`  No enabled tests found for ${endpointType}`);
@@ -948,13 +983,16 @@ class EndpointTester {
       // Process all providers for this endpoint
       await this.processAllProvidersForEndpoint(endpointConfigs, endpointType);
 
-      this.endpointWallClockDurations.set(endpointType, new Date().getTime() - endpointStartTime.getTime());
+      this.endpointWallClockDurations.set(
+        endpointType,
+        new Date().getTime() - endpointStartTime.getTime(),
+      );
 
       // Force garbage collection after each endpoint file
       if (global.gc) {
         global.gc();
       }
-      
+
       console.log(`  ✓ Completed endpoint ${endpointType} - memory cleared`);
     }
   }
@@ -966,18 +1004,24 @@ class EndpointTester {
     // Group configs by provider for this endpoint
     const providerGroups = this.groupConfigsByProvider(endpointConfigs);
     const providerIds = Object.keys(providerGroups).sort();
-    
-    console.log(`    Found ${providerIds.length} providers in ${endpointType}: ${providerIds.join(', ')}`);
+
+    console.log(
+      `    Found ${providerIds.length} providers in ${endpointType}: ${providerIds.join(", ")}`,
+    );
 
     for (const providerId of providerIds) {
-      const providerConfigs = providerGroups[providerId].filter(config => this.shouldRunTest(config));
-      
+      const providerConfigs = providerGroups[providerId].filter((config) =>
+        this.shouldRunTest(config),
+      );
+
       if (providerConfigs.length === 0) {
         console.log(`    Skipping ${providerId} (no enabled tests)`);
         continue;
       }
 
-      console.log(`    Processing ${providerId}: ${providerConfigs.length} tests`);
+      console.log(
+        `    Processing ${providerId}: ${providerConfigs.length} tests`,
+      );
 
       // Execute tests for this provider
       this.results = []; // Clear previous results
@@ -993,8 +1037,8 @@ class EndpointTester {
    */
   groupConfigsByProvider(configs) {
     const groups = {};
-    configs.forEach(config => {
-      const providerId = config.provider_id || 'unknown';
+    configs.forEach((config) => {
+      const providerId = config.provider_id || "unknown";
       if (!groups[providerId]) {
         groups[providerId] = [];
       }
@@ -1010,7 +1054,7 @@ class EndpointTester {
     if (!this.allProviderSummaries.has(providerId)) {
       this.allProviderSummaries.set(providerId, {
         results: [],
-        summary: null
+        summary: null,
       });
     }
 
@@ -1018,14 +1062,22 @@ class EndpointTester {
     providerData.results = providerData.results.concat(results);
 
     // Update summary for this provider
-    const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies, this.options.testName, this.options.testDescription);
+    const reportGenerator = new ReportGenerator(
+      this.executionDir,
+      this.responseSaver.enabled,
+      this.options.embedResponseBodies,
+      this.options.testName,
+      this.options.testDescription,
+    );
     providerData.summary = reportGenerator.createSummary(
       providerData.results,
       [providerId],
-      this.getEndpointsIncluded()
+      this.getEndpointsIncluded(),
     );
 
-    console.log(`      ✓ Accumulated ${results.length} results for ${providerId} (total: ${providerData.results.length})`);
+    console.log(
+      `      ✓ Accumulated ${results.length} results for ${providerId} (total: ${providerData.results.length})`,
+    );
   }
 
   /**
@@ -1037,9 +1089,14 @@ class EndpointTester {
 
     for (const file of allFiles) {
       const endpointType = this.configLoader.extractEndpointType(file);
-      
+
       // Apply endpoint filter
-      if (this.configLoader.shouldIncludeEndpoint(endpointType, this.options.endpoints)) {
+      if (
+        this.configLoader.shouldIncludeEndpoint(
+          endpointType,
+          this.options.endpoints,
+        )
+      ) {
         targetFiles.push({ file, endpointType });
       }
     }
@@ -1053,14 +1110,16 @@ class EndpointTester {
   getExecutionTimestamp() {
     const execDirName = path.basename(this.executionDir);
     const timestampMatch = execDirName.match(/test-run-(.+)/);
-    return timestampMatch ? timestampMatch[1].replace(/_/g, ' ').replace(/-/g, ':') : new Date().toISOString();
+    return timestampMatch
+      ? timestampMatch[1].replace(/_/g, " ").replace(/-/g, ":")
+      : new Date().toISOString();
   }
 
   /**
    * Sanitize filename for cross-platform compatibility
    */
   sanitizeFilename(filename) {
-    return filename.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    return filename.replace(/[^a-zA-Z0-9\-_]/g, "_");
   }
 
   /**
@@ -1070,42 +1129,49 @@ class EndpointTester {
     console.log(
       `Found ${testConfigs.length} test configurations across ${
         [...new Set(testConfigs.map((t) => t.source_file))].length
-      } files`
+      } files`,
     );
 
     const testsByType = this.groupTestsByType(testConfigs);
     console.log("\nTest distribution by endpoint type:");
     Object.entries(testsByType).forEach(([type, tests]) => {
       const enabledCount = tests.filter((config) =>
-        this.shouldRunTest(config)
+        this.shouldRunTest(config),
       ).length;
       const disabledCount = tests.length - enabledCount;
       console.log(
-        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`
+        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`,
       );
     });
 
     // Overall summary
     const totalEnabled = testConfigs.filter((config) =>
-      this.shouldRunTest(config)
+      this.shouldRunTest(config),
     ).length;
     const totalDisabled = testConfigs.length - totalEnabled;
     if (totalDisabled > 0) {
       console.log(
-        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`
+        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`,
       );
     }
-    
+
     // Memory efficiency note for endpoint-based processing
-    const largestEndpoint = Object.entries(testsByType).reduce((max, [type, tests]) => 
-      tests.length > max.count ? { type, count: tests.length } : max, 
-      { type: '', count: 0 }
+    const largestEndpoint = Object.entries(testsByType).reduce(
+      (max, [type, tests]) =>
+        tests.length > max.count ? { type, count: tests.length } : max,
+      { type: "", count: 0 },
     );
-    
+
     console.log(`\n💡 Endpoint-based execution (33% memory reduction):`);
-    console.log(`   Peak memory: ~${largestEndpoint.count.toLocaleString()} tests (${largestEndpoint.type})`);
-    console.log(`   vs. all files: ${testConfigs.length.toLocaleString()} tests`);
-    console.log(`   Memory saved: ~${Math.round((1 - largestEndpoint.count / testConfigs.length) * 100)}%`);
+    console.log(
+      `   Peak memory: ~${largestEndpoint.count.toLocaleString()} tests (${largestEndpoint.type})`,
+    );
+    console.log(
+      `   vs. all files: ${testConfigs.length.toLocaleString()} tests`,
+    );
+    console.log(
+      `   Memory saved: ~${Math.round((1 - largestEndpoint.count / testConfigs.length) * 100)}%`,
+    );
   }
 
   /**
@@ -1119,9 +1185,10 @@ class EndpointTester {
 
     // Collect all endpoint summaries for dashboard
     const endpointSummaries = this.collectAccumulatedEndpointSummaries();
-    
+
     // Compute wall-clock duration for accurate total with parallel execution
-    const wallClockDurationMs = new Date().getTime() - this.testStartTime.getTime();
+    const wallClockDurationMs =
+      new Date().getTime() - this.testStartTime.getTime();
 
     // Generate dashboard report
     const dashboardGenerator = new DashboardGenerator(this.executionDir);
@@ -1135,7 +1202,9 @@ class EndpointTester {
     });
 
     console.log("✓ Generated consolidated dashboard reports");
-    console.log(`✓ Processed ${endpointSummaries.length} endpoints across multiple providers`);
+    console.log(
+      `✓ Processed ${endpointSummaries.length} endpoints across multiple providers`,
+    );
   }
 
   /**
@@ -1152,7 +1221,10 @@ class EndpointTester {
     const endpointResults = this.groupResultsByEndpoint();
 
     for (const [endpointType, endpointData] of endpointResults) {
-      const endpointDir = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType));
+      const endpointDir = path.join(
+        this.endpointResultsDir,
+        this.sanitizeFilename(endpointType),
+      );
       if (!fs.existsSync(endpointDir)) {
         fs.mkdirSync(endpointDir, { recursive: true });
       }
@@ -1163,7 +1235,7 @@ class EndpointTester {
         this.responseSaver.enabled,
         this.options.embedResponseBodies,
         this.options.testName,
-        this.options.testDescription
+        this.options.testDescription,
       );
 
       // Generate reports for this endpoint using results from all providers
@@ -1173,7 +1245,9 @@ class EndpointTester {
         wallClockDurationMs: this.endpointWallClockDurations.get(endpointType),
       });
 
-      console.log(`  ✓ Generated reports for ${endpointType} endpoint (${endpointData.results.length} total tests from ${endpointData.providers.length} providers)`);
+      console.log(
+        `  ✓ Generated reports for ${endpointType} endpoint (${endpointData.results.length} total tests from ${endpointData.providers.length} providers)`,
+      );
     }
   }
 
@@ -1187,11 +1261,11 @@ class EndpointTester {
     for (const [providerId, providerData] of this.allProviderSummaries) {
       for (const result of providerData.results) {
         const endpointType = result.endpoint_type;
-        
+
         if (!endpointResults.has(endpointType)) {
           endpointResults.set(endpointType, {
             results: [],
-            providers: new Set()
+            providers: new Set(),
           });
         }
 
@@ -1214,31 +1288,49 @@ class EndpointTester {
    */
   collectAccumulatedEndpointSummaries() {
     const summaries = [];
-    
+
     // Get the endpoint results we generated
     const endpointResults = this.groupResultsByEndpoint();
-    
+
     for (const [endpointType, endpointData] of endpointResults) {
-      const jsonReportPath = path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.json");
-      
+      const jsonReportPath = path.join(
+        this.endpointResultsDir,
+        this.sanitizeFilename(endpointType),
+        "endpoint-test-report.json",
+      );
+
       // Create summary for this endpoint
-      const reportGenerator = new ReportGenerator(this.executionDir, this.responseSaver.enabled, this.options.embedResponseBodies, this.options.testName, this.options.testDescription);
+      const reportGenerator = new ReportGenerator(
+        this.executionDir,
+        this.responseSaver.enabled,
+        this.options.embedResponseBodies,
+        this.options.testName,
+        this.options.testDescription,
+      );
       const summary = reportGenerator.createSummary(
         endpointData.results,
         endpointData.providers,
-        [endpointType]
+        [endpointType],
       );
-      
+
       summaries.push({
         endpointType: this.sanitizeFilename(endpointType),
         summary: summary,
         reportPath: path.relative(this.executionDir, jsonReportPath),
-        htmlReportPath: path.relative(this.executionDir, 
-          path.join(this.endpointResultsDir, this.sanitizeFilename(endpointType), "endpoint-test-report.html"))
+        htmlReportPath: path.relative(
+          this.executionDir,
+          path.join(
+            this.endpointResultsDir,
+            this.sanitizeFilename(endpointType),
+            "endpoint-test-report.html",
+          ),
+        ),
       });
     }
 
-    return summaries.sort((a, b) => a.endpointType.localeCompare(b.endpointType));
+    return summaries.sort((a, b) =>
+      a.endpointType.localeCompare(b.endpointType),
+    );
   }
 
   /**
@@ -1246,29 +1338,46 @@ class EndpointTester {
    */
   collectProviderSummaries() {
     const summaries = [];
-    
+
     if (!fs.existsSync(this.providerResultsDir)) {
       return summaries;
     }
 
-    const providerDirs = fs.readdirSync(this.providerResultsDir)
-      .filter(item => fs.statSync(path.join(this.providerResultsDir, item)).isDirectory());
+    const providerDirs = fs
+      .readdirSync(this.providerResultsDir)
+      .filter((item) =>
+        fs.statSync(path.join(this.providerResultsDir, item)).isDirectory(),
+      );
 
     for (const providerDir of providerDirs) {
-      const jsonReportPath = path.join(this.providerResultsDir, providerDir, "endpoint-test-report.json");
-      
+      const jsonReportPath = path.join(
+        this.providerResultsDir,
+        providerDir,
+        "endpoint-test-report.json",
+      );
+
       if (fs.existsSync(jsonReportPath)) {
         try {
-          const reportData = JSON.parse(fs.readFileSync(jsonReportPath, 'utf8'));
+          const reportData = JSON.parse(
+            fs.readFileSync(jsonReportPath, "utf8"),
+          );
           summaries.push({
             providerId: providerDir,
             summary: reportData.summary,
             reportPath: path.relative(this.executionDir, jsonReportPath),
-            htmlReportPath: path.relative(this.executionDir, 
-              path.join(this.providerResultsDir, providerDir, "endpoint-test-report.html"))
+            htmlReportPath: path.relative(
+              this.executionDir,
+              path.join(
+                this.providerResultsDir,
+                providerDir,
+                "endpoint-test-report.html",
+              ),
+            ),
           });
         } catch (error) {
-          console.warn(`Warning: Could not read report for provider ${providerDir}: ${error.message}`);
+          console.warn(
+            `Warning: Could not read report for provider ${providerDir}: ${error.message}`,
+          );
         }
       }
     }
@@ -1282,14 +1391,16 @@ class EndpointTester {
   getExecutionTimestamp() {
     const execDirName = path.basename(this.executionDir);
     const timestampMatch = execDirName.match(/test-run-(.+)/);
-    return timestampMatch ? timestampMatch[1].replace(/_/g, ' ').replace(/-/g, ':') : new Date().toISOString();
+    return timestampMatch
+      ? timestampMatch[1].replace(/_/g, " ").replace(/-/g, ":")
+      : new Date().toISOString();
   }
 
   /**
    * Sanitize filename for cross-platform compatibility
    */
   sanitizeFilename(filename) {
-    return filename.replace(/[^a-zA-Z0-9\-_]/g, '_');
+    return filename.replace(/[^a-zA-Z0-9\-_]/g, "_");
   }
 
   /**
@@ -1299,29 +1410,29 @@ class EndpointTester {
     console.log(
       `Found ${testConfigs.length} test configurations across ${
         [...new Set(testConfigs.map((t) => t.source_file))].length
-      } files`
+      } files`,
     );
 
     const testsByType = this.groupTestsByType(testConfigs);
     console.log("\nTest distribution by endpoint type:");
     Object.entries(testsByType).forEach(([type, tests]) => {
       const enabledCount = tests.filter((config) =>
-        this.shouldRunTest(config)
+        this.shouldRunTest(config),
       ).length;
       const disabledCount = tests.length - enabledCount;
       console.log(
-        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`
+        `  ${type}: ${tests.length} tests (${enabledCount} enabled, ${disabledCount} filtered out)`,
       );
     });
 
     // Overall summary
     const totalEnabled = testConfigs.filter((config) =>
-      this.shouldRunTest(config)
+      this.shouldRunTest(config),
     ).length;
     const totalDisabled = testConfigs.length - totalEnabled;
     if (totalDisabled > 0) {
       console.log(
-        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`
+        `\nOverall: ${totalEnabled} tests will be executed, ${totalDisabled} tests filtered out`,
       );
     }
   }
@@ -1331,7 +1442,7 @@ class EndpointTester {
    */
   displayDryRunSummary(testConfigs) {
     const enabledCount = testConfigs.filter((config) =>
-      this.shouldRunTest(config)
+      this.shouldRunTest(config),
     ).length;
     const disabledCount = testConfigs.length - enabledCount;
 
@@ -1343,16 +1454,16 @@ class EndpointTester {
     console.log(
       `Estimated execution time: ${enabledCount * 2}s - ${
         enabledCount * 10
-      }s (rough estimate)`
+      }s (rough estimate)`,
     );
     console.log("\nNo actual HTTP requests were made.");
-    
-    console.log('');
+
+    console.log("");
     console.log(`BASE URL: ${this.options.baseUrl}`);
-    console.log('');
+    console.log("");
 
     console.log(
-      "To execute these tests, run the same command without --dry-run"
+      "To execute these tests, run the same command without --dry-run",
     );
   }
 
@@ -1361,41 +1472,64 @@ class EndpointTester {
    */
   async executeTests(endpointType, testConfigs) {
     const validTestConfigs = testConfigs.filter((config) =>
-      this.shouldRunTest(config)
+      this.shouldRunTest(config),
     );
     const totalTests = validTestConfigs.length;
-    
+
     // Apply request counter start offset for skipping tests
-    const startIndex = Math.min(this.options.requestCounterStart || 0, totalTests);
+    const startIndex = Math.min(
+      this.options.requestCounterStart || 0,
+      totalTests,
+    );
     const testsToRun = validTestConfigs.slice(startIndex);
-    
+
     if (startIndex > 0) {
-      console.log(`Skipping first ${startIndex} tests (--request-counter-start=${this.options.requestCounterStart})`);
+      console.log(
+        `Skipping first ${startIndex} tests (--request-counter-start=${this.options.requestCounterStart})`,
+      );
       console.log(`Running ${testsToRun.length} of ${totalTests} total tests`);
     }
 
     const maxConcurrent = this.options.maxConcurrent || 1;
     if (maxConcurrent > 1) {
-      console.log(`Using concurrent execution with max ${maxConcurrent} simultaneous requests`);
-      await this.executeTestsConcurrently(endpointType, testsToRun, startIndex, totalTests, maxConcurrent);
+      console.log(
+        `Using concurrent execution with max ${maxConcurrent} simultaneous requests`,
+      );
+      await this.executeTestsConcurrently(
+        endpointType,
+        testsToRun,
+        startIndex,
+        totalTests,
+        maxConcurrent,
+      );
     } else {
       console.log(`Using sequential execution (--max-concurrent=1)`);
-      await this.executeTestsSequentially(endpointType, testsToRun, startIndex, totalTests);
+      await this.executeTestsSequentially(
+        endpointType,
+        testsToRun,
+        startIndex,
+        totalTests,
+      );
     }
   }
 
   /**
    * Execute tests sequentially (original behavior)
    */
-  async executeTestsSequentially(endpointType, testsToRun, startIndex, totalTests) {
+  async executeTestsSequentially(
+    endpointType,
+    testsToRun,
+    startIndex,
+    totalTests,
+  ) {
     for (let testIndex = 0; testIndex < testsToRun.length; testIndex++) {
       const testConfig = testsToRun[testIndex];
       const globalIndex = startIndex + testIndex + 1; // 1-based for display
-      
+
       console.log(
         `Running ${endpointType} test ${globalIndex} of ${totalTests}: [${
           testConfig.test_name
-        }] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
+        }] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`,
       );
 
       const result = await this.runSingleTest(testConfig, globalIndex);
@@ -1410,46 +1544,67 @@ class EndpointTester {
 
   /**
    * Execute tests concurrently with controlled concurrency (BATCH VERSION - BACKUP)
-   * This version processes tests in batches which can lead to underutilization when 
+   * This version processes tests in batches which can lead to underutilization when
    * some tests in a batch finish early. Kept as backup before implementing semaphore approach.
    */
-  async executeTestsConcurrently_batchVersion(endpointType, testsToRun, startIndex, totalTests, maxConcurrent) {
+  async executeTestsConcurrently_batchVersion(
+    endpointType,
+    testsToRun,
+    startIndex,
+    totalTests,
+    maxConcurrent,
+  ) {
     const results = [];
     let completedCount = 0;
-    
+
     // Process tests in batches
     for (let i = 0; i < testsToRun.length; i += maxConcurrent) {
-      const batch = testsToRun.slice(i, Math.min(i + maxConcurrent, testsToRun.length));
-      
+      const batch = testsToRun.slice(
+        i,
+        Math.min(i + maxConcurrent, testsToRun.length),
+      );
+
       // Create promises for this batch
       const batchPromises = batch.map(async (testConfig, batchIndex) => {
         const testIndex = i + batchIndex;
         const globalIndex = startIndex + testIndex + 1; // 1-based for display
-        
+
         console.log(
-          `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
+          `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`,
         );
 
         try {
           const result = await this.runSingleTest(testConfig, globalIndex);
-          console.log(`Completed test ${globalIndex}: ${result.success ? '✓' : '✗'} ${testConfig.test_name}`);
+          console.log(
+            `Completed test ${globalIndex}: ${result.success ? "✓" : "✗"} ${testConfig.test_name}`,
+          );
           return result;
         } catch (error) {
-          console.log(`Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`);
+          console.log(
+            `Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`,
+          );
           const requestId = testConfig.request_id;
           const executionSequence = globalIndex;
-          return this.createErrorResult(testConfig, error, 0, requestId, executionSequence);
+          return this.createErrorResult(
+            testConfig,
+            error,
+            0,
+            requestId,
+            executionSequence,
+          );
         }
       });
-      
+
       // Wait for this batch to complete
       const batchResults = await Promise.all(batchPromises);
       results.push(...batchResults);
       completedCount += batchResults.length;
-      
-      console.log(`Batch complete: ${completedCount}/${testsToRun.length} tests finished`);
+
+      console.log(
+        `Batch complete: ${completedCount}/${testsToRun.length} tests finished`,
+      );
     }
-    
+
     // Add results to main results array (preserve order)
     this.results.push(...results);
   }
@@ -1458,7 +1613,13 @@ class EndpointTester {
    * Execute tests concurrently with semaphore-based concurrency control
    * This version maintains continuous concurrency and better resource utilization
    */
-  async executeTestsConcurrently(endpointType, testsToRun, startIndex, totalTests, maxConcurrent) {
+  async executeTestsConcurrently(
+    endpointType,
+    testsToRun,
+    startIndex,
+    totalTests,
+    maxConcurrent,
+  ) {
     const results = [];
     let runningTests = 0;
     let testIndex = 0;
@@ -1471,17 +1632,19 @@ class EndpointTester {
           const currentTestIndex = testIndex++;
           const testConfig = testsToRun[currentTestIndex];
           const globalIndex = startIndex + currentTestIndex + 1; // 1-based for display
-          
+
           runningTests++;
-          
+
           console.log(
-            `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`
+            `Starting ${endpointType} test ${globalIndex} of ${totalTests}: [${testConfig.test_name}] as ${testConfig.method} ${this.requestHandler.buildUrl(testConfig)}`,
           );
 
           // Run the test
           this.runSingleTest(testConfig, globalIndex)
-            .then(result => {
-              console.log(`Completed test ${globalIndex}: ${result.status === 'PASS' ? '✓' : '✗'} ${testConfig.test_name}`);
+            .then((result) => {
+              console.log(
+                `Completed test ${globalIndex}: ${result.status === "PASS" ? "✓" : "✗"} ${testConfig.test_name}`,
+              );
               results[currentTestIndex] = result; // Preserve order using index
               completedCount++;
               runningTests--;
@@ -1497,11 +1660,19 @@ class EndpointTester {
                 startNextTest();
               }
             })
-            .catch(error => {
-              console.log(`Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`);
+            .catch((error) => {
+              console.log(
+                `Failed test ${globalIndex}: ✗ ${testConfig.test_name} - ${error.message}`,
+              );
               const requestId = testConfig.request_id;
               const executionSequence = globalIndex;
-              results[currentTestIndex] = this.createErrorResult(testConfig, error, 0, requestId, executionSequence);
+              results[currentTestIndex] = this.createErrorResult(
+                testConfig,
+                error,
+                0,
+                requestId,
+                executionSequence,
+              );
               completedCount++;
               runningTests--;
 
@@ -1530,7 +1701,7 @@ class EndpointTester {
   async runSingleTest(testConfig, sequenceNumber = null) {
     const startTime = Date.now();
     const requestId = testConfig.request_id; // Use stable request ID from spreadsheet
-    const executionSequence = sequenceNumber || (++this.requestCounter); // Sequential number for this execution
+    const executionSequence = sequenceNumber || ++this.requestCounter; // Sequential number for this execution
 
     try {
       const response = await this.requestHandler.executeRequest(testConfig);
@@ -1545,13 +1716,13 @@ class EndpointTester {
         testConfig.source_file,
         testConfig.row_number,
         testConfig.total_rows,
-        testConfig.parameters
+        testConfig.parameters,
       );
 
       // Extract additional info
       const additionalInfo = this.responseAnalyzer.extractAdditionalInfo(
         testConfig,
-        response
+        response,
       );
 
       return this.createTestResult(
@@ -1562,10 +1733,16 @@ class EndpointTester {
         additionalInfo,
         responseBodyFile,
         requestId,
-        executionSequence
+        executionSequence,
       );
     } catch (error) {
-      return this.createErrorResult(testConfig, error, Date.now() - startTime, requestId, executionSequence);
+      return this.createErrorResult(
+        testConfig,
+        error,
+        Date.now() - startTime,
+        requestId,
+        executionSequence,
+      );
     }
   }
 
@@ -1580,7 +1757,7 @@ class EndpointTester {
     additionalInfo,
     responseBodyFile,
     requestId,
-    executionSequence
+    executionSequence,
   ) {
     const statusMatches = response.status === testConfig.expected_status;
     let status = statusMatches ? "PASS" : "FAIL";
@@ -1667,11 +1844,11 @@ class EndpointTester {
         testConfig.source_file,
         testConfig.row_number,
         testConfig.total_rows,
-        testConfig.parameters
+        testConfig.parameters,
       );
       additionalInfo = this.responseAnalyzer.extractAdditionalInfo(
         testConfig,
-        error.response
+        error.response,
       );
     }
 
@@ -1705,7 +1882,11 @@ class EndpointTester {
     }
 
     // Store response data for embedding if enabled (but not saving to disk)
-    if (this.options.embedResponseBodies && !this.options.saveResponseBodies && error.response) {
+    if (
+      this.options.embedResponseBodies &&
+      !this.options.saveResponseBodies &&
+      error.response
+    ) {
       const responseData = {
         status: error.response.status,
         statusText: error.response.statusText,
@@ -1729,7 +1910,12 @@ class EndpointTester {
   shouldRunTest(testConfig) {
     // Apply provider filter with support for exclusion (^ prefix)
     if (this.options.providers) {
-      if (!this.shouldIncludeProvider(testConfig.provider_id, this.options.providers)) {
+      if (
+        !this.shouldIncludeProvider(
+          testConfig.provider_id,
+          this.options.providers,
+        )
+      ) {
         return false;
       }
     }
@@ -1756,7 +1942,7 @@ class EndpointTester {
     const exclusionFilters = [];
 
     for (const filter of providerFilter) {
-      if (filter.startsWith('^')) {
+      if (filter.startsWith("^")) {
         exclusionFilters.push(filter.substring(1)); // Remove ^ prefix
       } else {
         inclusionFilters.push(filter);
@@ -1819,15 +2005,17 @@ class EndpointTester {
       .getValidConfigFiles()
       .map((file) => this.configLoader.extractEndpointType(file))
       .sort();
-      
+
     // Add virtual endpoints that are supported
     const virtualEndpoints = [
       ENDPOINT_KEYS.GET_DATA_WITH_PROFILE,
-      ENDPOINT_KEYS.GET_DATA_NO_PROFILE
+      ENDPOINT_KEYS.GET_DATA_NO_PROFILE,
     ];
-    
+
     // Combine and deduplicate
-    const allEndpoints = [...new Set([...configEndpoints, ...virtualEndpoints])];
+    const allEndpoints = [
+      ...new Set([...configEndpoints, ...virtualEndpoints]),
+    ];
     return allEndpoints.sort();
   }
 
@@ -1852,7 +2040,13 @@ class EndpointTester {
  * Handles report generation (JSON, HTML)
  */
 class ReportGenerator {
-  constructor(executionDir, saveResponseBodies = false, embedResponseBodies = false, testName = null, testDescription = null) {
+  constructor(
+    executionDir,
+    saveResponseBodies = false,
+    embedResponseBodies = false,
+    testName = null,
+    testDescription = null,
+  ) {
     this.executionDir = executionDir;
     this.saveResponseBodies = saveResponseBodies;
     this.embedResponseBodies = embedResponseBodies;
@@ -1864,14 +2058,17 @@ class ReportGenerator {
    * Generate all reports
    */
   generate(results, options = {}) {
-    const { providersIncluded = ["All"], endpointsIncluded = ["All"], wallClockDurationMs = null } =
-      options;
+    const {
+      providersIncluded = ["All"],
+      endpointsIncluded = ["All"],
+      wallClockDurationMs = null,
+    } = options;
 
     const summary = this.createSummary(
       results,
       providersIncluded,
       endpointsIncluded,
-      wallClockDurationMs
+      wallClockDurationMs,
     );
     const report = { summary, results };
 
@@ -1887,7 +2084,12 @@ class ReportGenerator {
   /**
    * Create test summary
    */
-  createSummary(results, providersIncluded, endpointsIncluded, wallClockDurationMs = null) {
+  createSummary(
+    results,
+    providersIncluded,
+    endpointsIncluded,
+    wallClockDurationMs = null,
+  ) {
     const statusCounts = this.getStatusCounts(results);
     const cumulativeRequestDuration = this.calculateTotalDuration(results);
 
@@ -1895,7 +2097,10 @@ class ReportGenerator {
       total_tests: results.length,
       ...statusCounts,
       average_duration: this.calculateAverageDuration(results),
-      total_duration: wallClockDurationMs != null ? wallClockDurationMs : cumulativeRequestDuration,
+      total_duration:
+        wallClockDurationMs != null
+          ? wallClockDurationMs
+          : cumulativeRequestDuration,
       cumulative_request_duration: cumulativeRequestDuration,
       tests_by_endpoint_type: this.getTestsByEndpointType(results),
       providers_included: providersIncluded,
@@ -1933,7 +2138,7 @@ class ReportGenerator {
     if (results.length === 0) return 0;
     const totalDuration = results.reduce(
       (sum, r) => sum + (r.duration_ms || 0),
-      0
+      0,
     );
     return totalDuration / results.length;
   }
@@ -1982,7 +2187,7 @@ class ReportGenerator {
   generateJSONReport(report) {
     const reportFile = path.join(
       this.executionDir,
-      "endpoint-test-report.json"
+      "endpoint-test-report.json",
     );
     fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
     return reportFile;
@@ -2004,11 +2209,14 @@ class ReportGenerator {
   createHTMLContent(report) {
     // For single endpoint reports, we don't need the "Tests by Endpoint Type" section
     // since it would only show one endpoint type (redundant)
-    const uniqueEndpointTypes = this.getUniqueValues(report.results, 'endpoint_type');
+    const uniqueEndpointTypes = this.getUniqueValues(
+      report.results,
+      "endpoint_type",
+    );
     const shouldShowEndpointTypeSection = uniqueEndpointTypes.length > 1;
-    
+
     const endpointTypeSummary = Object.entries(
-      report.summary.tests_by_endpoint_type
+      report.summary.tests_by_endpoint_type,
     )
       .map(
         ([type, stats]) =>
@@ -2019,7 +2227,7 @@ class ReportGenerator {
           <td class="fail">${stats.failed}</td>
           <td class="error">${stats.errors}</td>
           <td class="slow">${stats.slow}</td>
-        </tr>`
+        </tr>`,
       )
       .join("");
 
@@ -2034,11 +2242,11 @@ class ReportGenerator {
     ${this.getHTMLStyles()}
 </head>
 <body>
-    ${!isDashboard ? this.createDashboardLink() : ''}
+    ${!isDashboard ? this.createDashboardLink() : ""}
     <h1>${this.escapeHtmlContent(title)}</h1>
     
     ${this.createSummarySection(report.summary)}
-    ${shouldShowEndpointTypeSection ? this.createEndpointTypeSection(endpointTypeSummary) : ''}
+    ${shouldShowEndpointTypeSection ? this.createEndpointTypeSection(endpointTypeSummary) : ""}
     ${this.createTestResultsSection(report)}
     ${this.createModalSections()}
     ${this.getJavaScriptFunctions()}
@@ -2150,11 +2358,13 @@ class ReportGenerator {
    * Create summary section
    */
   createSummarySection(summary) {
-    const nameSection = this.testName ? 
-      `<p><strong>Name:</strong> ${this.escapeHtmlContent(this.testName)}</p>` : '';
-    const descriptionSection = this.testDescription ? 
-      `<p><strong>Description:</strong> ${this.escapeHtmlContent(this.testDescription)}</p>` : '';
-    
+    const nameSection = this.testName
+      ? `<p><strong>Name:</strong> ${this.escapeHtmlContent(this.testName)}</p>`
+      : "";
+    const descriptionSection = this.testDescription
+      ? `<p><strong>Description:</strong> ${this.escapeHtmlContent(this.testDescription)}</p>`
+      : "";
+
     return `
     <div class="summary">
         <h2>Summary</h2>
@@ -2162,10 +2372,10 @@ class ReportGenerator {
         ${descriptionSection}
         <p><strong>Generated:</strong> ${summary.timestamp}</p>
         <p><strong>Providers Included:</strong> ${summary.providers_included.join(
-          ", "
+          ", ",
         )}</p>
         <p><strong>Endpoints Included:</strong> ${summary.endpoints_included.join(
-          ", "
+          ", ",
         )}</p>
         <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
         <p><strong>Passed:</strong> <span class="pass">${
@@ -2179,10 +2389,10 @@ class ReportGenerator {
         }</span></p>
         <p><strong>Slow:</strong> <span class="slow">${summary.slow}</span></p>
         <p><strong>Average Duration:</strong> ${Math.round(
-          summary.average_duration
+          summary.average_duration,
         )}ms</p>
         <p><strong>Total Duration:</strong> ${Math.round(
-          summary.total_duration / 1000 / 60
+          summary.total_duration / 1000 / 60,
         )} minutes</p>
     </div>`;
   }
@@ -2215,19 +2425,23 @@ class ReportGenerator {
    */
   createTestResultsSection(report) {
     // Get unique statuses and providers from actual test results for smart filtering
-    const uniqueStatuses = this.getUniqueValues(report.results, 'status', true);
-    const uniqueProviders = this.getUniqueValues(report.results, 'provider_id', true);
-    
+    const uniqueStatuses = this.getUniqueValues(report.results, "status", true);
+    const uniqueProviders = this.getUniqueValues(
+      report.results,
+      "provider_id",
+      true,
+    );
+
     // Generate status options dynamically based on actual data
-    const statusOptions = uniqueStatuses.map(status => 
-      `<option value="${status}">${status}</option>`
-    ).join('');
-    
+    const statusOptions = uniqueStatuses
+      .map((status) => `<option value="${status}">${status}</option>`)
+      .join("");
+
     // Generate provider options dynamically based on actual data
-    const providerOptions = uniqueProviders.map(provider => 
-      `<option value="${provider}">${provider}</option>`
-    ).join('');
-    
+    const providerOptions = uniqueProviders
+      .map((provider) => `<option value="${provider}">${provider}</option>`)
+      .join("");
+
     return `
     <h2>Individual Test Results</h2>
     <div class="filter-container">
@@ -2313,7 +2527,7 @@ class ReportGenerator {
                 arr.filter((v) => v === a).length >=
                 arr.filter((v) => v === b).length
                   ? a
-                  : b
+                  : b,
               )
             : "Additional Info";
 
@@ -2322,7 +2536,7 @@ class ReportGenerator {
           .filter(
             (result) =>
               result.additional_info !== undefined &&
-              result.additional_info !== null
+              result.additional_info !== null,
           )
           .map((result) => {
             // Convert to string if it's a number, otherwise clean the string
@@ -2351,7 +2565,7 @@ class ReportGenerator {
 
         const sectionId = `endpoint-${endpointType.replace(
           /[^a-zA-Z0-9]/g,
-          "_"
+          "_",
         )}`;
         const tableId = `table-${sectionId}`;
         const toggleId = `toggle-${sectionId}`;
@@ -2361,7 +2575,7 @@ class ReportGenerator {
           <div class="endpoint-header" onclick="toggleEndpointTable('${sectionId}')">
             <span id="${toggleId}" class="endpoint-toggle">▼</span>
             <h3 class="endpoint-title">${this.escapeHtmlContent(
-              endpointType
+              endpointType,
             )} (${results.length} tests)</h3>
           </div>
           <div id="${tableId}" class="endpoint-table">
@@ -2382,12 +2596,12 @@ class ReportGenerator {
                     ${results
                       .map(
                         (result) => `
-                        <tr class="status-${result.status}" data-provider="${this.escapeHtmlAttribute(result.provider_id || 'unknown')}">
+                        <tr class="status-${result.status}" data-provider="${this.escapeHtmlAttribute(result.provider_id || "unknown")}">
                             <td><span title="${this.getTestNameTooltip(
-                              result
+                              result,
                             )}">${this.escapeHtmlContent(
-                          result.test_name
-                        )} <span class="info-icon">ℹ️</span></span></td>
+                              result.test_name,
+                            )} <span class="info-icon">ℹ️</span></span></td>
                             <td>${this.escapeHtmlContent(result.status)}</td>
                             <td>${result.expected_status}</td>
                             <td>${result.actual_status}</td>
@@ -2396,19 +2610,19 @@ class ReportGenerator {
                               result.additional_info !== undefined &&
                               result.additional_info !== null
                                 ? this.escapeHtmlContent(
-                                    String(result.additional_info)
+                                    String(result.additional_info),
                                   )
                                 : "N/A"
                             }</td>
                             <td class="url-column">${this.formatUrlForHtml(
-                              result.url
+                              result.url,
                             )}</td>
                             <td>${this.formatResponseBodyFileForHtml(
                               result.response_body_file,
-                              result.response_data
+                              result.response_data,
                             )}</td>
                         </tr>
-                      `
+                      `,
                       )
                       .join("")}
                 </tbody>
@@ -2470,13 +2684,13 @@ class ReportGenerator {
    */
   getTestNameTooltip(result) {
     const providerText = this.escapeHtmlAttribute(
-      result.provider_id || "Not specified"
+      result.provider_id || "Not specified",
     );
     const descriptionText = this.escapeHtmlAttribute(
-      this.wrapText(result.description || "Not specified")
+      this.wrapText(result.description || "Not specified"),
     );
     const timestampText = this.escapeHtmlAttribute(
-      result.timestamp || "Unknown"
+      result.timestamp || "Unknown",
     );
 
     return `Provider: ${providerText}&#10;
@@ -2521,12 +2735,12 @@ Timestamp: ${timestampText}`;
    */
   formatResponseBodyFileForHtml(responseBodyFile, responseData = null) {
     // Handle four scenarios based on saveResponseBodies and embedResponseBodies flags
-    
+
     // Scenario 4: Neither option is specified
     if (!this.saveResponseBodies && !this.embedResponseBodies) {
       return "N/A";
     }
-    
+
     // If no response body file/data is available
     if (!responseBodyFile && !responseData) {
       return "N/A";
@@ -2539,7 +2753,7 @@ Timestamp: ${timestampText}`;
         if (!responseBodyFile || responseBodyFile === "N/A") {
           return "N/A";
         }
-        
+
         const absolutePath = path.resolve(responseBodyFile);
         const pathParts = absolutePath.split(path.sep);
         const lastDirAndFile = pathParts.slice(-2).join(path.sep);
@@ -2550,14 +2764,14 @@ Timestamp: ${timestampText}`;
           fileContent = fs.readFileSync(absolutePath, "utf8");
         } catch (readError) {
           console.warn(
-            `Could not read response file ${absolutePath}: ${readError.message}`
+            `Could not read response file ${absolutePath}: ${readError.message}`,
           );
         }
 
         if (fileContent) {
           const encodedContent = encodeURIComponent(fileContent).replace(
             /'/g,
-            "%27"
+            "%27",
           );
           const encodedPath = encodeURIComponent(absolutePath);
           return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
@@ -2566,21 +2780,24 @@ Timestamp: ${timestampText}`;
           return `<span class="json-link" onclick="showResponsePopup('${encodedPath}', '${encodedLinkLabel}')" title="Click to view response body">📄 Response</span>`;
         }
       }
-      
+
       // Scenario 2: Only --embed-responses (no disk saving)
       else if (this.embedResponseBodies && !this.saveResponseBodies) {
         // Don't write to disk but embed in HTML
         if (responseData) {
-          const responseContent = typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2);
+          const responseContent =
+            typeof responseData === "string"
+              ? responseData
+              : JSON.stringify(responseData, null, 2);
           const encodedContent = encodeURIComponent(responseContent).replace(
             /'/g,
-            "%27"
+            "%27",
           );
           return `<span class="json-link" onclick="showResponseContent('${encodedContent}', '', 'Response')" title="Click to view response body">📄 Response</span>`;
         }
         return "N/A";
       }
-      
+
       // Scenario 3: Only --save-responses (no embedding)
       else if (this.saveResponseBodies && !this.embedResponseBodies) {
         // Write to disk but only show relative path in HTML
@@ -2588,17 +2805,17 @@ Timestamp: ${timestampText}`;
           return "N/A";
         }
 
-        let relativePath = responseBodyFile.replaceAll('\\', '/');
-        relativePath = '../..' + relativePath.substring(relativePath.indexOf('/responses/'));
-        const lastBit = relativePath.split('/').slice(-2).join(':<br>');
+        let relativePath = responseBodyFile.replaceAll("\\", "/");
+        relativePath =
+          "../.." + relativePath.substring(relativePath.indexOf("/responses/"));
+        const lastBit = relativePath.split("/").slice(-2).join(":<br>");
 
         return `<a href="${relativePath}" target="_blank" class="url-link" title="Click to open the response body file">${lastBit}</a>`;
       }
-      
     } catch (error) {
       return responseBodyFile || "N/A";
     }
-    
+
     return "N/A";
   }
 
@@ -3148,7 +3365,9 @@ Timestamp: ${timestampText}`;
     console.log(`Errors: ${summary.errors}`);
     console.log(`Slow: ${summary.slow}`);
     console.log(`Average Duration: ${Math.round(summary.average_duration)}ms`);
-    console.log(`Total Duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`);
+    console.log(
+      `Total Duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`,
+    );
     console.log(`\nReports generated in: ${this.executionDir}`);
     console.log(`- JSON: endpoint-test-report.json`);
     console.log(`- HTML: endpoint-test-report.html`);
@@ -3170,13 +3389,13 @@ class DashboardGenerator {
    * Generate dashboard reports
    */
   async generate(endpointSummaries, options = {}) {
-    const { 
-      providersIncluded = ["All"], 
-      endpointsIncluded = ["All"], 
+    const {
+      providersIncluded = ["All"],
+      endpointsIncluded = ["All"],
       executionTimestamp,
       testName = null,
       testDescription = null,
-      wallClockDurationMs = null
+      wallClockDurationMs = null,
     } = options;
 
     // Create consolidated summary
@@ -3185,20 +3404,31 @@ class DashboardGenerator {
       providersIncluded,
       endpointsIncluded,
       executionTimestamp,
-      wallClockDurationMs
+      wallClockDurationMs,
     );
 
     // Generate dashboard files
     this.generateDashboardJSON(consolidatedSummary, endpointSummaries);
-    this.generateDashboardHTML(consolidatedSummary, endpointSummaries, testName, testDescription);
-    
+    this.generateDashboardHTML(
+      consolidatedSummary,
+      endpointSummaries,
+      testName,
+      testDescription,
+    );
+
     this.displayConsolidatedSummary(consolidatedSummary);
   }
 
   /**
    * Create consolidated summary from endpoint summaries
    */
-  createConsolidatedSummary(endpointSummaries, providersIncluded, endpointsIncluded, executionTimestamp, wallClockDurationMs = null) {
+  createConsolidatedSummary(
+    endpointSummaries,
+    providersIncluded,
+    endpointsIncluded,
+    executionTimestamp,
+    wallClockDurationMs = null,
+  ) {
     let totalTests = 0;
     let totalPassed = 0;
     let totalFailed = 0;
@@ -3217,24 +3447,37 @@ class DashboardGenerator {
       cumulativeRequestDuration += summary.total_duration;
 
       // Track all providers that contributed to this endpoint
-      summary.providers_included.forEach(provider => allProviders.add(provider));
+      summary.providers_included.forEach((provider) =>
+        allProviders.add(provider),
+      );
 
       // Add endpoint statistics (each endpoint summary has stats for just that endpoint)
-      Object.entries(summary.tests_by_endpoint_type).forEach(([endpoint, stats]) => {
-        if (!consolidatedEndpointStats[endpoint]) {
-          consolidatedEndpointStats[endpoint] = { total: 0, passed: 0, failed: 0, errors: 0, slow: 0 };
-        }
-        consolidatedEndpointStats[endpoint].total += stats.total;
-        consolidatedEndpointStats[endpoint].passed += stats.passed;
-        consolidatedEndpointStats[endpoint].failed += stats.failed;
-        consolidatedEndpointStats[endpoint].errors += stats.errors;
-        consolidatedEndpointStats[endpoint].slow += stats.slow;
-      });
+      Object.entries(summary.tests_by_endpoint_type).forEach(
+        ([endpoint, stats]) => {
+          if (!consolidatedEndpointStats[endpoint]) {
+            consolidatedEndpointStats[endpoint] = {
+              total: 0,
+              passed: 0,
+              failed: 0,
+              errors: 0,
+              slow: 0,
+            };
+          }
+          consolidatedEndpointStats[endpoint].total += stats.total;
+          consolidatedEndpointStats[endpoint].passed += stats.passed;
+          consolidatedEndpointStats[endpoint].failed += stats.failed;
+          consolidatedEndpointStats[endpoint].errors += stats.errors;
+          consolidatedEndpointStats[endpoint].slow += stats.slow;
+        },
+      );
     });
 
     // Use wall-clock duration when available (accurate with parallel execution),
     // otherwise fall back to sum of individual request durations
-    const totalDuration = wallClockDurationMs != null ? wallClockDurationMs : cumulativeRequestDuration;
+    const totalDuration =
+      wallClockDurationMs != null
+        ? wallClockDurationMs
+        : cumulativeRequestDuration;
 
     return {
       total_tests: totalTests,
@@ -3242,7 +3485,8 @@ class DashboardGenerator {
       failed: totalFailed,
       errors: totalErrors,
       slow: totalSlow,
-      average_duration: totalTests > 0 ? cumulativeRequestDuration / totalTests : 0,
+      average_duration:
+        totalTests > 0 ? cumulativeRequestDuration / totalTests : 0,
       total_duration: totalDuration,
       cumulative_request_duration: cumulativeRequestDuration,
       tests_by_endpoint_type: consolidatedEndpointStats,
@@ -3250,7 +3494,7 @@ class DashboardGenerator {
       endpoints_included: endpointsIncluded,
       timestamp: executionTimestamp || new Date().toISOString(),
       endpoint_count: endpointSummaries.length,
-      provider_count: allProviders.size
+      provider_count: allProviders.size,
     };
   }
 
@@ -3259,11 +3503,11 @@ class DashboardGenerator {
    */
   generateDashboardJSON(consolidatedSummary, endpointSummaries) {
     const dashboardFile = path.join(this.executionDir, "dashboard-report.json");
-    
+
     const dashboardData = {
       consolidated_summary: consolidatedSummary,
       endpoint_summaries: endpointSummaries,
-      generated_at: new Date().toISOString()
+      generated_at: new Date().toISOString(),
     };
 
     fs.writeFileSync(dashboardFile, JSON.stringify(dashboardData, null, 2));
@@ -3273,9 +3517,19 @@ class DashboardGenerator {
   /**
    * Generate dashboard HTML report
    */
-  generateDashboardHTML(consolidatedSummary, endpointSummaries, testName = null, testDescription = null) {
+  generateDashboardHTML(
+    consolidatedSummary,
+    endpointSummaries,
+    testName = null,
+    testDescription = null,
+  ) {
     const htmlFile = path.join(this.executionDir, "dashboard-report.html");
-    const htmlContent = this.createDashboardHTMLContent(consolidatedSummary, endpointSummaries, testName, testDescription);
+    const htmlContent = this.createDashboardHTMLContent(
+      consolidatedSummary,
+      endpointSummaries,
+      testName,
+      testDescription,
+    );
     fs.writeFileSync(htmlFile, htmlContent);
     return htmlFile;
   }
@@ -3283,10 +3537,16 @@ class DashboardGenerator {
   /**
    * Create dashboard HTML content
    */
-  createDashboardHTMLContent(consolidatedSummary, endpointSummaries, testName = null, testDescription = null) {
+  createDashboardHTMLContent(
+    consolidatedSummary,
+    endpointSummaries,
+    testName = null,
+    testDescription = null,
+  ) {
     const endpointTableRows = endpointSummaries
-      .map(({ endpointType, summary, htmlReportPath }) => 
-        `<tr>
+      .map(
+        ({ endpointType, summary, htmlReportPath }) =>
+          `<tr>
           <td><a href="${htmlReportPath}" class="endpoint-link">${this.escapeHtml(endpointType)}</a></td>
           <td>${summary.total_tests}</td>
           <td class="pass">${summary.passed}</td>
@@ -3294,27 +3554,36 @@ class DashboardGenerator {
           <td class="error">${summary.errors}</td>
           <td class="slow">${summary.slow}</td>
           <td>${Math.round(summary.average_duration)}ms</td>
-          <td>${summary.providers_included.join(', ')}</td>
-        </tr>`
+          <td>${summary.providers_included.join(", ")}</td>
+        </tr>`,
       )
       .join("");
 
-    const endpointStatsRows = Object.entries(consolidatedSummary.tests_by_endpoint_type)
-      .map(([endpoint, stats]) =>
-        `<tr>
+    const endpointStatsRows = Object.entries(
+      consolidatedSummary.tests_by_endpoint_type,
+    )
+      .map(
+        ([endpoint, stats]) =>
+          `<tr>
           <td>${this.escapeHtml(endpoint)}</td>
           <td>${stats.total}</td>
           <td class="pass">${stats.passed}</td>
           <td class="fail">${stats.failed}</td>
           <td class="error">${stats.errors}</td>
           <td class="slow">${stats.slow}</td>
-        </tr>`
+        </tr>`,
       )
       .join("");
 
-    const title = testName ? `${testName} - LUX Endpoint Testing Dashboard` : 'LUX Endpoint Testing Dashboard';
-    const heading = testName ? `🎯 ${testName}` : '🎯 LUX Endpoint Testing Dashboard';
-    const subtitle = testDescription ? testDescription : 'Endpoint-Based Execution Results';
+    const title = testName
+      ? `${testName} - LUX Endpoint Testing Dashboard`
+      : "LUX Endpoint Testing Dashboard";
+    const heading = testName
+      ? `🎯 ${testName}`
+      : "🎯 LUX Endpoint Testing Dashboard";
+    const subtitle = testDescription
+      ? testDescription
+      : "Endpoint-Based Execution Results";
 
     return `
 <!DOCTYPE html>
@@ -3346,7 +3615,7 @@ class DashboardGenerator {
             <div class="summary-card">
                 <h3>Test Execution</h3>
                 <p><strong>Generated:</strong> ${summary.timestamp}</p>
-                <p><strong>Providers:</strong> ${summary.provider_count} ${summary.providers_included.length > 0 ? `(${summary.providers_included.join(', ')})` : ''}</p>
+                <p><strong>Providers:</strong> ${summary.provider_count} ${summary.providers_included.length > 0 ? `(${summary.providers_included.join(", ")})` : ""}</p>
                 <p><strong>Total Tests:</strong> ${summary.total_tests}</p>
             </div>
             <div class="summary-card">
@@ -3419,8 +3688,9 @@ class DashboardGenerator {
    */
   createNavigationSection(endpointSummaries) {
     const endpointLinks = endpointSummaries
-      .map(({ endpointType, htmlReportPath }) =>
-        `<li><a href="${htmlReportPath}" class="nav-link">${this.escapeHtml(endpointType)} Detailed Report</a></li>`
+      .map(
+        ({ endpointType, htmlReportPath }) =>
+          `<li><a href="${htmlReportPath}" class="nav-link">${this.escapeHtml(endpointType)} Detailed Report</a></li>`,
       )
       .join("");
 
@@ -3593,8 +3863,12 @@ class DashboardGenerator {
     console.log(`❌ Failed: ${summary.failed}`);
     console.log(`⚠️  Errors: ${summary.errors}`);
     console.log(`🐌 Slow: ${summary.slow}`);
-    console.log(`⏱️  Average duration: ${Math.round(summary.average_duration)}ms`);
-    console.log(`⏱️  Total duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`);
+    console.log(
+      `⏱️  Average duration: ${Math.round(summary.average_duration)}ms`,
+    );
+    console.log(
+      `⏱️  Total duration: ${Math.round(summary.total_duration / 1000 / 60)} minutes`,
+    );
     console.log("\n📊 Dashboard report generated: dashboard-report.html");
   }
 }
@@ -3634,7 +3908,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         providers = args[i].split(",").map((p) => p.trim());
       } else {
         console.error(
-          "Error: --providers requires a comma-separated list of provider names"
+          "Error: --providers requires a comma-separated list of provider names",
         );
         process.exit(1);
       }
@@ -3645,7 +3919,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         endpoints = args[i].split(",").map((e) => e.trim());
       } else {
         console.error(
-          "Error: --endpoints requires a comma-separated list of endpoint types"
+          "Error: --endpoints requires a comma-separated list of endpoint types",
         );
         process.exit(1);
       }
@@ -3688,7 +3962,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       if (i < args.length) {
         const value = parseInt(args[i], 10);
         if (isNaN(value) || value < 0) {
-          console.error("Error: --request-counter-start requires a non-negative integer");
+          console.error(
+            "Error: --request-counter-start requires a non-negative integer",
+          );
           process.exit(1);
         }
         requestCounterStart = value;
@@ -3699,7 +3975,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     } else if (arg.startsWith("--request-counter-start=")) {
       const value = parseInt(arg.substring(24), 10);
       if (isNaN(value) || value < 0) {
-        console.error("Error: --request-counter-start requires a non-negative integer");
+        console.error(
+          "Error: --request-counter-start requires a non-negative integer",
+        );
         process.exit(1);
       }
       requestCounterStart = value;
@@ -3709,7 +3987,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       if (i < args.length) {
         const value = parseInt(args[i], 10);
         if (isNaN(value) || value < 1) {
-          console.error("Error: --max-concurrent requires a positive integer >= 1");
+          console.error(
+            "Error: --max-concurrent requires a positive integer >= 1",
+          );
           process.exit(1);
         }
         maxConcurrent = value;
@@ -3720,7 +4000,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     } else if (arg.startsWith("--max-concurrent=")) {
       const value = parseInt(arg.substring(17), 10);
       if (isNaN(value) || value < 1) {
-        console.error("Error: --max-concurrent requires a positive integer >= 1");
+        console.error(
+          "Error: --max-concurrent requires a positive integer >= 1",
+        );
         process.exit(1);
       }
       maxConcurrent = value;
@@ -3762,99 +4044,129 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     } else if (arg.startsWith("--reports-subdir=")) {
       reportsSubdir = arg.substring(17);
     } else if (arg === "--help" || arg === "-h") {
-      console.log(
-        "Usage: node run-tests.js --base-url <url> [options]"
-      );
+      console.log("Usage: node run-tests.js --base-url <url> [options]");
       console.log("");
       console.log("Options:");
       console.log(
-        "  --base-url <url>               Base URL for API requests (REQUIRED)"
+        "  --base-url <url>               Base URL for API requests (REQUIRED)",
       );
       console.log(
-        "  --config-dir, --configs <dir>  Directory containing test configuration files (default: ./configs)"
+        "  --config-dir, --configs <dir>  Directory containing test configuration files (default: ./configs)",
       );
       console.log(
-        "  --reports-dir, --reports <dir> Directory for test reports (default: ./reports)"
+        "  --reports-dir, --reports <dir> Directory for test reports (default: ./reports)",
       );
       console.log(
-        "  --reports-subdir <name>        Custom name for reports subdirectory (default: auto-generated timestamp)"
+        "  --reports-subdir <name>        Custom name for reports subdirectory (default: auto-generated timestamp)",
       );
       console.log(
-        "  --request-counter-start <num>  Skip first N tests / set execution sequence start (default: 0)"
+        "  --request-counter-start <num>  Skip first N tests / set execution sequence start (default: 0)",
       );
       console.log(
-        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)"
+        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)",
       );
       console.log(
-        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)"
+        "  --max-concurrent <num>         Maximum number of concurrent requests (default: 1 = sequential)",
       );
       console.log(
-        "  --save-responses, -r          Save response bodies to disk"
+        "  --save-responses, -r          Save response bodies to disk",
       );
       console.log(
-        "  --embed-responses, -b         Embed response bodies in HTML report"
+        "  --embed-responses, -b         Embed response bodies in HTML report",
       );
       console.log(
-        "  --name <name>                 Custom name for the test run (appears in HTML title and summary)"
+        "  --name <name>                 Custom name for the test run (appears in HTML title and summary)",
       );
       console.log(
-        "  --description <description>   Custom description for the test run (appears in summary)"
+        "  --description <description>   Custom description for the test run (appears in summary)",
       );
       console.log(
-        "  --dry-run, -d                 Helpful to see resolved configuration and available filtering options"
+        "  --dry-run, -d                 Helpful to see resolved configuration and available filtering options",
       );
       console.log(
-        "  --providers, -p <providers>   Comma-separated list of test data providers to use"
+        "  --providers, -p <providers>   Comma-separated list of test data providers to use",
       );
       console.log(
-        "                                Run in dry-run mode to view available providers."
+        "                                Run in dry-run mode to view available providers.",
       );
       console.log(
-        "                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+        "                                Examples: AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider",
       );
       console.log(
-        "  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test"
+        "  --endpoints, -e <endpoints>   Comma-separated list of endpoint types to test",
       );
       console.log(
-        "                                Run in dry-run mode to view available endpoints."
+        "                                Run in dry-run mode to view available endpoints.",
       );
       console.log(
-        "                                Use ^ prefix to exclude: ^get-facets excludes get-facets"
+        "                                Use ^ prefix to exclude: ^get-facets excludes get-facets",
       );
       console.log(
-        "                                Examples: get-search,get-auto-complete (include only these)"
+        "                                Examples: get-search,get-auto-complete (include only these)",
       );
       console.log(
-        "                                          ^get-facets,^get-translate (exclude these)"
+        "                                          ^get-facets,^get-translate (exclude these)",
       );
       console.log("  --help, -h                    Show this help message");
       console.log("");
       console.log("Examples:");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu");
-      console.log("  node run-tests.js --base-url=https://lux-middle-???.collections.yale.edu");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --config-dir ./configs --reports-dir ./reports");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --reports-subdir cts-baseline");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --embed-responses");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses --embed-responses");
-      console.log('  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"');
-      console.log('  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"');
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run");
       console.log(
-        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider"
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu",
       );
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 5");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 3 --endpoints get-search");
-      console.log("  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --request-counter-start 100 --max-concurrent 10");
       console.log(
-        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search"
+        "  node run-tests.js --base-url=https://lux-middle-???.collections.yale.edu",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --config-dir ./configs --reports-dir ./reports",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --reports-subdir cts-baseline",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --embed-responses",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --save-responses --embed-responses",
+      );
+      console.log(
+        '  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name "Production API Test" --description "Weekly API validation"',
+      );
+      console.log(
+        '  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --name="Nightly Tests" --description="Automated nightly validation"',
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --providers AdvancedSearchQueriesTestDataProvider,UpdatedAdvancedSearchQueriesTestDataProvider",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints get-search,get-auto-complete",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --endpoints ^get-facets,^get-translate",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 5",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --max-concurrent 3 --endpoints get-search",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --request-counter-start 100 --max-concurrent 10",
+      );
+      console.log(
+        "  node run-tests.js --base-url https://lux-middle-???.collections.yale.edu --dry-run --providers csv-provider --endpoints search",
       );
       process.exit(0);
     } else if (!arg.startsWith("-")) {
       // No positional arguments - all must be named
-      console.error(`Error: Unexpected argument '${arg}'. All arguments must be named options.`);
+      console.error(
+        `Error: Unexpected argument '${arg}'. All arguments must be named options.`,
+      );
       console.log("Use --help for a list of available options");
       process.exit(1);
     } else {
@@ -3878,7 +4190,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     console.log(`Reports subdirectory: ${reportsSubdir} (custom)`);
   }
   if (requestCounterStart > 0) {
-    console.log(`Request counter start: ${requestCounterStart} (skip first ${requestCounterStart} tests)`);
+    console.log(
+      `Request counter start: ${requestCounterStart} (skip first ${requestCounterStart} tests)`,
+    );
   }
   if (maxConcurrent > 1) {
     console.log(`Max concurrent requests: ${maxConcurrent}`);
@@ -3900,7 +4214,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (dryRun) {
     console.log("");
     console.log(
-      "DRY RUN MODE: Tests will not be executed, only planned test execution will be shown"
+      "DRY RUN MODE: Tests will not be executed, only planned test execution will be shown",
     );
     console.log("");
   }
@@ -3909,7 +4223,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!baseUrl) {
     console.error("Error: --base-url is required");
     console.error("Please specify the base URL for API requests");
-    console.error("Example: node run-tests.js --base-url https://lux-middle-???.collections.yale.edu");
+    console.error(
+      "Example: node run-tests.js --base-url https://lux-middle-???.collections.yale.edu",
+    );
     process.exit(1);
   }
 
@@ -3919,7 +4235,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!validationResult.success) {
     const error = validationResult.error;
     console.error(`Error: ${error.message}`);
-    
+
     if (error.provided) {
       console.error(`Provided: ${error.provided}`);
     }
@@ -3935,7 +4251,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     if (error.example) {
       console.error(`Example: node run-tests.js --base-url ${error.example}`);
     }
-    
+
     process.exit(1);
   }
 
@@ -3943,22 +4259,22 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (validationResult.message) {
     console.log(`✓ ${validationResult.message}`);
   }
-  
+
   if (validationResult.warnings && validationResult.warnings.length > 0) {
-    validationResult.warnings.forEach(warning => {
-      if (warning.type === 'localhost') {
+    validationResult.warnings.forEach((warning) => {
+      if (warning.type === "localhost") {
         console.warn(`Warning: ${warning.message}`);
-      } else if (warning.type === 'connection_timeout') {
+      } else if (warning.type === "connection_timeout") {
         console.warn(`⚠ ${warning.message}`);
         if (warning.details) {
           console.warn(warning.details);
         }
-      } else if (warning.type === 'connectivity_unknown') {
+      } else if (warning.type === "connectivity_unknown") {
         console.warn(`⚠ ${warning.message}`);
         if (warning.details) {
           console.warn(warning.details);
         }
-      } else if (warning.type === 'server_error') {
+      } else if (warning.type === "server_error") {
         console.warn(`⚠ ${warning.message}`);
       }
     });
