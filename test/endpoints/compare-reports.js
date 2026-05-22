@@ -468,11 +468,25 @@ class ReportComparator {
     }
 
     // Check if the same items are present (regardless of order)
-    const baselineIds = new Set(baselineItems.map(item => item.id));
-    const currentIds = new Set(currentItems.map(item => item.id));
+    // Normalize item IDs to path-only (strip domain) since baseline and current
+    // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
+    // but use the same entity paths like /data/object/<uuid>.
+    const normalizeId = (id) => {
+      if (!id) return id;
+      try {
+        return new URL(id).pathname;
+      } catch {
+        return id; // Not a URL, use as-is
+      }
+    };
+
+    const baselineNormIds = baselineItems.map(item => normalizeId(item.id));
+    const currentNormIds = currentItems.map(item => normalizeId(item.id));
+    const baselineIdSet = new Set(baselineNormIds);
+    const currentIdSet = new Set(currentNormIds);
     
-    const missingInCurrent = [...baselineIds].filter(id => !currentIds.has(id));
-    const extraInCurrent = [...currentIds].filter(id => !baselineIds.has(id));
+    const missingInCurrent = [...baselineIdSet].filter(id => !currentIdSet.has(id));
+    const extraInCurrent = [...currentIdSet].filter(id => !baselineIdSet.has(id));
     
     if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
       comparison.differences.push({
@@ -485,12 +499,13 @@ class ReportComparator {
     }
     
     // Check ordering differences for overlapping items (regardless of missing/extra items)
-    const overlappingIds = [...baselineIds].filter(id => currentIds.has(id));
+    const overlappingIds = [...baselineIdSet].filter(id => currentIdSet.has(id));
     
     if (overlappingIds.length > 0) {
+      const overlappingSet = new Set(overlappingIds);
       // Create ordered lists of overlapping items based on their appearance in each result set
-      const baselineOverlapOrder = baselineItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
-      const currentOverlapOrder = currentItems.filter(item => overlappingIds.includes(item.id)).map(item => item.id);
+      const baselineOverlapOrder = baselineNormIds.filter(id => overlappingSet.has(id));
+      const currentOverlapOrder = currentNormIds.filter(id => overlappingSet.has(id));
       
       // Count how many individual items moved from their baseline position
       let itemsMoved = 0;
