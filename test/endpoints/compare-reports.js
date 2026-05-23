@@ -1304,6 +1304,11 @@ class ReportComparator {
         .json-link { color: #0066cc; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 14px; padding: 2px 6px; background-color: #f0f8ff; border: 1px solid #0066cc; border-radius: 3px; display: inline-block; vertical-align: middle; }
         .json-link:hover { background-color: #e6f3ff; color: #0052a3; }
         .json-link.active { background-color: #0066cc; color: white; border-color: #004499; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        .json-link.ignored { background-color: #e9ecef; color: #999; border-color: #ccc; text-decoration: line-through; }
+        .json-link.ignored.active { background-color: #6c757d; color: white; border-color: #545b62; text-decoration: line-through; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        .criteria-ignore-label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; color: #555; user-select: none; padding: 3px 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .criteria-ignore-label:hover { background-color: #f8f9fa; }
+        .criteria-ignore-label input { cursor: pointer; }
         .json-popup-nav { background: #6c757d; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-nav:hover:not(:disabled) { background: #5a6268; }
         .json-popup-nav:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -2035,6 +2040,7 @@ class ReportComparator {
             <div class="json-popup-header">
                 <h3 id="criteriaTitle">Search Criteria</h3>
                 <div class="json-popup-buttons">
+                    <label id="criteriaIgnoreLabel" class="criteria-ignore-label" style="display:none;" title="Mark this row as reviewed/ignored"><input type="checkbox" id="criteriaIgnoreCheck" onchange="toggleIgnoreCriteria()">Ignore</label>
                     <button id="criteriaPrev" class="json-popup-nav" onclick="navigateCriteria(-1)" title="Previous criteria" style="display:none;">← Prev</button>
                     <button id="criteriaNext" class="json-popup-nav" onclick="navigateCriteria(1)" title="Next criteria" style="display:none;">Next →</button>
                     <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
@@ -2050,6 +2056,7 @@ class ReportComparator {
     document.addEventListener('DOMContentLoaded', function() {
         // Criteria navigation state
         window.currentCriteriaIndex = -1;
+        window.ignoredCriteria = new Set();
         
         // Show criteria popup by index (from the criteriaDataList array)
         function showCriteriaPopup(index) {
@@ -2061,6 +2068,30 @@ class ReportComparator {
             document.getElementById('criteriaTitle').textContent = list[index].testName;
             updateCriteriaHighlight(index);
             updateCriteriaNavButtons(index, list.length);
+            // Sync ignore checkbox
+            document.getElementById('criteriaIgnoreLabel').style.display = '';
+            document.getElementById('criteriaIgnoreCheck').checked = window.ignoredCriteria.has(index);
+        }
+        
+        // Toggle ignore state for the current criteria
+        function toggleIgnoreCriteria() {
+            var index = window.currentCriteriaIndex;
+            if (index < 0) return;
+            var checkbox = document.getElementById('criteriaIgnoreCheck');
+            if (checkbox.checked) {
+                window.ignoredCriteria.add(index);
+            } else {
+                window.ignoredCriteria.delete(index);
+            }
+            // Update the button's visual state
+            var btn = document.querySelector('.json-link[data-criteria-index="' + index + '"]');
+            if (btn) {
+                if (checkbox.checked) {
+                    btn.classList.add('ignored');
+                } else {
+                    btn.classList.remove('ignored');
+                }
+            }
         }
         
         // Navigate criteria by offset (-1 = prev, +1 = next)
@@ -2104,9 +2135,10 @@ class ReportComparator {
             showJsonPopupContent(jsonString);
             document.getElementById('criteriaTitle').textContent = 'Search Criteria';
             updateCriteriaHighlight(-1);
-            // Hide nav buttons for non-indexed popups
+            // Hide nav buttons and ignore checkbox for non-indexed popups
             document.getElementById('criteriaPrev').style.display = 'none';
             document.getElementById('criteriaNext').style.display = 'none';
+            document.getElementById('criteriaIgnoreLabel').style.display = 'none';
         }
         
         // Highlight the active criteria button and remove highlight from others
@@ -2144,6 +2176,11 @@ class ReportComparator {
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 closeJsonPopup();
+            } else if (e.key === 'i' || e.key === 'I') {
+                e.preventDefault();
+                var checkbox = document.getElementById('criteriaIgnoreCheck');
+                checkbox.checked = !checkbox.checked;
+                toggleIgnoreCriteria();
             }
         });
         
@@ -2185,6 +2222,7 @@ class ReportComparator {
         // Make functions globally available
         window.showCriteriaPopup = showCriteriaPopup;
         window.navigateCriteria = navigateCriteria;
+        window.toggleIgnoreCriteria = toggleIgnoreCriteria;
         window.showJsonPopup = showJsonPopup;
         window.copyJsonAsDisplayed = copyJsonAsDisplayed;
         window.copyJsonAsEncoded = copyJsonAsEncoded;
