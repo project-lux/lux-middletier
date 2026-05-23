@@ -1321,6 +1321,10 @@ class ReportComparator {
         .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-close:hover { background: #d32f2f; }
         .json-content { background: #f8f9fa; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; flex: 1; min-height: 0; overflow: auto; border: 1px solid #dee2e6; }
+        .criteria-summary { display: flex; gap: 0; flex-shrink: 0; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 4px 4px; background: #f8f9fa; }
+        .criteria-summary-item { flex: 1; padding: 6px 12px; border-right: 1px solid #dee2e6; display: flex; align-items: flex-end; min-height: 2.2em; }
+        .criteria-summary-item:last-child { border-right: none; }
+        .criteria-summary-item .summary-label { color: #333; font-weight: bold; margin-right: 4px; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -1462,7 +1466,9 @@ class ReportComparator {
         
         ${
           comparison.functional_comparison.detailed_differences.length > 0
-            ? (() => { const criteriaDataList = []; return `
+            ? (() => {
+                const criteriaDataList = [];
+                return `
         <h3>Functional Differences</h3>
         <div class="table-container">
             <table class="comparison-table">
@@ -1532,7 +1538,39 @@ class ReportComparator {
                                 const encodedQParam =
                                   encodeURIComponent(modifiedJsonString);
                                 const criteriaIndex = criteriaDataList.length;
-                                criteriaDataList.push({ encoded: encodedQParam, testName: testName });
+                                const summaryItems = [
+                                  {
+                                    label: "Total Items",
+                                    html: totalItemsInfo?.is_mismatch
+                                      ? `<span class="negative">${totalItemsInfo.baseline_total} \u2192 ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? "+" : ""}${totalItemsInfo.difference})</span>`
+                                      : `<span class="positive">\u2713 Match: ${totalItemsInfo?.baseline_total ?? "?"}</span>`,
+                                  },
+                                  {
+                                    label: "Result Count",
+                                    html: resultCountDiff?.is_mismatch
+                                      ? `<span class="negative">${resultCountDiff.baseline_count} \u2192 ${resultCountDiff.current_count}</span>`
+                                      : `<span class="positive">\u2713 Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`,
+                                  },
+                                  {
+                                    label: "Result Set",
+                                    html: resultSetDiff
+                                      ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>`
+                                      : '<span class="positive">\u2713 Match</span>',
+                                  },
+                                  {
+                                    label: "Ordering",
+                                    html: orderingDiff
+                                      ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>`
+                                      : resultCountDiff
+                                        ? '<span class="neutral">N/A</span>'
+                                        : '<span class="positive">\u2713 Match</span>',
+                                  },
+                                ];
+                                criteriaDataList.push({
+                                  encoded: encodedQParam,
+                                  testName: testName,
+                                  summary: summaryItems,
+                                });
                                 criteriaHtml = `<span class="json-link" data-criteria-index="${criteriaIndex}" onclick="showCriteriaPopup(${criteriaIndex})" title="Click to view the criteria">📄 Criteria</span>`;
                               } catch (e) {
                                 // Not valid JSON, show as text
@@ -1564,7 +1602,8 @@ class ReportComparator {
             </table>
         </div>
         <script>window.criteriaDataList = ${JSON.stringify(criteriaDataList)};</script>
-        `; })()
+        `;
+              })()
             : ""
         }
     </div>
@@ -2049,6 +2088,7 @@ class ReportComparator {
                 </div>
             </div>
             <div id="jsonContent" class="json-content"></div>
+            <div id="criteriaSummary" class="criteria-summary" style="display:none;"></div>
         </div>
     </div>
     
@@ -2071,6 +2111,17 @@ class ReportComparator {
             // Sync ignore checkbox
             document.getElementById('criteriaIgnoreLabel').style.display = '';
             document.getElementById('criteriaIgnoreCheck').checked = window.ignoredCriteria.has(index);
+            // Update summary bar dynamically from entry.summary array
+            var entry = list[index];
+            var summaryEl = document.getElementById('criteriaSummary');
+            if (entry.summary && entry.summary.length > 0) {
+                summaryEl.innerHTML = entry.summary.map(function(item) {
+                    return '<div class="criteria-summary-item"><span class="summary-label">' + item.label + ':</span> ' + item.html + '</div>';
+                }).join('');
+                summaryEl.style.display = '';
+            } else {
+                summaryEl.style.display = 'none';
+            }
         }
         
         // Toggle ignore state for the current criteria
@@ -2139,6 +2190,7 @@ class ReportComparator {
             document.getElementById('criteriaPrev').style.display = 'none';
             document.getElementById('criteriaNext').style.display = 'none';
             document.getElementById('criteriaIgnoreLabel').style.display = 'none';
+            document.getElementById('criteriaSummary').style.display = 'none';
         }
         
         // Highlight the active criteria button and remove highlight from others
