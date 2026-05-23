@@ -2105,7 +2105,7 @@ class ReportComparator {
             
             window.currentCriteriaIndex = index;
             showJsonPopupContent(list[index].encoded);
-            document.getElementById('criteriaTitle').textContent = list[index].testName;
+            document.getElementById('criteriaTitle').textContent = 'Row ' + (index + 1) + ' of ' + list.length + ': ' + list[index].testName;
             updateCriteriaHighlight(index);
             updateCriteriaNavButtons(index, list.length);
             // Sync ignore checkbox
