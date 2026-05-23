@@ -1322,9 +1322,17 @@ class ReportComparator {
         .json-popup-close:hover { background: #d32f2f; }
         .json-content { background: #f8f9fa; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; flex: 1; min-height: 0; overflow: auto; border: 1px solid #dee2e6; }
         .criteria-summary { display: flex; gap: 0; flex-shrink: 0; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 4px 4px; background: #f8f9fa; }
-        .criteria-summary-item { flex: 1; padding: 6px 12px; border-right: 1px solid #dee2e6; display: flex; align-items: flex-end; min-height: 2.2em; }
+        .criteria-summary-item { flex: 1; padding: 6px 12px; border-right: 1px solid #dee2e6; display: flex; flex-direction: column; min-height: 2.2em; }
         .criteria-summary-item:last-child { border-right: none; }
-        .criteria-summary-item .summary-label { color: #333; font-weight: bold; margin-right: 4px; }
+        .criteria-summary-item .summary-top-row { display: flex; align-items: center; justify-content: space-between; }
+        .criteria-summary-item .summary-label { color: #333; font-weight: bold; }
+        .criteria-summary-item .summary-value { margin-top: 2px; min-height: 1.4em; display: flex; align-items: center; line-height: 1.4; }
+        .criteria-summary-item .diff-nav-buttons { display: inline-flex; gap: 2px; }
+        .criteria-summary-item .diff-nav-btn { background: #6c757d; color: white; border: none; padding: 1px 5px; cursor: pointer; border-radius: 3px; font-size: 11px; line-height: 1.4; }
+        .criteria-summary-item .diff-nav-btn:hover:not(:disabled) { background: #5a6268; }
+        .criteria-summary-item .diff-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .diff-nav-flash { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 6px 14px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1001; }
+        .diff-nav-flash.visible { opacity: 1; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -2081,6 +2089,8 @@ class ReportComparator {
                 <div class="json-popup-buttons">
                     <label id="criteriaIgnoreLabel" class="criteria-ignore-label" style="display:none;" title="Mark this row as reviewed/ignored"><input type="checkbox" id="criteriaIgnoreCheck" onchange="toggleIgnoreCriteria()">Ignore</label>
                     <button id="criteriaPrev" class="json-popup-nav" onclick="navigateCriteria(-1)" title="Previous criteria" style="display:none;">← Prev</button>
+                    <button id="criteriaPrevDiff" class="json-popup-nav" onclick="navigateAnyDiff(-1)" title="Previous row with any difference" style="display:none;">← Prev Diff</button>
+                    <button id="criteriaNextDiff" class="json-popup-nav" onclick="navigateAnyDiff(1)" title="Next row with any difference" style="display:none;">Next Diff →</button>
                     <button id="criteriaNext" class="json-popup-nav" onclick="navigateCriteria(1)" title="Next criteria" style="display:none;">Next →</button>
                     <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
                     <button class="json-popup-copy" onclick="copyJsonAsEncoded(event)" title="Copy JSON as URL-encoded">Copy URL-Encoded</button>
@@ -2115,8 +2125,12 @@ class ReportComparator {
             var entry = list[index];
             var summaryEl = document.getElementById('criteriaSummary');
             if (entry.summary && entry.summary.length > 0) {
-                summaryEl.innerHTML = entry.summary.map(function(item) {
-                    return '<div class="criteria-summary-item"><span class="summary-label">' + item.label + ':</span> ' + item.html + '</div>';
+                summaryEl.innerHTML = entry.summary.map(function(item, colIdx) {
+                    var navBtns = '<span class="diff-nav-buttons">' +
+                        '<button class="diff-nav-btn" onclick="navigateDiff(' + colIdx + ', -1)" title="Previous diff in ' + item.label + '">◀</button>' +
+                        '<button class="diff-nav-btn" onclick="navigateDiff(' + colIdx + ', 1)" title="Next diff in ' + item.label + '">▶</button>' +
+                        '</span>';
+                    return '<div class="criteria-summary-item"><div class="summary-top-row"><span class="summary-label">' + item.label + '</span>' + navBtns + '</div><div class="summary-value">' + item.html + '</div></div>';
                 }).join('');
                 summaryEl.style.display = '';
             } else {
@@ -2189,6 +2203,8 @@ class ReportComparator {
             // Hide nav buttons and ignore checkbox for non-indexed popups
             document.getElementById('criteriaPrev').style.display = 'none';
             document.getElementById('criteriaNext').style.display = 'none';
+            document.getElementById('criteriaPrevDiff').style.display = 'none';
+            document.getElementById('criteriaNextDiff').style.display = 'none';
             document.getElementById('criteriaIgnoreLabel').style.display = 'none';
             document.getElementById('criteriaSummary').style.display = 'none';
         }
@@ -2209,10 +2225,16 @@ class ReportComparator {
         function updateCriteriaNavButtons(index, total) {
             var prevBtn = document.getElementById('criteriaPrev');
             var nextBtn = document.getElementById('criteriaNext');
+            var prevDiffBtn = document.getElementById('criteriaPrevDiff');
+            var nextDiffBtn = document.getElementById('criteriaNextDiff');
             prevBtn.style.display = '';
             nextBtn.style.display = '';
+            prevDiffBtn.style.display = '';
+            nextDiffBtn.style.display = '';
             prevBtn.disabled = (index <= 0);
             nextBtn.disabled = (index >= total - 1);
+            prevDiffBtn.disabled = (index <= 0);
+            nextDiffBtn.disabled = (index >= total - 1);
         }
         
         // Keyboard navigation for criteria popup
@@ -2271,9 +2293,74 @@ class ReportComparator {
             }
         }
         
+        // Navigate to next/previous diff for a given summary column
+        function navigateDiff(colIndex, direction) {
+            var list = window.criteriaDataList || [];
+            var startIndex = window.currentCriteriaIndex;
+            var i = startIndex + direction;
+            while (i >= 0 && i < list.length) {
+                var entry = list[i];
+                if (entry.summary && entry.summary[colIndex]) {
+                    var html = entry.summary[colIndex].html;
+                    var isDiff = html.indexOf('class="positive"') === -1 && html.indexOf('class="neutral"') === -1;
+                    if (isDiff) {
+                        showCriteriaPopup(i);
+                        var activeBtn = document.querySelector('.json-link.active');
+                        if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                        return;
+                    }
+                }
+                i += direction;
+            }
+            // No diff found - show flash message
+            showDiffFlash('No ' + (direction > 0 ? 'next' : 'previous') + ' diff found for ' + (list[startIndex].summary[colIndex]?.label || 'this column'));
+        }
+        
+        // Navigate to next/previous row that has ANY diff in any summary column
+        function navigateAnyDiff(direction) {
+            var list = window.criteriaDataList || [];
+            var startIndex = window.currentCriteriaIndex;
+            var i = startIndex + direction;
+            while (i >= 0 && i < list.length) {
+                var entry = list[i];
+                if (entry.summary) {
+                    for (var c = 0; c < entry.summary.length; c++) {
+                        var html = entry.summary[c].html;
+                        if (html.indexOf('class="positive"') === -1 && html.indexOf('class="neutral"') === -1) {
+                            showCriteriaPopup(i);
+                            var activeBtn = document.querySelector('.json-link.active');
+                            if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                            return;
+                        }
+                    }
+                }
+                i += direction;
+            }
+            showDiffFlash('No ' + (direction > 0 ? 'next' : 'previous') + ' row with differences found');
+        }
+        
+        // Show a brief flash message in the dialog
+        function showDiffFlash(message) {
+            var flash = document.getElementById('diffNavFlash');
+            if (!flash) {
+                flash = document.createElement('div');
+                flash.id = 'diffNavFlash';
+                flash.className = 'diff-nav-flash';
+                document.querySelector('.json-popup-content').appendChild(flash);
+            }
+            flash.textContent = message;
+            flash.classList.add('visible');
+            clearTimeout(window._diffFlashTimeout);
+            window._diffFlashTimeout = setTimeout(function() {
+                flash.classList.remove('visible');
+            }, 2000);
+        }
+        
         // Make functions globally available
         window.showCriteriaPopup = showCriteriaPopup;
         window.navigateCriteria = navigateCriteria;
+        window.navigateDiff = navigateDiff;
+        window.navigateAnyDiff = navigateAnyDiff;
         window.toggleIgnoreCriteria = toggleIgnoreCriteria;
         window.showJsonPopup = showJsonPopup;
         window.copyJsonAsDisplayed = copyJsonAsDisplayed;
