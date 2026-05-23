@@ -1303,15 +1303,19 @@ class ReportComparator {
         .neutral { color: #667; }
         .json-link { color: #0066cc; text-decoration: none; cursor: pointer; margin-left: 8px; font-size: 14px; padding: 2px 6px; background-color: #f0f8ff; border: 1px solid #0066cc; border-radius: 3px; display: inline-block; vertical-align: middle; }
         .json-link:hover { background-color: #e6f3ff; color: #0052a3; }
+        .json-link.active { background-color: #0066cc; color: white; border-color: #004499; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        .json-popup-nav { background: #6c757d; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .json-popup-nav:hover:not(:disabled) { background: #5a6268; }
+        .json-popup-nav:disabled { opacity: 0.4; cursor: not-allowed; }
         .json-popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; }
-        .json-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 8px; max-width: 80%; max-height: 80%; overflow: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
-        .json-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .json-popup-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 8px; width: 80%; height: 80%; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+        .json-popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; flex-shrink: 0; }
         .json-popup-buttons { display: flex; gap: 10px; }
         .json-popup-copy { background: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-copy:hover { background: #45a049; }
         .json-popup-close { background: #f44336; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
         .json-popup-close:hover { background: #d32f2f; }
-        .json-content { background: #f8f9fa; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; max-height: 60vh; overflow: auto; border: 1px solid #dee2e6; }
+        .json-content { background: #f8f9fa; padding: 15px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; flex: 1; min-height: 0; overflow: auto; border: 1px solid #dee2e6; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -1453,7 +1457,7 @@ class ReportComparator {
         
         ${
           comparison.functional_comparison.detailed_differences.length > 0
-            ? `
+            ? (() => { const criteriaDataList = []; return `
         <h3>Functional Differences</h3>
         <div class="table-container">
             <table class="comparison-table">
@@ -1522,7 +1526,9 @@ class ReportComparator {
                                   JSON.stringify(parsedJson);
                                 const encodedQParam =
                                   encodeURIComponent(modifiedJsonString);
-                                criteriaHtml = `<span class="json-link" onclick="showJsonPopup('${encodedQParam}')" title="Click to view the criteria">📄 Criteria</span>`;
+                                const criteriaIndex = criteriaDataList.length;
+                                criteriaDataList.push({ encoded: encodedQParam, testName: testName });
+                                criteriaHtml = `<span class="json-link" data-criteria-index="${criteriaIndex}" onclick="showCriteriaPopup(${criteriaIndex})" title="Click to view the criteria">📄 Criteria</span>`;
                               } catch (e) {
                                 // Not valid JSON, show as text
                                 criteriaHtml =
@@ -1552,7 +1558,8 @@ class ReportComparator {
                 </tbody>
             </table>
         </div>
-        `
+        <script>window.criteriaDataList = ${JSON.stringify(criteriaDataList)};</script>
+        `; })()
             : ""
         }
     </div>
@@ -2026,8 +2033,10 @@ class ReportComparator {
     <div id="jsonPopup" class="json-popup" onclick="closeJsonPopup(event)">
         <div class="json-popup-content" onclick="event.stopPropagation()">
             <div class="json-popup-header">
-                <h3>Search Criteria</h3>
+                <h3 id="criteriaTitle">Search Criteria</h3>
                 <div class="json-popup-buttons">
+                    <button id="criteriaPrev" class="json-popup-nav" onclick="navigateCriteria(-1)" title="Previous criteria" style="display:none;">← Prev</button>
+                    <button id="criteriaNext" class="json-popup-nav" onclick="navigateCriteria(1)" title="Next criteria" style="display:none;">Next →</button>
                     <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
                     <button class="json-popup-copy" onclick="copyJsonAsEncoded(event)" title="Copy JSON as URL-encoded">Copy URL-Encoded</button>
                     <button class="json-popup-close" onclick="closeJsonPopup()">Close</button>
@@ -2039,15 +2048,41 @@ class ReportComparator {
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // JSON Popup Functions
-        function showJsonPopup(jsonString) {
+        // Criteria navigation state
+        window.currentCriteriaIndex = -1;
+        
+        // Show criteria popup by index (from the criteriaDataList array)
+        function showCriteriaPopup(index) {
+            const list = window.criteriaDataList || [];
+            if (index < 0 || index >= list.length) return;
+            
+            window.currentCriteriaIndex = index;
+            showJsonPopupContent(list[index].encoded);
+            document.getElementById('criteriaTitle').textContent = list[index].testName;
+            updateCriteriaHighlight(index);
+            updateCriteriaNavButtons(index, list.length);
+        }
+        
+        // Navigate criteria by offset (-1 = prev, +1 = next)
+        function navigateCriteria(offset) {
+            const list = window.criteriaDataList || [];
+            const newIndex = window.currentCriteriaIndex + offset;
+            if (newIndex >= 0 && newIndex < list.length) {
+                showCriteriaPopup(newIndex);
+                // Scroll the active criteria button into view
+                const activeBtn = document.querySelector('.json-link.active');
+                if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+        
+        // Display JSON content in the popup
+        function showJsonPopupContent(jsonString) {
             try {
                 const parsed = JSON.parse(decodeURIComponent(jsonString));
                 const formatted = JSON.stringify(parsed, null, 2);
                 document.getElementById('jsonContent').textContent = formatted;
                 document.getElementById('jsonPopup').style.display = 'block';
                 
-                // Store the original and formatted JSON for copy functions
                 window.currentJsonData = {
                     formatted: formatted,
                     encoded: jsonString
@@ -2056,13 +2091,61 @@ class ReportComparator {
                 document.getElementById('jsonContent').textContent = 'Invalid JSON: ' + decodeURIComponent(jsonString);
                 document.getElementById('jsonPopup').style.display = 'block';
                 
-                // Store error data for copy functions
                 window.currentJsonData = {
                     formatted: 'Invalid JSON: ' + decodeURIComponent(jsonString),
                     encoded: jsonString
                 };
             }
         }
+        
+        // Legacy: show popup without navigation (for non-criteria uses)
+        function showJsonPopup(jsonString) {
+            window.currentCriteriaIndex = -1;
+            showJsonPopupContent(jsonString);
+            document.getElementById('criteriaTitle').textContent = 'Search Criteria';
+            updateCriteriaHighlight(-1);
+            // Hide nav buttons for non-indexed popups
+            document.getElementById('criteriaPrev').style.display = 'none';
+            document.getElementById('criteriaNext').style.display = 'none';
+        }
+        
+        // Highlight the active criteria button and remove highlight from others
+        function updateCriteriaHighlight(activeIndex) {
+            document.querySelectorAll('.json-link[data-criteria-index]').forEach(function(btn) {
+                var idx = parseInt(btn.getAttribute('data-criteria-index'));
+                if (idx === activeIndex) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        // Update prev/next button state
+        function updateCriteriaNavButtons(index, total) {
+            var prevBtn = document.getElementById('criteriaPrev');
+            var nextBtn = document.getElementById('criteriaNext');
+            prevBtn.style.display = '';
+            nextBtn.style.display = '';
+            prevBtn.disabled = (index <= 0);
+            nextBtn.disabled = (index >= total - 1);
+        }
+        
+        // Keyboard navigation for criteria popup
+        document.addEventListener('keydown', function(e) {
+            var popup = document.getElementById('jsonPopup');
+            if (popup.style.display !== 'block' || window.currentCriteriaIndex < 0) return;
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                navigateCriteria(-1);
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                navigateCriteria(1);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeJsonPopup();
+            }
+        });
         
         function copyToClipboard(event, dataSource, dataKey, buttonName) {
             const data = window[dataSource];
@@ -2095,10 +2178,13 @@ class ReportComparator {
         function closeJsonPopup(event) {
             if (!event || event.target === document.getElementById('jsonPopup')) {
                 document.getElementById('jsonPopup').style.display = 'none';
+                updateCriteriaHighlight(-1); // Clear active highlight when closing
             }
         }
         
         // Make functions globally available
+        window.showCriteriaPopup = showCriteriaPopup;
+        window.navigateCriteria = navigateCriteria;
         window.showJsonPopup = showJsonPopup;
         window.copyJsonAsDisplayed = copyJsonAsDisplayed;
         window.copyJsonAsEncoded = copyJsonAsEncoded;
