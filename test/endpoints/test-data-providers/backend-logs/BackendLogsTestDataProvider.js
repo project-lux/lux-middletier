@@ -8,6 +8,229 @@ import { ENDPOINT_KEYS } from "../../constants.js";
 const SEARCH_DATE_PREFIXES = ['20250820'];
 const RELATED_LIST_DATE_PREFIXES = ['20251216'];
 
+const FACETS_CONFIG = {
+  agentActiveDate: { indexReference: 'agentActiveStartDateLong' },
+  agentActivePlaceId: {
+    indexReference: 'agentActivePlaceId',
+    searchTermName: 'activeAtId',
+  },
+  agentEndDate: { indexReference: 'agentDiedStartDateLong' },
+  agentEndPlaceId: {
+    indexReference: 'agentEndPlaceId',
+    searchTermName: 'endAtId',
+  },
+  agentGenderId: { indexReference: 'agentGenderId' },
+  agentHasDigitalImage: { indexReference: 'agentHasDigitalImageBoolean' },
+  agentIdentifier: { indexReference: 'agentIdentifier' },
+  agentMemberOfId: { indexReference: 'agentMemberOfId' },
+  agentNationalityId: { indexReference: 'agentNationalityId' },
+  agentOccupationId: { indexReference: 'agentOccupationId' },
+  agentProfessionalActivityId: {
+    indexReference: 'agentProfessionalActivityId',
+  },
+  agentRecordType: { indexReference: 'agentDataTypeName' },
+  agentStartDate: { indexReference: 'agentBornStartDateLong' },
+  agentStartPlaceId: {
+    indexReference: 'agentStartPlaceId',
+    searchTermName: 'startAtId',
+  },
+  agentTypeId: {
+    indexReference: 'agentTypeId',
+    searchTermName: 'classificationId',
+  },
+  conceptHasDigitalImage: { indexReference: 'conceptHasDigitalImageBoolean' },
+  conceptIdentifier: { indexReference: 'conceptIdentifier' },
+  conceptInfluencedByAgentId: { indexReference: 'conceptInfluencedByAgentId' },
+  conceptInfluencedByConceptId: {
+    indexReference: 'conceptInfluencedByConceptId',
+  },
+  conceptInfluencedByEventId: { indexReference: 'conceptInfluencedByEventId' },
+  conceptInfluencedByPlaceId: { indexReference: 'conceptInfluencedByPlaceId' },
+  conceptPartOfId: {
+    indexReference: 'conceptPartOfId',
+    searchTermName: 'broaderId',
+  },
+  conceptRecordType: { indexReference: 'conceptDataTypeName' },
+  conceptTypeId: {
+    indexReference: 'conceptTypeId',
+    searchTermName: 'classificationId',
+  },
+  eventAgentId: {
+    indexReference: 'eventAgentId',
+    searchTermName: 'carriedOutById',
+  },
+  eventRecordType: { indexReference: 'eventDataTypeName' },
+  eventStartDate: { indexReference: 'eventInitiatedStartDateLong' },
+  eventEndDate: { indexReference: 'eventCompletedStartDateLong' },
+  eventIdentifier: { indexReference: 'eventIdentifier' },
+  eventPlaceId: {
+    indexReference: 'eventPlaceId',
+    searchTermName: 'tookPlaceAtId',
+  },
+  eventTypeId: {
+    indexReference: 'eventTypeId',
+    searchTermName: 'classificationId',
+  },
+  itemCarriedById: {
+    indexReference: 'itemCarriedById',
+    searchTermName: 'carriesId',
+  },
+  itemDepthDimensionValue: {
+    indexReference: 'itemDepthDimensionValue',
+    searchTermName: 'depth',
+  },
+  itemDimensionValue: {
+    indexReference: 'itemDimensionValue',
+    searchTermName: 'dimension',
+  },
+  itemEncounteredAgentId: {
+    indexReference: 'itemEncounteredAgentId',
+    searchTermName: 'encounteredById',
+  },
+  itemEncounteredDate: {
+    indexReference: 'itemEncounteredStartDateLong',
+    searchTermName: 'encounteredDate',
+  },
+  itemEncounteredPlaceId: {
+    indexReference: 'itemEncounteredPlaceId',
+    searchTermName: 'encounteredAtId',
+  },
+  itemHasDigitalImage: { indexReference: 'itemHasDigitalImageBoolean' },
+  itemHeightDimensionValue: {
+    indexReference: 'itemHeightDimensionValue',
+    searchTermName: 'height',
+  },
+  itemIsOnline: { indexReference: 'itemIsOnlineBoolean' },
+  itemIdentifier: { indexReference: 'itemIdentifier' },
+  itemMaterialId: { indexReference: 'itemMaterialId' },
+  itemMemberOfId: { indexReference: 'itemMemberOfId' },
+  itemProductionAgentId: {
+    indexReference: 'itemProductionAgentId',
+    searchTermName: 'producedById',
+  },
+  itemProductionDate: {
+    indexReference: 'itemProductionStartDateLong',
+    searchTermName: 'producedDate',
+  },
+  itemProductionPlaceId: {
+    indexReference: 'itemProductionPlaceId',
+    searchTermName: 'producedAtId',
+  },
+  itemProductionTechniqueId: {
+    indexReference: 'itemProductionTechniqueId',
+    searchTermName: 'producedUsing',
+  },
+  itemRecordType: { indexReference: 'itemDataTypeName' },
+  itemShownById: {
+    indexReference: 'itemShownById',
+    searchTermName: 'carriesId',
+  },
+  itemTypeId: {
+    indexReference: 'itemTypeId',
+    searchTermName: 'classificationId',
+  },
+  itemWidthDimensionValue: {
+    indexReference: 'itemWidthDimensionValue',
+    searchTermName: 'width',
+  },
+  placeHasDigitalImage: { indexReference: 'placeHasDigitalImageBoolean' },
+  placeIdentifier: { indexReference: 'placeIdentifier' },
+  placePartOfId: { indexReference: 'placePartOfId' },
+  placeTypeId: {
+    indexReference: 'placeTypeId',
+    searchTermName: 'classificationId',
+  },
+  setAboutAgentId: { indexReference: 'setAboutAgentId' },
+  setAboutConceptId: { indexReference: 'setAboutConceptId' },
+  setAboutEventId: { indexReference: 'setAboutEventId' },
+  setAboutItemId: { indexReference: 'setAboutItemId' },
+  setAboutPlaceId: { indexReference: 'setAboutPlaceId' },
+  setAboutSetId: { indexReference: 'setAboutSetId' },
+  setAboutWorkId: { indexReference: 'setAboutWorkId' },
+  setCreationAgentId: {
+    indexReference: 'setCreationAgentId',
+    searchTermName: 'createdById',
+  },
+  setCreationDate: {
+    indexReference: 'setCreationStartDateLong',
+    searchTermName: 'createdDate',
+  },
+  setCreationOrPublicationDate: {
+    subFacets: ['setCreationDate', 'setPublicationDate'],
+  },
+  setCreationPlaceId: {
+    indexReference: 'setCreationPlaceId',
+    searchTermName: 'createdAtId',
+  },
+  setCurationAgentId: { indexReference: 'setCurationAgentId' },
+  setHasDigitalImage: { indexReference: 'setHasDigitalImageBoolean' },
+  setIdentifier: { indexReference: 'setIdentifier' },
+  setIsOnline: { indexReference: 'setIsOnlineBoolean' },
+  setLastModifiedById: { indexReference: 'setLastModifiedByAgentId' },
+  setLastModifiedDate: { indexReference: 'setLastModifiedStartDateLong' },
+  setPartOfId: { indexReference: 'setPartOfId' },
+  setPublicationAgentId: {
+    indexReference: 'setPublicationAgentId',
+    searchTermName: 'publishedById',
+  },
+  setPublicationDate: {
+    indexReference: 'setPublicationStartDateLong',
+    searchTermName: 'publishedDate',
+  },
+  setPublicationPlaceId: {
+    indexReference: 'setPublicationPlaceId',
+    searchTermName: 'publishedAtId',
+  },
+  setTypeId: {
+    indexReference: 'setTypeId',
+    searchTermName: 'classificationId',
+  },
+  workAboutAgentId: { indexReference: 'workAboutAgentId' },
+  workAboutConceptId: { indexReference: 'workAboutConceptId' },
+  workAboutEventId: { indexReference: 'workAboutEventId' },
+  workAboutItemId: { indexReference: 'workAboutItemId' },
+  workAboutPlaceId: { indexReference: 'workAboutPlaceId' },
+  workAboutSetId: { indexReference: 'workAboutSetId' },
+  workAboutWorkId: { indexReference: 'workAboutWorkId' },
+  workCreationAgentId: {
+    indexReference: 'workCreationAgentId',
+    searchTermName: 'createdById',
+  },
+  workCreationDate: {
+    indexReference: 'workCreationStartDateLong',
+    searchTermName: 'createdDate',
+  },
+  workCreationOrPublicationDate: {
+    subFacets: ['workCreationDate', 'workPublicationDate'],
+  },
+  workCreationPlaceId: {
+    indexReference: 'workCreationPlaceId',
+    searchTermName: 'createdAtId',
+  },
+  workHasDigitalImage: { indexReference: 'workHasDigitalImageBoolean' },
+  workIdentifier: { indexReference: 'workIdentifier' },
+  workIsOnline: { indexReference: 'workIsOnlineBoolean' },
+  workLanguageId: { indexReference: 'workLanguageId' },
+  workPartOfId: { indexReference: 'workPartOfId' },
+  workPublicationAgentId: {
+    indexReference: 'workPublicationAgentId',
+    searchTermName: 'publishedById',
+  },
+  workPublicationDate: {
+    indexReference: 'workPublicationStartDateLong',
+    searchTermName: 'publishedDate',
+  },
+  workPublicationPlaceId: {
+    indexReference: 'workPublicationPlaceId',
+    searchTermName: 'publishedAtId',
+  },
+  workRecordType: { indexReference: 'workDataTypeName' },
+  workTypeId: {
+    indexReference: 'workTypeId',
+    searchTermName: 'classificationId',
+  },
+};
+
 /**
  * Backend Logs Test Data Provider
  *
@@ -250,6 +473,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       // ENDPOINT_KEYS.GET_DATA,
       ENDPOINT_KEYS.GET_RELATED_LIST,
       ENDPOINT_KEYS.GET_SEARCH,
+      ENDPOINT_KEYS.GET_FACETS,
     ].includes(endpointKey);
   }
 
@@ -283,7 +507,7 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
 
         // Parse different types of log entries based on what's needed for this endpoint
         if (
-          ENDPOINT_KEYS.GET_SEARCH === endpointKey &&
+          (ENDPOINT_KEYS.GET_SEARCH === endpointKey || ENDPOINT_KEYS.GET_FACETS === endpointKey) &&
           line.includes("[Event:id=LuxSearch]") &&
           line.includes('"requestCompleted":true')
         ) {
@@ -471,6 +695,8 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
         return this.extractSearchTestCases(logData, sourceFile);
       case ENDPOINT_KEYS.GET_RELATED_LIST:
         return this.extractRelatedListTestCases(logData, sourceFile);
+      case ENDPOINT_KEYS.GET_FACETS:
+        return this.extractFacetsTestCases(logData, sourceFile);
       // case ENDPOINT_KEYS.GET_DATA:
       //   return this.extractDocumentTestCases(logData, sourceFile);
       default:
@@ -528,6 +754,87 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
       };
 
       testCases.push(testCase);
+    }
+
+    return testCases;
+  }
+
+  /**
+   * Extract facets test cases
+   * This uses the search log entries
+   * @param {Array} logData - Parsed log data array
+   * @param {string} sourceFile - Source file relative path
+   * @returns {Array<Object>} - Test cases
+   */
+  extractFacetsTestCases(logData, sourceFile) {
+    const testCases = [];
+    const sourceLabel = this.createSourceLabel(sourceFile);
+
+    // Process search request data from the array
+    for (let i = 0; i < logData.length; i++) {
+      const request = logData[i];
+      // Determine the q parameter value
+      let qParam = "";
+      if (request.searchParams.q) {
+        // Simple string query
+        qParam = request.searchParams.q;
+      } else if (request.searchParams.text) {
+        // Text-based search
+        qParam = request.searchParams.text;
+      } else {
+        // Check if we have other search criteria
+        const criteriaWithoutScope = { ...request.searchParams };
+        delete criteriaWithoutScope.scope; // Remove scope as it's handled separately
+
+        if (Object.keys(criteriaWithoutScope).length > 1) {
+          // More than just scope
+          // We have complex search criteria - serialize as JSON string
+          qParam = JSON.stringify(criteriaWithoutScope);
+        }
+      }
+
+      const facetsByScope = {};
+      Object.keys(FACETS_CONFIG).forEach((facet) => {
+        const scope = facet.split(/[A-Z]/)[0];
+        if (!facetsByScope[scope]) {
+          facetsByScope[scope] = [];
+        }
+        facetsByScope[scope].push(facet);
+      })
+
+      const scope = request.searchParams.scope || "item";
+      const facetsForScope = facetsByScope[scope] || [];
+      // shuffle an array
+      function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          // Generate a random index between 0 and i
+          const j = Math.floor(Math.random() * (i + 1));
+          
+          // Swap elements at i and j
+          [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+      }
+      // generating all facets for every search is too many configs, so shuffle and take 5 random facets for this scope
+      shuffle(facetsForScope).slice(0, 5).forEach((facet) => {
+        const testCase = {
+          testName: `Facet ${facet} for Line ${i + 1} in ${sourceLabel} at ${request.timestamp}`,
+          timestamp: request.timestamp,
+          duration: request.duration || 5000, // Default duration since request context may not have timing
+          expectedStatus: 200, // Assume successful
+          timeout: 30000, // Default timeout
+          maxResponseTime: 10000, // Default max response time
+          params: {
+            scope,
+            q: qParam,
+            name: facet,
+          },
+          sourceFile,
+          rawLine: request.rawLine,
+        };
+
+        testCases.push(testCase);
+      })
     }
 
     return testCases;
