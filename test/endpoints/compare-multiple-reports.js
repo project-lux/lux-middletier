@@ -7,9 +7,9 @@ const baseDir = '/test-data/lux-middletier/test/endpoints';
 // Define your combinations here
 const configurations = [
   {
-    comparisonName: 'only-keyword-ordering-search-84997',
-    baselineEndpointsDir: 'cts-v-optic/cts-search-84997/endpoints',
-    currentEndpointsDir: 'cts-v-optic/2026-05-22-optic-search-84997/endpoints',
+    comparisonName: '2026-05-26-performance-comparison',
+    baselineEndpointsDir: 'cts-v-optic/2026-05-26-cts-performance/endpoints',
+    currentEndpointsDir: 'cts-v-optic/2026-05-26-optic-performance/endpoints',
     baseOutputDir: 'cts-v-optic/comparisons'
   },
 ];

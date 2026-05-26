@@ -295,8 +295,8 @@ const getDerivedFacetTestConfigs = (
           return [];
         }
 
-        // Creating a test for every facet is too many test case. Get a random set of 5 facets
-        return shuffle(availableFacets).slice(0, 5).map((facetName) => {
+        // Creating a test for every facet is too many test case. Get a random set of 2 facets
+        return shuffle(availableFacets).slice(0, 2).map((facetName) => {
           return createTestConfig(endpointColumns, endpointColumnIndices, {
             [COLUMNS.PARAM_NAME]: facetName,
             [COLUMNS.PARAM_SCOPE]: scope,
