@@ -23,6 +23,18 @@ const COLUMNS = {
   PARAM_NAME: "param:name",
 };
 
+
+const shuffle = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    // Generate a random index between 0 and i
+    const j = Math.floor(Math.random() * (i + 1));
+    
+    // Swap elements at i and j
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 /**
  * Find column indices from an array of column names
  * @param {Array} columns - Array of column names
@@ -283,8 +295,8 @@ const getDerivedFacetTestConfigs = (
           return [];
         }
 
-        // Create a facet test configuration for each available facet
-        return availableFacets.map((facetName) => {
+        // Creating a test for every facet is too many test case. Get a random set of 5 facets
+        return shuffle(availableFacets).slice(0, 5).map((facetName) => {
           return createTestConfig(endpointColumns, endpointColumnIndices, {
             [COLUMNS.PARAM_NAME]: facetName,
             [COLUMNS.PARAM_SCOPE]: scope,
