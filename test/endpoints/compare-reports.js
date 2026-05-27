@@ -2247,6 +2247,131 @@ class ReportComparator {
                 toggleIgnoreCriteria();
             }
         });
+
+            // Pagination for Slowest Baseline Tests
+            let baselineCurrentPage = 1;
+            let baselinePageSize = 20;
+
+            window.updateBaselinePagination = function() {
+              baselinePageSize = parseInt(document.getElementById('baselinePageSize').value);
+              baselineCurrentPage = 1;
+              showBaselinePage();
+            }
+
+            function showBaselinePage() {
+              const rows = document.querySelectorAll('.baseline-table-row');
+              const totalRows = rows.length;
+              const totalPages = Math.ceil(totalRows / baselinePageSize);
+              const startIndex = (baselineCurrentPage - 1) * baselinePageSize;
+              const endIndex = Math.min(startIndex + baselinePageSize, totalRows);
+
+              rows.forEach(row => row.style.display = 'none');
+
+              for (let i = startIndex; i < endIndex; i++) {
+                if (rows[i]) rows[i].style.display = '';
+              }
+
+              document.getElementById('baselinePaginationInfo').textContent =
+                'Showing ' + (startIndex + 1) + '-' + endIndex + ' of ' + totalRows + ' tests';
+
+              const controls = document.getElementById('baselinePaginationControls');
+              controls.innerHTML = '';
+
+              if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← Previous';
+                prevBtn.disabled = baselineCurrentPage === 1;
+                prevBtn.onclick = () => { baselineCurrentPage--; showBaselinePage(); };
+                prevBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (prevBtn.disabled) prevBtn.style.opacity = '0.5';
+                controls.appendChild(prevBtn);
+
+                const startPage = Math.max(1, baselineCurrentPage - 2);
+                const endPage = Math.min(totalPages, startPage + 4);
+
+                for (let page = startPage; page <= endPage; page++) {
+                  const pageBtn = document.createElement('button');
+                  pageBtn.textContent = page;
+                  pageBtn.onclick = () => { baselineCurrentPage = page; showBaselinePage(); };
+                  pageBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; ' + (page === baselineCurrentPage ? 'background: #007bff; color: white;' : '');
+                  controls.appendChild(pageBtn);
+                }
+
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next →';
+                nextBtn.disabled = baselineCurrentPage === totalPages;
+                nextBtn.onclick = () => { baselineCurrentPage++; showBaselinePage(); };
+                nextBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (nextBtn.disabled) nextBtn.style.opacity = '0.5';
+                controls.appendChild(nextBtn);
+              }
+            }
+
+            // Pagination for Slowest Current Tests
+            let currentCurrentPage = 1;
+            let currentPageSize = 20;
+
+            window.updateCurrentPagination = function() {
+              currentPageSize = parseInt(document.getElementById('currentPageSize').value);
+              currentCurrentPage = 1;
+              showCurrentPage();
+            }
+
+            function showCurrentPage() {
+              const rows = document.querySelectorAll('.current-table-row');
+              const totalRows = rows.length;
+              const totalPages = Math.ceil(totalRows / currentPageSize);
+              const startIndex = (currentCurrentPage - 1) * currentPageSize;
+              const endIndex = Math.min(startIndex + currentPageSize, totalRows);
+
+              rows.forEach(row => row.style.display = 'none');
+
+              for (let i = startIndex; i < endIndex; i++) {
+                if (rows[i]) rows[i].style.display = '';
+              }
+
+              document.getElementById('currentPaginationInfo').textContent =
+                'Showing ' + (startIndex + 1) + '-' + endIndex + ' of ' + totalRows + ' tests';
+
+              const controls = document.getElementById('currentPaginationControls');
+              controls.innerHTML = '';
+
+              if (totalPages > 1) {
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = '← Previous';
+                prevBtn.disabled = currentCurrentPage === 1;
+                prevBtn.onclick = () => { currentCurrentPage--; showCurrentPage(); };
+                prevBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (prevBtn.disabled) prevBtn.style.opacity = '0.5';
+                controls.appendChild(prevBtn);
+
+                const startPage = Math.max(1, currentCurrentPage - 2);
+                const endPage = Math.min(totalPages, startPage + 4);
+
+                for (let page = startPage; page <= endPage; page++) {
+                  const pageBtn = document.createElement('button');
+                  pageBtn.textContent = page;
+                  pageBtn.onclick = () => { currentCurrentPage = page; showCurrentPage(); };
+                  pageBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; ' + (page === currentCurrentPage ? 'background: #007bff; color: white;' : '');
+                  controls.appendChild(pageBtn);
+                }
+
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next →';
+                nextBtn.disabled = currentCurrentPage === totalPages;
+                nextBtn.onclick = () => { currentCurrentPage++; showCurrentPage(); };
+                nextBtn.style.cssText = 'padding: 5px 10px; margin: 0 2px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;';
+                if (nextBtn.disabled) nextBtn.style.opacity = '0.5';
+                controls.appendChild(nextBtn);
+              }
+            }
+
+            if (document.querySelector('.baseline-table-row')) {
+              showBaselinePage();
+            }
+            if (document.querySelector('.current-table-row')) {
+              showCurrentPage();
+            }
         
         function copyToClipboard(event, dataSource, dataKey, buttonName) {
             const data = window[dataSource];
