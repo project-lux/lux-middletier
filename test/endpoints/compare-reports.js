@@ -2089,8 +2089,6 @@ class ReportComparator {
                 <div class="json-popup-buttons">
                     <label id="criteriaIgnoreLabel" class="criteria-ignore-label" style="display:none;" title="Mark this row as reviewed/ignored"><input type="checkbox" id="criteriaIgnoreCheck" onchange="toggleIgnoreCriteria()">Ignore</label>
                     <button id="criteriaPrev" class="json-popup-nav" onclick="navigateCriteria(-1)" title="Previous criteria" style="display:none;">← Prev</button>
-                    <button id="criteriaPrevDiff" class="json-popup-nav" onclick="navigateAnyDiff(-1)" title="Previous row with any difference" style="display:none;">← Prev Diff</button>
-                    <button id="criteriaNextDiff" class="json-popup-nav" onclick="navigateAnyDiff(1)" title="Next row with any difference" style="display:none;">Next Diff →</button>
                     <button id="criteriaNext" class="json-popup-nav" onclick="navigateCriteria(1)" title="Next criteria" style="display:none;">Next →</button>
                     <button class="json-popup-copy" onclick="copyJsonAsDisplayed(event)" title="Copy JSON as displayed">Copy JSON</button>
                     <button class="json-popup-copy" onclick="copyJsonAsEncoded(event)" title="Copy JSON as URL-encoded">Copy URL-Encoded</button>
@@ -2203,8 +2201,6 @@ class ReportComparator {
             // Hide nav buttons and ignore checkbox for non-indexed popups
             document.getElementById('criteriaPrev').style.display = 'none';
             document.getElementById('criteriaNext').style.display = 'none';
-            document.getElementById('criteriaPrevDiff').style.display = 'none';
-            document.getElementById('criteriaNextDiff').style.display = 'none';
             document.getElementById('criteriaIgnoreLabel').style.display = 'none';
             document.getElementById('criteriaSummary').style.display = 'none';
         }
@@ -2225,16 +2221,10 @@ class ReportComparator {
         function updateCriteriaNavButtons(index, total) {
             var prevBtn = document.getElementById('criteriaPrev');
             var nextBtn = document.getElementById('criteriaNext');
-            var prevDiffBtn = document.getElementById('criteriaPrevDiff');
-            var nextDiffBtn = document.getElementById('criteriaNextDiff');
             prevBtn.style.display = '';
             nextBtn.style.display = '';
-            prevDiffBtn.style.display = '';
-            nextDiffBtn.style.display = '';
             prevBtn.disabled = (index <= 0);
             nextBtn.disabled = (index >= total - 1);
-            prevDiffBtn.disabled = (index <= 0);
-            nextDiffBtn.disabled = (index >= total - 1);
         }
         
         // Keyboard navigation for criteria popup
@@ -2316,29 +2306,6 @@ class ReportComparator {
             showDiffFlash('No ' + (direction > 0 ? 'next' : 'previous') + ' diff found for ' + (list[startIndex].summary[colIndex]?.label || 'this column'));
         }
         
-        // Navigate to next/previous row that has ANY diff in any summary column
-        function navigateAnyDiff(direction) {
-            var list = window.criteriaDataList || [];
-            var startIndex = window.currentCriteriaIndex;
-            var i = startIndex + direction;
-            while (i >= 0 && i < list.length) {
-                var entry = list[i];
-                if (entry.summary) {
-                    for (var c = 0; c < entry.summary.length; c++) {
-                        var html = entry.summary[c].html;
-                        if (html.indexOf('class="positive"') === -1 && html.indexOf('class="neutral"') === -1) {
-                            showCriteriaPopup(i);
-                            var activeBtn = document.querySelector('.json-link.active');
-                            if (activeBtn) activeBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                            return;
-                        }
-                    }
-                }
-                i += direction;
-            }
-            showDiffFlash('No ' + (direction > 0 ? 'next' : 'previous') + ' row with differences found');
-        }
-        
         // Show a brief flash message in the dialog
         function showDiffFlash(message) {
             var flash = document.getElementById('diffNavFlash');
@@ -2360,7 +2327,6 @@ class ReportComparator {
         window.showCriteriaPopup = showCriteriaPopup;
         window.navigateCriteria = navigateCriteria;
         window.navigateDiff = navigateDiff;
-        window.navigateAnyDiff = navigateAnyDiff;
         window.toggleIgnoreCriteria = toggleIgnoreCriteria;
         window.showJsonPopup = showJsonPopup;
         window.copyJsonAsDisplayed = copyJsonAsDisplayed;
