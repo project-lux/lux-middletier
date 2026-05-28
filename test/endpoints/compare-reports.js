@@ -32,10 +32,20 @@ function isScoringImportant(query) {
 // Normalize item IDs to path-only (strip domain) since baseline and current
 // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
 // but use the same entity paths like /data/object/<uuid>.
-function normalizeId(id) {
+function normalizeDocId(id) {
   if (!id) return id;
   try {
     return new URL(id).pathname;
+  } catch {
+    return id; // Not a URL, use as-is
+  }
+};
+
+function normalizeSearchEstimateId(id) {
+  if (!id) return id;
+  try {
+    const url = new URL(id);
+    return url.pathname + url.search;
   } catch {
     return id; // Not a URL, use as-is
   }
@@ -594,8 +604,8 @@ class ReportComparator {
       // Check if the same items are present (regardless of order)
 
 
-      const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeId(item.id));
+      const baselineNormIds = baselineItems.map((item) => normalizeDocId(item.id));
+      const currentNormIds = currentItems.map((item) => normalizeDocId(item.id));
       const baselineIdSet = new Set(baselineNormIds);
       const currentIdSet = new Set(currentNormIds);
 
@@ -710,8 +720,8 @@ class ReportComparator {
 
       // Check if the same items are present (regardless of order)
 
-      const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeId(item.id));
+      const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
+      const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
       const baselineIdSet = new Set(baselineNormIds);
       const currentIdSet = new Set(currentNormIds);
 
@@ -762,7 +772,7 @@ class ReportComparator {
         }
 
         function getChildTotalItemsById(items, id) {
-          const item = items.find((item) => normalizeId(item.id) === id);
+          const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
           return item ? item.totalItems || 0 : 0;
         }
         const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
@@ -833,8 +843,8 @@ class ReportComparator {
 
       // Check if the same items are present (regardless of order)
 
-      const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeId(item.id));
+      const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
+      const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
       const baselineIdSet = new Set(baselineNormIds);
       const currentIdSet = new Set(currentNormIds);
 
@@ -883,7 +893,7 @@ class ReportComparator {
             itemsMoved++;
           }
           function getChildTotalItemsById(items, id) {
-            const item = items.find((item) => normalizeId(item.id) === id);
+            const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
             return item ? item.totalItems || 0 : 0;
           }
           const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
