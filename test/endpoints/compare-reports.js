@@ -29,6 +29,18 @@ function isScoringImportant(query) {
   return false;
 }
 
+// Normalize item IDs to path-only (strip domain) since baseline and current
+// may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
+// but use the same entity paths like /data/object/<uuid>.
+function normalizeId(id) {
+  if (!id) return id;
+  try {
+    return new URL(id).pathname;
+  } catch {
+    return id; // Not a URL, use as-is
+  }
+};
+
 class ReportComparator {
   constructor(
     baselineFile,
@@ -580,17 +592,7 @@ class ReportComparator {
 
     if (scoringImportant) {
       // Check if the same items are present (regardless of order)
-      // Normalize item IDs to path-only (strip domain) since baseline and current
-      // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
-      // but use the same entity paths like /data/object/<uuid>.
-      const normalizeId = (id) => {
-        if (!id) return id;
-        try {
-          return new URL(id).pathname;
-        } catch {
-          return id; // Not a URL, use as-is
-        }
-      };
+
 
       const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
       const currentNormIds = currentItems.map((item) => normalizeId(item.id));
@@ -707,17 +709,6 @@ class ReportComparator {
     }
 
       // Check if the same items are present (regardless of order)
-      // Normalize item IDs to path-only (strip domain) since baseline and current
-      // may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
-      // but use the same entity paths like /data/object/<uuid>.
-      const normalizeId = (id) => {
-        if (!id) return id;
-        try {
-          return new URL(id).pathname;
-        } catch {
-          return id; // Not a URL, use as-is
-        }
-      };
 
       const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
       const currentNormIds = currentItems.map((item) => normalizeId(item.id));
@@ -757,7 +748,9 @@ class ReportComparator {
         );
 
         // Count how many individual items moved from their baseline position
+        // Also count how many items have different counts (e.g., different facet counts for the same facet value)
         let itemsMoved = 0;
+        let differentChildTotalItems = 0;
         for (let i = 0; i < baselineOverlapOrder.length; i++) {
           const itemId = baselineOverlapOrder[i];
           const currentPosition = currentOverlapOrder.indexOf(itemId);
@@ -765,6 +758,138 @@ class ReportComparator {
           // If the item is not at the same position, it moved
           if (currentPosition !== i) {
             itemsMoved++;
+          }
+        }
+
+        function getChildTotalItemsById(items, id) {
+          const item = items.find((item) => normalizeId(item.id) === id);
+          return item ? item.totalItems || 0 : 0;
+        }
+        const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
+        const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+        if (baselineItemTotalItems !== currentItemTotalItems) {
+          differentChildTotalItems++;
+        }
+
+        if (itemsMoved > 0) {
+          comparison.differences.push({
+            type: "ordering_differences",
+            overlapping_items_count: overlappingIds.length,
+            total_items_baseline: baselineItems.length,
+            total_items_current: currentItems.length,
+            items_moved: itemsMoved,
+            baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
+            current_order: currentOverlapOrder.slice(0, 5),
+          });
+        }
+        if (differentChildTotalItems > 0) {
+          comparison.differences.push({
+            type: "child_total_items_differences",
+            overlapping_items_count: overlappingIds.length,
+            total_items_baseline: baselineItems.length,
+            total_items_current: currentItems.length,
+            items_with_different_child_total_items: differentChildTotalItems,
+          });
+        }
+      }
+    
+  }
+
+  /**
+   * Compare related list endpoint responses (placeholder for future implementation)
+   */
+  compareRelatedListResponses(baselineData, currentData, comparison) {
+    // TODO: Implement related list-specific comparison logic
+    // This will compare related items, relationships, etc.
+
+    
+    // Compare ordered items (result ordering)
+    const PAGE_SIZE = 20;
+    const baselineItems = baselineData?.orderedItems || [];
+    const currentItems = currentData?.orderedItems || [];
+
+    // Use orderedItems count when available, otherwise estimate from totalItems
+    const baselineResultCount =
+      baselineItems.length > 0
+        ? baselineItems.length
+        : Math.min(baselineTotalItems || 0, PAGE_SIZE);
+    const currentResultCount =
+      currentItems.length > 0
+        ? currentItems.length
+        : Math.min(currentTotalItems || 0, PAGE_SIZE);
+
+    // Always store result count info for display purposes
+    comparison.result_count_info = {
+      type: "result_count_mismatch",
+      baseline_count: baselineResultCount,
+      current_count: currentResultCount,
+      is_mismatch: baselineResultCount !== currentResultCount,
+    };
+
+    // Only add to differences if there's a mismatch
+    if (baselineResultCount !== currentResultCount) {
+      comparison.differences.push(comparison.result_count_info);
+    }
+
+      // Check if the same items are present (regardless of order)
+
+      const baselineNormIds = baselineItems.map((item) => normalizeId(item.id));
+      const currentNormIds = currentItems.map((item) => normalizeId(item.id));
+      const baselineIdSet = new Set(baselineNormIds);
+      const currentIdSet = new Set(currentNormIds);
+
+      const missingInCurrent = [...baselineIdSet].filter(
+        (id) => !currentIdSet.has(id),
+      );
+      const extraInCurrent = [...currentIdSet].filter(
+        (id) => !baselineIdSet.has(id),
+      );
+
+      if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+        comparison.differences.push({
+          type: "result_set_mismatch",
+          missing_in_current: missingInCurrent,
+          extra_in_current: extraInCurrent,
+          missing_count: missingInCurrent.length,
+          extra_count: extraInCurrent.length,
+        });
+      }
+
+      // Check ordering differences for overlapping items (regardless of missing/extra items)
+      const overlappingIds = [...baselineIdSet].filter((id) =>
+        currentIdSet.has(id),
+      );
+
+      if (overlappingIds.length > 0) {
+        const overlappingSet = new Set(overlappingIds);
+        // Create ordered lists of overlapping items based on their appearance in each result set
+        const baselineOverlapOrder = baselineNormIds.filter((id) =>
+          overlappingSet.has(id),
+        );
+        const currentOverlapOrder = currentNormIds.filter((id) =>
+          overlappingSet.has(id),
+        );
+
+        // Count how many individual items moved from their baseline position
+        // Also count how many items have different totalItems counts for the same item (e.g., different related item counts for the same entity) 
+        let itemsMoved = 0;
+        let differentChildTotalItems = 0;
+        for (let i = 0; i < baselineOverlapOrder.length; i++) {
+          const itemId = baselineOverlapOrder[i];
+          const currentPosition = currentOverlapOrder.indexOf(itemId);
+
+          // If the item is not at the same position, it moved
+          if (currentPosition !== i) {
+            itemsMoved++;
+          }
+          function getChildTotalItemsById(items, id) {
+            const item = items.find((item) => normalizeId(item.id) === id);
+            return item ? item.totalItems || 0 : 0;
+          }
+          const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
+          const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+          if (baselineItemTotalItems !== currentItemTotalItems) {
+            differentChildTotalItems++;
           }
         }
 
@@ -779,16 +904,17 @@ class ReportComparator {
             current_order: currentOverlapOrder.slice(0, 5),
           });
         }
-      }
-    
-  }
 
-  /**
-   * Compare related list endpoint responses (placeholder for future implementation)
-   */
-  compareRelatedListResponses(baselineData, currentData, comparison) {
-    // TODO: Implement related list-specific comparison logic
-    // This will compare related items, relationships, etc.
+        if (differentChildTotalItems > 0) {
+          comparison.differences.push({
+            type: "child_total_items_differences",
+            overlapping_items_count: overlappingIds.length,
+            total_items_baseline: baselineItems.length,
+            total_items_current: currentItems.length,
+            items_with_different_child_total_items: differentChildTotalItems,
+          });
+        }
+      }
   }
 
   /**
@@ -1607,6 +1733,7 @@ class ReportComparator {
                         <th>Result Count</th>
                         <th>Result Set</th>
                         <th>Ordering</th>
+                        <th>Child Total Items</th>
                         <th>Criteria</th>
                     </tr>
                 </thead>
@@ -1636,6 +1763,9 @@ class ReportComparator {
                         );
                         const orderingDiff = diff.differences?.find(
                           (d) => d.type === "ordering_differences",
+                        );
+                        const childTotalItemsDiff = diff.differences?.find(
+                          (d) => d.type === "child_total_items_differences",
                         );
 
                         // Extract query criteria from URL
@@ -1692,6 +1822,12 @@ class ReportComparator {
                                         ? '<span class="neutral">N/A</span>'
                                         : '<span class="positive">\u2713 Match</span>',
                                   },
+                                  {
+                                    label: "Child Total Items",
+                                    html: childTotalItemsDiff
+                                      ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>`
+                                      : '<span class="positive">\u2713 Match</span>',
+                                  }
                                 ];
                                 criteriaDataList.push({
                                   encoded: encodedQParam,
