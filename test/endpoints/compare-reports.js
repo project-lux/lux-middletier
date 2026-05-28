@@ -1857,6 +1857,7 @@ class ReportComparator {
                               //       : qParam;
                               // }
                           } catch (e) {
+                            console.log("Error parsing URL for criteria extraction:", e);
                             // URL parsing failed
                           }
                         }
