@@ -1780,6 +1780,7 @@ class ReportComparator {
 
                         // Extract query criteria from URL
                         let criteriaHtml = "N/A";
+                        console.log("diff.baseline_url:", diff.baseline_url);
                         if (diff.baseline_url) {
                           criteriaHtml = diff.baseline_url;
                           try {
