@@ -1771,6 +1771,7 @@ class ReportComparator {
                         // Extract query criteria from URL
                         let criteriaHtml = "N/A";
                         if (diff.baseline_url) {
+                          let criteriaHtml = diff.baseline_url;
                           try {
                             const urlObj = new URL(diff.baseline_url);
                             const qParam = urlObj.searchParams.get("q");
