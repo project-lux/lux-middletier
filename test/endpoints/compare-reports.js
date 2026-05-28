@@ -1785,6 +1785,10 @@ class ReportComparator {
                           try {
                             const urlObj = new URL(diff.baseline_url);
                             const qParam = urlObj.searchParams.get("q");
+                            // If there isn't a 'q' parameter, take all query parameters as criteria
+                            const params = !qParam ? Object.fromEntries(urlObj.searchParams.entries()) : null;
+                            // START Lots of work to add scope to q parameter
+
                             // Extract scope from URL path: /api/search/[scope]?...
                             const scopeMatch = diff.baseline_url.match(
                               /\/api\/search\/([a-z]+)[\/?]/,
@@ -1792,68 +1796,66 @@ class ReportComparator {
                             const scopeParam = scopeMatch
                               ? scopeMatch[1]
                               : null;
-                            if (qParam) {
-                              try {
-                                const parsedJson = JSON.parse(
-                                  decodeURIComponent(qParam),
-                                );
-                                // Add _scope property if scope exists in URL path
-                                if (scopeParam) {
-                                  parsedJson._scope = scopeParam;
-                                }
-                                const modifiedJsonString =
-                                  JSON.stringify(parsedJson);
-                                const encodedQParam =
-                                  encodeURIComponent(modifiedJsonString);
-                                const criteriaIndex = criteriaDataList.length;
-                                const summaryItems = [
-                                  {
-                                    label: "Total Items",
-                                    html: totalItemsInfo?.is_mismatch
-                                      ? `<span class="negative">${totalItemsInfo.baseline_total} \u2192 ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? "+" : ""}${totalItemsInfo.difference})</span>`
-                                      : `<span class="positive">\u2713 Match: ${totalItemsInfo?.baseline_total ?? "?"}</span>`,
-                                  },
-                                  {
-                                    label: "Result Count",
-                                    html: resultCountDiff?.is_mismatch
-                                      ? `<span class="negative">${resultCountDiff.baseline_count} \u2192 ${resultCountDiff.current_count}</span>`
-                                      : `<span class="positive">\u2713 Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`,
-                                  },
-                                  {
-                                    label: "Result Set",
-                                    html: resultSetDiff
-                                      ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>`
-                                      : '<span class="positive">\u2713 Match</span>',
-                                  },
-                                  {
-                                    label: "Ordering",
-                                    html: orderingDiff
-                                      ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>`
-                                      : resultCountDiff
-                                        ? '<span class="neutral">N/A</span>'
-                                        : '<span class="positive">\u2713 Match</span>',
-                                  },
-                                  {
-                                    label: "Child Total Items",
-                                    html: childTotalItemsDiff
-                                      ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>`
-                                      : '<span class="positive">\u2713 Match</span>',
-                                  }
-                                ];
-                                criteriaDataList.push({
-                                  encoded: encodedQParam,
-                                  testName: testName,
-                                  summary: summaryItems,
-                                });
-                                criteriaHtml = `<span class="json-link" data-criteria-index="${criteriaIndex}" onclick="showCriteriaPopup(${criteriaIndex})" title="Click to view the criteria">📄 Criteria</span>`;
-                              } catch (e) {
-                                // Not valid JSON, show as text
-                                criteriaHtml =
-                                  qParam.length > 30
-                                    ? qParam.substring(0, 30) + "..."
-                                    : qParam;
-                              }
+                            const parsedJson = qParam ? JSON.parse(
+                              decodeURIComponent(qParam),
+                            ) : null;
+                            // Add _scope property if scope exists in URL path
+                            if (scopeParam && parsedJson) {
+                              parsedJson._scope = scopeParam;
                             }
+                            const modifiedJsonString = parsedJson ? JSON.stringify(parsedJson) : null;
+                            const encodedQParam = modifiedJsonString ?
+                              encodeURIComponent(modifiedJsonString) : null;
+
+                            // END lots of work to add scope to q parameter
+                            const criteriaIndex = criteriaDataList.length;
+                            const summaryItems = [
+                              {
+                                label: "Total Items",
+                                html: totalItemsInfo?.is_mismatch
+                                  ? `<span class="negative">${totalItemsInfo.baseline_total} \u2192 ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? "+" : ""}${totalItemsInfo.difference})</span>`
+                                  : `<span class="positive">\u2713 Match: ${totalItemsInfo?.baseline_total ?? "?"}</span>`,
+                              },
+                              {
+                                label: "Result Count",
+                                html: resultCountDiff?.is_mismatch
+                                  ? `<span class="negative">${resultCountDiff.baseline_count} \u2192 ${resultCountDiff.current_count}</span>`
+                                  : `<span class="positive">\u2713 Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`,
+                              },
+                              {
+                                label: "Result Set",
+                                html: resultSetDiff
+                                  ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>`
+                                  : '<span class="positive">\u2713 Match</span>',
+                              },
+                              {
+                                label: "Ordering",
+                                html: orderingDiff
+                                  ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>`
+                                  : resultCountDiff
+                                    ? '<span class="neutral">N/A</span>'
+                                    : '<span class="positive">\u2713 Match</span>',
+                              },
+                              {
+                                label: "Child Total Items",
+                                html: childTotalItemsDiff
+                                  ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>`
+                                  : '<span class="positive">\u2713 Match</span>',
+                              }
+                            ];
+                            criteriaDataList.push({
+                              encoded: encodedQParam ? encodedQParam : params ? encodeURIComponent(JSON.stringify(params)) : null,
+                              testName: testName,
+                              summary: summaryItems,
+                            });
+                            criteriaHtml = `<span class="json-link" data-criteria-index="${criteriaIndex}" onclick="showCriteriaPopup(${criteriaIndex})" title="Click to view the criteria">📄 Criteria</span>`;
+                              // } catch (e) {
+                              //   // Not valid JSON, show as text
+                              //   criteriaHtml =
+                              //     qParam.length > 30
+                              //       ? qParam.substring(0, 30) + "..."
+                              //       : qParam;
+                              // }
                           } catch (e) {
                             // URL parsing failed
                           }
