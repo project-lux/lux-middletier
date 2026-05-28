@@ -1856,6 +1856,7 @@ class ReportComparator {
                         <td>${resultCountDiff?.is_mismatch ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : `<span class="positive">✓ Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`}</td>
                         <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
                         <td>${orderingDiff ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>` : resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>'}</td>
+                        <td>${childTotalItemsDiff ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>` : '<span class="positive">✓ Match</span>'}</td>
                         <td>${criteriaHtml}</td>
                     </tr>
                     `;
