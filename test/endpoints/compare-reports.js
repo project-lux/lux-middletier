@@ -1405,6 +1405,8 @@ class ReportComparator {
     const htmlFile = path.join(this.outputDir, `${baseFileName}.html`);
     const htmlContent = await this.generateHTMLReport(
       comparison,
+      baseline.summary,
+      current.summary,
       baseline.results,
       current.results,
     );
@@ -1520,6 +1522,8 @@ class ReportComparator {
    */
   async generateHTMLReport(
     comparison,
+    baselineSummary = {},
+    currentSummary = {},
     baselineResults = [],
     currentResults = [],
   ) {
@@ -1535,6 +1539,8 @@ class ReportComparator {
       slowest_current_analysis,
     } = comparison;
     const title = this.comparisonName || "Test Report Comparison";
+    const baselineTestDescription = baselineSummary.test_name || "N/A";
+    const currentTestDescription = currentSummary.test_name || "N/A";
 
     // Read Chart.js from node_modules for inline inclusion
     // COMMENTED OUT for performance: Chart.js library is ~200KB inline
@@ -1602,7 +1608,9 @@ class ReportComparator {
     <div class="header">
     <h1>${title}</h1>
     <p><strong>Baseline:</strong> ${title.includes("-to-") ? title.split("-to-")[0] : metadata.baseline_dir}</p>
+  <p><strong>Baseline Description:</strong> ${baselineTestDescription}</p>
     <p><strong>Current:</strong> ${title.includes("-to-") ? title.split("-to-")[1].split(":")[0] : metadata.current_dir}</p>
+  <p><strong>Current Description:</strong> ${currentTestDescription}</p>
         <p><strong>Generated:</strong> ${new Date(metadata.comparison_timestamp).toLocaleString()}</p>
     </div>
     
