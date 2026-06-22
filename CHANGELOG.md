@@ -17,6 +17,9 @@
 
 ## Unreleased
 
+## v1.8.0
+- Added TAG_TO_DEPLOY env variable for displaying current version [238](https://github.com/project-lux/lux-middletier/issues/238).
+
 ## v1.7.0
 - Update system prompt
 - Change ai-translate to allow updating queries [234](https://github.com/project-lux/lux-middletier/issues/234).

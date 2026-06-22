@@ -680,7 +680,7 @@ class App {
   static _handleInfo = (req, res) => {
     const memUsage = process.memoryUsage()
     res.json({
-      version: json.version,
+      version: env.version,
       backend: `${env.mlHost}:${env.mlPort}`,
       backendAlt: `${env.mlHost}:${env.mlPort2}`,
       altRouteTypes: Object.keys(env.altRouteKeyMap),
