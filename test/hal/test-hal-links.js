@@ -76,6 +76,7 @@ const exampleDocs = {
     'place/d58c3785-2582-45b1-b467-1c31fc8b9187', // New York - http://viaf.org/viaf/146669294
     'place/d8c3e262-187a-40f3-843f-cf618aefde4a', // Malibu - http://viaf.org/viaf/533154380888430290186
     'place/42504443-3538-466e-ae8d-aa5107b30e7e', // Connecticut - http://viaf.org/viaf/141881815
+    'place/365edf8b-e6a9-4c3d-8fc0-c3fb36289161', // Cuba
   ],
   workset: [
     'text/aa3cc107-f012-4de4-86e6-78a99eb48024', // Rockets and blue lights
