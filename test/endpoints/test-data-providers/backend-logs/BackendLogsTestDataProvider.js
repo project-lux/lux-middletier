@@ -247,9 +247,13 @@ export class BackendLogsTestDataProvider extends TestDataProvider {
    */
   shouldProcessEndpoint(endpointKey) {
     return [
-      // ENDPOINT_KEYS.GET_DATA,
+      ENDPOINT_KEYS.GET_DATA,
       ENDPOINT_KEYS.GET_RELATED_LIST,
       ENDPOINT_KEYS.GET_SEARCH,
+      ENDPOINT_KEYS.GET_SEARCH_ESTIMATE,
+      // search will match better tested as part of get-data-no-profile
+      // ENDPOINT_KEYS.GET_SEARCH_WILL_MATCH,
+      ENDPOINT_KEYS.GET_FACETS,
     ].includes(endpointKey);
   }
 

@@ -480,6 +480,18 @@ class ReportComparator {
         currentResponse,
         comparison,
       );
+    } else if (endpointType === "get-search-estimates") {
+      this.compareSearchEstimateResponses(
+        baselineResponse,
+        currentResponse,
+        comparison,
+      );
+    } else if (endpointType === "get-search-will-match") {
+      this.compareSearchWillMatchResponses(
+        baselineResponse,
+        currentResponse,
+        comparison,
+      );
     }
     // Add more endpoint types as needed
 
@@ -662,8 +674,140 @@ class ReportComparator {
             items_moved: itemsMoved,
             baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
             current_order: currentOverlapOrder.slice(0, 5),
-          });
+          })
         }
+      }
+    }
+  }
+
+  /**
+   * Compare search estimates endpoint responses for functional parity
+   */
+  compareSearchEstimateResponses(baselineData, currentData, comparison) {
+    // Compare total items count
+    const baselineTotalItems = baselineData?.totalItems
+    const currentTotalItems = currentData?.totalItems
+
+    // Always store total items info for display purposes
+    comparison.total_items_info = {
+      type: 'total_items_info',
+      baseline_total: baselineTotalItems,
+      current_total: currentTotalItems,
+      difference: currentTotalItems - baselineTotalItems,
+      is_mismatch: baselineTotalItems !== currentTotalItems,
+    }
+
+    // Only add to differences if there's a mismatch
+    if (baselineTotalItems !== currentTotalItems) {
+      comparison.differences.push(comparison.total_items_info)
+    }
+  }
+
+  /**
+   * Compare search estimates endpoint responses for functional parity
+   */
+  compareSearchWillMatchResponses(baselineData, currentData, comparison) {
+    const baselineHalLinkKeys = baselineData ? Object.keys(baselineData) : []
+    const currentHalLinkKeys = currentData ? Object.keys(currentData) : []
+    // Compare total items count
+    const baselineTotalItems = baselineHalLinkKeys.length
+    const currentTotalItems = currentHalLinkKeys.length
+
+    // Always store total items info for display purposes
+    comparison.total_items_info = {
+      type: 'total_items_info',
+      baseline_total: baselineTotalItems,
+      current_total: currentTotalItems,
+      difference: currentTotalItems - baselineTotalItems,
+      is_mismatch: baselineTotalItems !== currentTotalItems,
+    }
+
+    // Only add to differences if there's a mismatch
+    if (baselineTotalItems !== currentTotalItems) {
+      comparison.differences.push(comparison.total_items_info)
+    }
+
+    const baselineHalLinkSet = new Set(baselineHalLinkKeys)
+    const currentHalLinkSet = new Set(currentHalLinkKeys)
+
+    const missingInCurrent = [...baselineHalLinkSet].filter(
+      (key) => !currentHalLinkSet.has(key),
+    )
+    const extraInCurrent = [...currentHalLinkSet].filter(
+      (key) => !baselineHalLinkSet.has(key),
+    )
+
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      comparison.differences.push({
+        type: 'result_set_mismatch',
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length,
+      })
+    }
+
+    //check for differences in hasOneOrMoreResult for overlapping items
+    const hasOneOrMoreResultDifferences = []
+    for (let i = 0; i < baselineHalLinkKeys.length; i++) {
+      const key = baselineHalLinkKeys[i]
+      if (currentHalLinkSet.has(key)) {
+        const baselineEstimate = baselineData[key]?.hasOneOrMoreResult
+        const currentEstimate = currentData[key]?.hasOneOrMoreResult
+        if (baselineEstimate !== currentEstimate) {
+          hasOneOrMoreResultDifferences.push({
+            key: key,
+            baseline_estimate: baselineEstimate,
+            current_estimate: currentEstimate,
+          })
+        }
+      }
+    }
+    if (hasOneOrMoreResultDifferences.length > 0) {
+      comparison.differences.push({
+        type: 'hasOneOrMoreResult_mismatch',
+        differences: hasOneOrMoreResultDifferences,
+        num_differences: hasOneOrMoreResultDifferences.length,
+      })
+    }
+
+    // Check ordering differences for overlapping items (regardless of missing/extra items)
+    const overlappingKeys = [...baselineHalLinkSet].filter((key) =>
+      currentHalLinkSet.has(key),
+    )
+
+    if (overlappingKeys.length > 0) {
+      const overlappingSet = new Set(overlappingKeys)
+      // Create ordered lists of overlapping items based on their appearance in each result set
+      const baselineOverlapOrder = baselineHalLinkKeys.filter((key) =>
+        overlappingSet.has(key),
+      )
+      const currentOverlapOrder = currentHalLinkKeys.filter((key) =>
+        overlappingSet.has(key),
+      )
+
+      // Count how many individual items moved from their baseline position
+      let itemsMoved = 0
+      for (let i = 0; i < baselineOverlapOrder.length; i++) {
+        const itemId = baselineOverlapOrder[i]
+        const currentPosition = currentOverlapOrder.indexOf(itemId)
+
+        // If the item is not at the same position, it moved
+        if (currentPosition !== i) {
+          itemsMoved++
+        }
+      }
+
+      if (itemsMoved > 0) {
+        comparison.differences.push({
+          type: 'ordering_differences',
+          overlapping_items_count: overlappingKeys.length,
+          total_items_baseline: baselineHalLinkKeys.length,
+          total_items_current: currentHalLinkKeys.length,
+          items_moved: itemsMoved,
+          baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
+          current_order: currentOverlapOrder.slice(0, 5),
+        })
       }
     }
   }
