@@ -482,7 +482,7 @@ class ReportComparator {
         currentResponse,
         comparison,
       );
-    } else if (endpointType === "get-search-estimates") {
+    } else if (endpointType === "get-search-estimate") {
       this.compareSearchEstimateResponses(
         baselineResponse,
         currentResponse,
