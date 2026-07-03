@@ -407,8 +407,10 @@ class ReportComparator {
           test_name: baselineTest.test_name,
           description: baselineTest.description,
           endpoint_type: baselineTest.endpoint_type,
+          baseline_url: baselineTest.url || "",
           has_differences: true,
           error: `Failed to compare responses: ${error.message}`,
+          functional_columns: [],
           baseline_file: baselineTest.response_body_file,
           current_file: currentTest.response_body_file,
         });
@@ -612,6 +614,9 @@ class ReportComparator {
       // If URL/JSON parsing fails, skip result set comparison
     }
 
+    let resultSetDiff = null;
+    let orderingDiff = null;
+
     if (scoringImportant) {
       // Check if the same items are present (regardless of order)
 
@@ -629,13 +634,14 @@ class ReportComparator {
       );
 
       if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
-        comparison.differences.push({
+        resultSetDiff = {
           type: "result_set_mismatch",
           missing_in_current: missingInCurrent,
           extra_in_current: extraInCurrent,
           missing_count: missingInCurrent.length,
           extra_count: extraInCurrent.length,
-        });
+        };
+        comparison.differences.push(resultSetDiff);
       }
 
       // Check ordering differences for overlapping items (regardless of missing/extra items)
@@ -666,7 +672,7 @@ class ReportComparator {
         }
 
         if (itemsMoved > 0) {
-          comparison.differences.push({
+          orderingDiff = {
             type: "ordering_differences",
             overlapping_items_count: overlappingIds.length,
             total_items_baseline: baselineItems.length,
@@ -674,10 +680,31 @@ class ReportComparator {
             items_moved: itemsMoved,
             baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
             current_order: currentOverlapOrder.slice(0, 5),
-          })
+          };
+          comparison.differences.push(orderingDiff);
         }
       }
     }
+
+    // Build functional columns for rendering
+    const ti = comparison.total_items_info;
+    const rc = comparison.result_count_info;
+    comparison.functional_columns = [
+      { key: "total_items", label: "Total Items",
+        status: ti.is_mismatch ? "mismatch" : "match",
+        matchValue: ti.baseline_total,
+        mismatchText: `${ti.baseline_total} → ${ti.current_total} (${ti.difference >= 0 ? "+" : ""}${ti.difference})` },
+      { key: "result_count", label: "Result Count",
+        status: rc.is_mismatch ? "mismatch" : "match",
+        matchValue: rc.baseline_count,
+        mismatchText: `${rc.baseline_count} → ${rc.current_count}` },
+      { key: "result_set", label: "Result Set",
+        status: resultSetDiff ? "mismatch" : "match",
+        mismatchText: resultSetDiff ? `Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}` : undefined },
+      { key: "ordering", label: "Ordering",
+        status: orderingDiff ? "mismatch" : "match",
+        mismatchText: orderingDiff ? `${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved` : undefined },
+    ];
   }
 
   /**
@@ -701,6 +728,15 @@ class ReportComparator {
     if (baselineTotalItems !== currentTotalItems) {
       comparison.differences.push(comparison.total_items_info)
     }
+
+    // Build functional columns for rendering
+    const ti = comparison.total_items_info;
+    comparison.functional_columns = [
+      { key: "total_items", label: "Total Items",
+        status: ti.is_mismatch ? "mismatch" : "match",
+        matchValue: ti.baseline_total,
+        mismatchText: `${ti.baseline_total} → ${ti.current_total} (${ti.difference >= 0 ? "+" : ""}${ti.difference})` },
+    ];
   }
 
   /**
@@ -737,14 +773,16 @@ class ReportComparator {
       (key) => !baselineHalLinkSet.has(key),
     )
 
+    let resultSetDiff = null;
     if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
-      comparison.differences.push({
+      resultSetDiff = {
         type: 'result_set_mismatch',
         missing_in_current: missingInCurrent,
         extra_in_current: extraInCurrent,
         missing_count: missingInCurrent.length,
         extra_count: extraInCurrent.length,
-      })
+      };
+      comparison.differences.push(resultSetDiff);
     }
 
     //check for differences in hasOneOrMoreResult for overlapping items
@@ -763,12 +801,14 @@ class ReportComparator {
         }
       }
     }
+    let hasOneOrMoreResultDiff = null;
     if (hasOneOrMoreResultDifferences.length > 0) {
-      comparison.differences.push({
+      hasOneOrMoreResultDiff = {
         type: 'hasOneOrMoreResult_mismatch',
         differences: hasOneOrMoreResultDifferences,
         num_differences: hasOneOrMoreResultDifferences.length,
-      })
+      };
+      comparison.differences.push(hasOneOrMoreResultDiff);
     }
 
     // Check ordering differences for overlapping items (regardless of missing/extra items)
@@ -776,9 +816,9 @@ class ReportComparator {
       currentHalLinkSet.has(key),
     )
 
+    let orderingDiff = null;
     if (overlappingKeys.length > 0) {
       const overlappingSet = new Set(overlappingKeys)
-      // Create ordered lists of overlapping items based on their appearance in each result set
       const baselineOverlapOrder = baselineHalLinkKeys.filter((key) =>
         overlappingSet.has(key),
       )
@@ -786,30 +826,47 @@ class ReportComparator {
         overlappingSet.has(key),
       )
 
-      // Count how many individual items moved from their baseline position
       let itemsMoved = 0
       for (let i = 0; i < baselineOverlapOrder.length; i++) {
         const itemId = baselineOverlapOrder[i]
         const currentPosition = currentOverlapOrder.indexOf(itemId)
 
-        // If the item is not at the same position, it moved
         if (currentPosition !== i) {
           itemsMoved++
         }
       }
 
       if (itemsMoved > 0) {
-        comparison.differences.push({
+        orderingDiff = {
           type: 'ordering_differences',
           overlapping_items_count: overlappingKeys.length,
           total_items_baseline: baselineHalLinkKeys.length,
           total_items_current: currentHalLinkKeys.length,
           items_moved: itemsMoved,
-          baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
+          baseline_order: baselineOverlapOrder.slice(0, 5),
           current_order: currentOverlapOrder.slice(0, 5),
-        })
+        };
+        comparison.differences.push(orderingDiff);
       }
     }
+
+    // Build functional columns for rendering
+    const ti = comparison.total_items_info;
+    comparison.functional_columns = [
+      { key: "total_items", label: "HAL Link Count",
+        status: ti.is_mismatch ? "mismatch" : "match",
+        matchValue: ti.baseline_total,
+        mismatchText: `${ti.baseline_total} → ${ti.current_total} (${ti.difference >= 0 ? "+" : ""}${ti.difference})` },
+      { key: "result_set", label: "Result Set",
+        status: resultSetDiff ? "mismatch" : "match",
+        mismatchText: resultSetDiff ? `Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}` : undefined },
+      { key: "has_one_or_more_result", label: "hasOneOrMoreResult",
+        status: hasOneOrMoreResultDiff ? "mismatch" : "match",
+        mismatchText: hasOneOrMoreResultDiff ? `${hasOneOrMoreResultDiff.num_differences} differences` : undefined },
+      { key: "ordering", label: "Ordering",
+        status: orderingDiff ? "mismatch" : "match",
+        mismatchText: orderingDiff ? `${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved` : undefined },
+    ];
   }
 
   /**
@@ -863,117 +920,129 @@ class ReportComparator {
       comparison.differences.push(comparison.result_count_info);
     }
 
-      // Check if the same items are present (regardless of order)
+    // Check if the same items are present (regardless of order)
+    const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
+    const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
+    const baselineIdSet = new Set(baselineNormIds);
+    const currentIdSet = new Set(currentNormIds);
 
-      const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
-      const baselineIdSet = new Set(baselineNormIds);
-      const currentIdSet = new Set(currentNormIds);
+    const missingInCurrent = [...baselineIdSet].filter(
+      (id) => !currentIdSet.has(id),
+    );
+    const extraInCurrent = [...currentIdSet].filter(
+      (id) => !baselineIdSet.has(id),
+    );
 
-      const missingInCurrent = [...baselineIdSet].filter(
-        (id) => !currentIdSet.has(id),
+    let resultSetDiff = null;
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      resultSetDiff = {
+        type: "result_set_mismatch",
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length,
+      };
+      comparison.differences.push(resultSetDiff);
+    }
+
+    // Check ordering differences for overlapping items (regardless of missing/extra items)
+    const overlappingIds = [...baselineIdSet].filter((id) =>
+      currentIdSet.has(id),
+    );
+
+    let orderingDiff = null;
+    let childTotalItemsDiff = null;
+
+    if (overlappingIds.length > 0) {
+      const overlappingSet = new Set(overlappingIds);
+      const baselineOverlapOrder = baselineNormIds.filter((id) =>
+        overlappingSet.has(id),
       );
-      const extraInCurrent = [...currentIdSet].filter(
-        (id) => !baselineIdSet.has(id),
+      const currentOverlapOrder = currentNormIds.filter((id) =>
+        overlappingSet.has(id),
       );
 
-      if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
-        comparison.differences.push({
-          type: "result_set_mismatch",
-          missing_in_current: missingInCurrent,
-          extra_in_current: extraInCurrent,
-          missing_count: missingInCurrent.length,
-          extra_count: extraInCurrent.length,
-        });
+      let itemsMoved = 0;
+      let differentChildTotalItems = 0;
+
+      function getChildTotalItemsById(items, id) {
+        const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
+        return item ? item.totalItems || 0 : 0;
       }
 
-      // Check ordering differences for overlapping items (regardless of missing/extra items)
-      const overlappingIds = [...baselineIdSet].filter((id) =>
-        currentIdSet.has(id),
-      );
+      for (let i = 0; i < baselineOverlapOrder.length; i++) {
+        const itemId = baselineOverlapOrder[i];
+        const currentPosition = currentOverlapOrder.indexOf(itemId);
 
-      if (overlappingIds.length > 0) {
-        const overlappingSet = new Set(overlappingIds);
-        // Create ordered lists of overlapping items based on their appearance in each result set
-        const baselineOverlapOrder = baselineNormIds.filter((id) =>
-          overlappingSet.has(id),
-        );
-        const currentOverlapOrder = currentNormIds.filter((id) =>
-          overlappingSet.has(id),
-        );
-
-        // Count how many individual items moved from their baseline position
-        // Also count how many items have different counts (e.g., different facet counts for the same facet value)
-        let itemsMoved = 0;
-        let differentChildTotalItems = 0;
-
-        function getChildTotalItemsById(items, id) {
-          const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
-          return item ? item.totalItems || 0 : 0;
+        if (currentPosition !== i) {
+          itemsMoved++;
         }
 
-        for (let i = 0; i < baselineOverlapOrder.length; i++) {
-          const itemId = baselineOverlapOrder[i];
-          const currentPosition = currentOverlapOrder.indexOf(itemId);
-
-          // If the item is not at the same position, it moved
-          if (currentPosition !== i) {
-            itemsMoved++;
-          }
-
-          const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
-          const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
-          if (baselineItemTotalItems !== currentItemTotalItems) {
-            differentChildTotalItems++;
-          }
-        }
-
-        if (itemsMoved > 0) {
-          comparison.differences.push({
-            type: "ordering_differences",
-            overlapping_items_count: overlappingIds.length,
-            total_items_baseline: baselineItems.length,
-            total_items_current: currentItems.length,
-            items_moved: itemsMoved,
-            baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
-            current_order: currentOverlapOrder.slice(0, 5),
-          });
-        }
-        if (differentChildTotalItems > 0) {
-          comparison.differences.push({
-            type: "child_total_items_differences",
-            overlapping_items_count: overlappingIds.length,
-            total_items_baseline: baselineItems.length,
-            total_items_current: currentItems.length,
-            items_with_different_child_total_items: differentChildTotalItems,
-          });
+        const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
+        const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+        if (baselineItemTotalItems !== currentItemTotalItems) {
+          differentChildTotalItems++;
         }
       }
-    
+
+      if (itemsMoved > 0) {
+        orderingDiff = {
+          type: "ordering_differences",
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_moved: itemsMoved,
+          baseline_order: baselineOverlapOrder.slice(0, 5),
+          current_order: currentOverlapOrder.slice(0, 5),
+        };
+        comparison.differences.push(orderingDiff);
+      }
+      if (differentChildTotalItems > 0) {
+        childTotalItemsDiff = {
+          type: "child_total_items_differences",
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_with_different_child_total_items: differentChildTotalItems,
+        };
+        comparison.differences.push(childTotalItemsDiff);
+      }
+    }
+
+    // Build functional columns for rendering
+    const ti = comparison.total_items_info;
+    const rc = comparison.result_count_info;
+    comparison.functional_columns = [
+      { key: "total_items", label: "Total Items",
+        status: ti.is_mismatch ? "mismatch" : "match",
+        matchValue: ti.baseline_total,
+        mismatchText: `${ti.baseline_total} → ${ti.current_total} (${ti.difference >= 0 ? "+" : ""}${ti.difference})` },
+      { key: "result_count", label: "Result Count",
+        status: rc.is_mismatch ? "mismatch" : "match",
+        matchValue: rc.baseline_count,
+        mismatchText: `${rc.baseline_count} → ${rc.current_count}` },
+      { key: "result_set", label: "Result Set",
+        status: resultSetDiff ? "mismatch" : "match",
+        mismatchText: resultSetDiff ? `Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}` : undefined },
+      { key: "ordering", label: "Ordering",
+        status: orderingDiff ? "mismatch" : "match",
+        mismatchText: orderingDiff ? `${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved` : undefined },
+      { key: "child_total_items", label: "Child Total Items",
+        status: childTotalItemsDiff ? "mismatch" : "match",
+        mismatchText: childTotalItemsDiff ? `${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items` : undefined },
+    ];
   }
 
   /**
    * Compare related list endpoint responses (placeholder for future implementation)
    */
   compareRelatedListResponses(baselineData, currentData, comparison) {
-    // TODO: Implement related list-specific comparison logic
-    // This will compare related items, relationships, etc.
-
-    
-    // Compare ordered items (result ordering)
-    const PAGE_SIZE = 20;
+    // Compare ordered items
     const baselineItems = baselineData?.orderedItems || [];
     const currentItems = currentData?.orderedItems || [];
 
-    // Use orderedItems count when available, otherwise estimate from totalItems
-    const baselineResultCount =
-      baselineItems.length > 0
-        ? baselineItems.length
-        : Math.min(baselineTotalItems || 0, PAGE_SIZE);
-    const currentResultCount =
-      currentItems.length > 0
-        ? currentItems.length
-        : Math.min(currentTotalItems || 0, PAGE_SIZE);
+    const baselineResultCount = baselineItems.length;
+    const currentResultCount = currentItems.length;
 
     // Always store result count info for display purposes
     comparison.result_count_info = {
@@ -983,95 +1052,116 @@ class ReportComparator {
       is_mismatch: baselineResultCount !== currentResultCount,
     };
 
-    // Only add to differences if there's a mismatch
     if (baselineResultCount !== currentResultCount) {
       comparison.differences.push(comparison.result_count_info);
     }
 
-      // Check if the same items are present (regardless of order)
+    // Check if the same items are present (regardless of order)
+    const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
+    const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
+    const baselineIdSet = new Set(baselineNormIds);
+    const currentIdSet = new Set(currentNormIds);
 
-      const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
-      const baselineIdSet = new Set(baselineNormIds);
-      const currentIdSet = new Set(currentNormIds);
+    const missingInCurrent = [...baselineIdSet].filter(
+      (id) => !currentIdSet.has(id),
+    );
+    const extraInCurrent = [...currentIdSet].filter(
+      (id) => !baselineIdSet.has(id),
+    );
 
-      const missingInCurrent = [...baselineIdSet].filter(
-        (id) => !currentIdSet.has(id),
+    let resultSetDiff = null;
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      resultSetDiff = {
+        type: "result_set_mismatch",
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length,
+      };
+      comparison.differences.push(resultSetDiff);
+    }
+
+    // Check ordering differences for overlapping items
+    const overlappingIds = [...baselineIdSet].filter((id) =>
+      currentIdSet.has(id),
+    );
+
+    let orderingDiff = null;
+    let childTotalItemsDiff = null;
+
+    if (overlappingIds.length > 0) {
+      const overlappingSet = new Set(overlappingIds);
+      const baselineOverlapOrder = baselineNormIds.filter((id) =>
+        overlappingSet.has(id),
       );
-      const extraInCurrent = [...currentIdSet].filter(
-        (id) => !baselineIdSet.has(id),
+      const currentOverlapOrder = currentNormIds.filter((id) =>
+        overlappingSet.has(id),
       );
 
-      if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
-        comparison.differences.push({
-          type: "result_set_mismatch",
-          missing_in_current: missingInCurrent,
-          extra_in_current: extraInCurrent,
-          missing_count: missingInCurrent.length,
-          extra_count: extraInCurrent.length,
-        });
+      let itemsMoved = 0;
+      let differentChildTotalItems = 0;
+
+      function getChildTotalItemsById(items, id) {
+        const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
+        return item ? item.totalItems || 0 : 0;
       }
 
-      // Check ordering differences for overlapping items (regardless of missing/extra items)
-      const overlappingIds = [...baselineIdSet].filter((id) =>
-        currentIdSet.has(id),
-      );
+      for (let i = 0; i < baselineOverlapOrder.length; i++) {
+        const itemId = baselineOverlapOrder[i];
+        const currentPosition = currentOverlapOrder.indexOf(itemId);
 
-      if (overlappingIds.length > 0) {
-        const overlappingSet = new Set(overlappingIds);
-        // Create ordered lists of overlapping items based on their appearance in each result set
-        const baselineOverlapOrder = baselineNormIds.filter((id) =>
-          overlappingSet.has(id),
-        );
-        const currentOverlapOrder = currentNormIds.filter((id) =>
-          overlappingSet.has(id),
-        );
-
-        // Count how many individual items moved from their baseline position
-        // Also count how many items have different totalItems counts for the same item (e.g., different related item counts for the same entity) 
-        let itemsMoved = 0;
-        let differentChildTotalItems = 0;
-        for (let i = 0; i < baselineOverlapOrder.length; i++) {
-          const itemId = baselineOverlapOrder[i];
-          const currentPosition = currentOverlapOrder.indexOf(itemId);
-
-          // If the item is not at the same position, it moved
-          if (currentPosition !== i) {
-            itemsMoved++;
-          }
-          function getChildTotalItemsById(items, id) {
-            const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
-            return item ? item.totalItems || 0 : 0;
-          }
-          const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
-          const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
-          if (baselineItemTotalItems !== currentItemTotalItems) {
-            differentChildTotalItems++;
-          }
+        if (currentPosition !== i) {
+          itemsMoved++;
         }
-
-        if (itemsMoved > 0) {
-          comparison.differences.push({
-            type: "ordering_differences",
-            overlapping_items_count: overlappingIds.length,
-            total_items_baseline: baselineItems.length,
-            total_items_current: currentItems.length,
-            items_moved: itemsMoved,
-            baseline_order: baselineOverlapOrder.slice(0, 5), // First 5 for debugging
-            current_order: currentOverlapOrder.slice(0, 5),
-          });
-        }
-
-        if (differentChildTotalItems > 0) {
-          comparison.differences.push({
-            type: "child_total_items_differences",
-            overlapping_items_count: overlappingIds.length,
-            total_items_baseline: baselineItems.length,
-            total_items_current: currentItems.length,
-            items_with_different_child_total_items: differentChildTotalItems,
-          });
+        const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
+        const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+        if (baselineItemTotalItems !== currentItemTotalItems) {
+          differentChildTotalItems++;
         }
       }
+
+      if (itemsMoved > 0) {
+        orderingDiff = {
+          type: "ordering_differences",
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_moved: itemsMoved,
+          baseline_order: baselineOverlapOrder.slice(0, 5),
+          current_order: currentOverlapOrder.slice(0, 5),
+        };
+        comparison.differences.push(orderingDiff);
+      }
+
+      if (differentChildTotalItems > 0) {
+        childTotalItemsDiff = {
+          type: "child_total_items_differences",
+          overlapping_items_count: overlappingIds.length,
+          total_items_baseline: baselineItems.length,
+          total_items_current: currentItems.length,
+          items_with_different_child_total_items: differentChildTotalItems,
+        };
+        comparison.differences.push(childTotalItemsDiff);
+      }
+    }
+
+    // Build functional columns for rendering
+    const rc = comparison.result_count_info;
+    comparison.functional_columns = [
+      { key: "result_count", label: "Result Count",
+        status: rc.is_mismatch ? "mismatch" : "match",
+        matchValue: rc.baseline_count,
+        mismatchText: `${rc.baseline_count} → ${rc.current_count}` },
+      { key: "result_set", label: "Result Set",
+        status: resultSetDiff ? "mismatch" : "match",
+        mismatchText: resultSetDiff ? `Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}` : undefined },
+      { key: "ordering", label: "Ordering",
+        status: orderingDiff ? "mismatch" : "match",
+        mismatchText: orderingDiff ? `${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved` : undefined },
+      { key: "child_total_items", label: "Child Total Items",
+        status: childTotalItemsDiff ? "mismatch" : "match",
+        mismatchText: childTotalItemsDiff ? `${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items` : undefined },
+    ];
   }
 
   /**
@@ -1886,6 +1976,10 @@ class ReportComparator {
           comparison.functional_comparison.detailed_differences.length > 0
             ? (() => {
                 const criteriaDataList = [];
+                // Collect column headers from the first entry that has functional_columns
+                const columnDefs = comparison.functional_comparison.detailed_differences
+                  .find((d) => d.functional_columns && d.functional_columns.length > 0)
+                  ?.functional_columns || [];
                 return `
         <h3>Functional Differences</h3>
         <div class="table-container">
@@ -1894,58 +1988,38 @@ class ReportComparator {
                     <tr>
                         <th>Test</th>
                         <th>Description</th>
-                        <th>Total Items</th>
-                        <th>Result Count</th>
-                        <th>Result Set</th>
-                        <th>Ordering</th>
-                        <th>Child Total Items</th>
+                        ${columnDefs.map((col) => `<th>${col.label}</th>`).join("\n                        ")}
                         <th>Criteria</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${comparison.functional_comparison.detailed_differences
                       .map((diff) => {
-                        // Use the proper test name from the configuration (Column B)
                         const testName =
                           diff.test_name || diff.test_key || "Unknown Test";
-                        // Use description for hover tooltip (Column C)
                         const description =
                           diff.description || "No description available";
 
-                        // Parse differences by type
-                        const totalItemsInfo =
-                          diff.total_items_info ||
-                          diff.differences?.find(
-                            (d) => d.type === "total_items_info",
-                          );
-                        const resultCountDiff =
-                          diff.result_count_info ||
-                          diff.differences?.find(
-                            (d) => d.type === "result_count_mismatch",
-                          );
-                        const resultSetDiff = diff.differences?.find(
-                          (d) => d.type === "result_set_mismatch",
-                        );
-                        const orderingDiff = diff.differences?.find(
-                          (d) => d.type === "ordering_differences",
-                        );
-                        const childTotalItemsDiff = diff.differences?.find(
-                          (d) => d.type === "child_total_items_differences",
-                        );
+                        // Build column cells from functional_columns (or dashes for error entries)
+                        const columns = diff.functional_columns || [];
+                        const colToHtml = (col) =>
+                          col.status === "mismatch"
+                            ? `<span class="negative">${col.mismatchText}</span>`
+                            : `<span class="positive">✓ Match${col.matchValue != null ? ": " + col.matchValue : ""}</span>`;
+                        const columnCells = columnDefs.map((colDef) => {
+                          const col = columns.find((c) => c.key === colDef.key);
+                          return col ? colToHtml(col) : '<span class="neutral">—</span>';
+                        });
 
                         // Extract query criteria from URL
                         let criteriaHtml = "N/A";
-                        // console.log("diff.baseline_url:", diff.baseline_url);
                         if (diff.baseline_url) {
                           criteriaHtml = diff.baseline_url;
                           try {
                             const urlObj = new URL(diff.baseline_url);
                             const qParam = urlObj.searchParams.get("q");
-                            // If there isn't a 'q' parameter, take all query parameters as criteria
                             const params = !qParam ? Object.fromEntries(urlObj.searchParams.entries()) : null;
-                            // START Lots of work to add scope to q parameter
 
-                            // Extract scope from URL path: /api/search/[scope]?...
                             const scopeMatch = diff.baseline_url.match(
                               /\/api\/search\/([a-z]+)[\/?]/,
                             );
@@ -1955,7 +2029,6 @@ class ReportComparator {
                             const parsedJson = qParam ? JSON.parse(
                               decodeURIComponent(qParam),
                             ) : null;
-                            // Add _scope property if scope exists in URL path
                             if (scopeParam && parsedJson) {
                               parsedJson._scope = scopeParam;
                             }
@@ -1963,58 +2036,19 @@ class ReportComparator {
                             const encodedQParam = modifiedJsonString ?
                               encodeURIComponent(modifiedJsonString) : null;
 
-                            // END lots of work to add scope to q parameter
                             const criteriaIndex = criteriaDataList.length;
-                            const summaryItems = [
-                              {
-                                label: "Total Items",
-                                html: totalItemsInfo?.is_mismatch
-                                  ? `<span class="negative">${totalItemsInfo.baseline_total} \u2192 ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? "+" : ""}${totalItemsInfo.difference})</span>`
-                                  : `<span class="positive">\u2713 Match: ${totalItemsInfo?.baseline_total ?? "?"}</span>`,
-                              },
-                              {
-                                label: "Result Count",
-                                html: resultCountDiff?.is_mismatch
-                                  ? `<span class="negative">${resultCountDiff.baseline_count} \u2192 ${resultCountDiff.current_count}</span>`
-                                  : `<span class="positive">\u2713 Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`,
-                              },
-                              {
-                                label: "Result Set",
-                                html: resultSetDiff
-                                  ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>`
-                                  : '<span class="positive">\u2713 Match</span>',
-                              },
-                              {
-                                label: "Ordering",
-                                html: orderingDiff
-                                  ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>`
-                                  : resultCountDiff
-                                    ? '<span class="neutral">N/A</span>'
-                                    : '<span class="positive">\u2713 Match</span>',
-                              },
-                              {
-                                label: "Child Total Items",
-                                html: childTotalItemsDiff
-                                  ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>`
-                                  : '<span class="positive">\u2713 Match</span>',
-                              }
-                            ];
+                            const summaryItems = columns.map((col) => ({
+                              label: col.label,
+                              html: colToHtml(col),
+                            }));
                             criteriaDataList.push({
                               encoded: encodedQParam ? encodedQParam : params ? encodeURIComponent(JSON.stringify(params)) : null,
                               testName: testName,
                               summary: summaryItems,
                             });
                             criteriaHtml = `<span class="json-link" data-criteria-index="${criteriaIndex}" onclick="showCriteriaPopup(${criteriaIndex})" title="Click to view the criteria">📄 Criteria</span>`;
-                              // } catch (e) {
-                              //   // Not valid JSON, show as text
-                              //   criteriaHtml =
-                              //     qParam.length > 30
-                              //       ? qParam.substring(0, 30) + "..."
-                              //       : qParam;
-                              // }
                           } catch (e) {
                             console.log("Error parsing URL for criteria extraction:", e);
-                            // URL parsing failed
                           }
                         }
 
@@ -2022,11 +2056,7 @@ class ReportComparator {
                     <tr>
                         <td><code>${testName}</code></td>
                         <td>${description}</td>
-                        <td>${totalItemsInfo?.is_mismatch ? `<span class="negative">${totalItemsInfo.baseline_total} → ${totalItemsInfo.current_total} (${totalItemsInfo.difference >= 0 ? "+" : ""}${totalItemsInfo.difference})</span>` : `<span class="positive">✓ Match: ${totalItemsInfo?.baseline_total ?? "?"}</span>`}</td>
-                        <td>${resultCountDiff?.is_mismatch ? `<span class="negative">${resultCountDiff.baseline_count} → ${resultCountDiff.current_count}</span>` : `<span class="positive">✓ Match: ${resultCountDiff?.baseline_count ?? "?"}</span>`}</td>
-                        <td>${resultSetDiff ? `<span class="negative">Missing: ${resultSetDiff.missing_count}, Extra: ${resultSetDiff.extra_count}</span>` : '<span class="positive">✓ Match</span>'}</td>
-                        <td>${orderingDiff ? `<span class="negative">${orderingDiff.items_moved} out of ${orderingDiff.overlapping_items_count} moved</span>` : resultCountDiff ? '<span class="neutral">N/A</span>' : '<span class="positive">✓ Match</span>'}</td>
-                        <td>${childTotalItemsDiff ? `<span class="negative">${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items</span>` : '<span class="positive">✓ Match</span>'}</td>
+                        ${columnCells.map((html) => `<td>${html}</td>`).join("\n                        ")}
                         <td>${criteriaHtml}</td>
                     </tr>
                     `;
