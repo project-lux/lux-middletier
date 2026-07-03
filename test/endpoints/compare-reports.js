@@ -817,8 +817,9 @@ class ReportComparator {
    */
   compareFacetResponses(baselineData, currentData, comparison) {
     // Compare total items count
-    const baselineTotalItems = baselineData?.partOf?.[0]?.totalItems;
-    const currentTotalItems = currentData?.partOf?.[0]?.totalItems;
+    // Facet responses have partOf as a plain object, not an array
+    const baselineTotalItems = baselineData?.partOf?.totalItems;
+    const currentTotalItems = currentData?.partOf?.totalItems;
 
     // Always store total items info for display purposes
     comparison.total_items_info = {
@@ -905,6 +906,12 @@ class ReportComparator {
         // Also count how many items have different counts (e.g., different facet counts for the same facet value)
         let itemsMoved = 0;
         let differentChildTotalItems = 0;
+
+        function getChildTotalItemsById(items, id) {
+          const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
+          return item ? item.totalItems || 0 : 0;
+        }
+
         for (let i = 0; i < baselineOverlapOrder.length; i++) {
           const itemId = baselineOverlapOrder[i];
           const currentPosition = currentOverlapOrder.indexOf(itemId);
@@ -913,16 +920,12 @@ class ReportComparator {
           if (currentPosition !== i) {
             itemsMoved++;
           }
-        }
 
-        function getChildTotalItemsById(items, id) {
-          const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
-          return item ? item.totalItems || 0 : 0;
-        }
-        const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
-        const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
-        if (baselineItemTotalItems !== currentItemTotalItems) {
-          differentChildTotalItems++;
+          const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
+          const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+          if (baselineItemTotalItems !== currentItemTotalItems) {
+            differentChildTotalItems++;
+          }
         }
 
         if (itemsMoved > 0) {
@@ -1932,7 +1935,7 @@ class ReportComparator {
 
                         // Extract query criteria from URL
                         let criteriaHtml = "N/A";
-                        console.log("diff.baseline_url:", diff.baseline_url);
+                        // console.log("diff.baseline_url:", diff.baseline_url);
                         if (diff.baseline_url) {
                           criteriaHtml = diff.baseline_url;
                           try {
