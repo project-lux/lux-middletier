@@ -494,6 +494,12 @@ class ReportComparator {
         currentResponse,
         comparison,
       );
+    } else if (endpointType === "get-data-no-profile") {
+      this.compareGetDataNoProfileResponses(
+        baselineResponse,
+        currentResponse,
+        comparison,
+      );
     }
     // Add more endpoint types as needed
 
@@ -1161,6 +1167,131 @@ class ReportComparator {
       { key: "child_total_items", label: "Child Total Items",
         status: childTotalItemsDiff ? "mismatch" : "match",
         mismatchText: childTotalItemsDiff ? `${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items` : undefined },
+    ];
+  }
+
+  /**
+   * Compare get-data-no-profile responses by comparing HAL links (_links)
+   */
+  compareGetDataNoProfileResponses(baselineData, currentData, comparison) {
+    const baselineLinks = baselineData?._links || {};
+    const currentLinks = currentData?._links || {};
+
+    // Extract HAL link keys (exclude structural keys)
+    const structuralKeys = new Set(['curies', 'self']);
+    const baselineHalKeys = Object.keys(baselineLinks).filter(k => !structuralKeys.has(k));
+    const currentHalKeys = Object.keys(currentLinks).filter(k => !structuralKeys.has(k));
+
+    const baselineCount = baselineHalKeys.length;
+    const currentCount = currentHalKeys.length;
+
+    comparison.hal_link_count_info = {
+      type: 'hal_link_count_info',
+      baseline_count: baselineCount,
+      current_count: currentCount,
+      is_mismatch: baselineCount !== currentCount,
+    };
+
+    if (baselineCount !== currentCount) {
+      comparison.differences.push(comparison.hal_link_count_info);
+    }
+
+    // Compare link key sets
+    const baselineKeySet = new Set(baselineHalKeys);
+    const currentKeySet = new Set(currentHalKeys);
+
+    const missingInCurrent = baselineHalKeys.filter(k => !currentKeySet.has(k));
+    const extraInCurrent = currentHalKeys.filter(k => !baselineKeySet.has(k));
+
+    let linkSetDiff = null;
+    if (missingInCurrent.length > 0 || extraInCurrent.length > 0) {
+      linkSetDiff = {
+        type: 'link_set_mismatch',
+        missing_in_current: missingInCurrent,
+        extra_in_current: extraInCurrent,
+        missing_count: missingInCurrent.length,
+        extra_count: extraInCurrent.length,
+      };
+      comparison.differences.push(linkSetDiff);
+    }
+
+    // Compare estimates and hrefs for overlapping keys
+    const overlappingKeys = baselineHalKeys.filter(k => currentKeySet.has(k));
+
+    let estimateDiff = null;
+    let hrefDiff = null;
+
+    if (overlappingKeys.length > 0) {
+      const estimateDifferences = [];
+      const hrefDifferences = [];
+
+      for (const key of overlappingKeys) {
+        const baselineLink = baselineLinks[key];
+        const currentLink = currentLinks[key];
+
+        if (baselineLink?._estimate !== currentLink?._estimate) {
+          estimateDifferences.push({
+            key,
+            baseline_estimate: baselineLink?._estimate,
+            current_estimate: currentLink?._estimate,
+          });
+        }
+
+        // Compare hrefs by path+query (host may differ between environments)
+        const baselineHref = baselineLink?.href;
+        const currentHref = currentLink?.href;
+        if (baselineHref && currentHref) {
+          try {
+            const bUrl = new URL(baselineHref);
+            const cUrl = new URL(currentHref);
+            if (bUrl.pathname + bUrl.search !== cUrl.pathname + cUrl.search) {
+              hrefDifferences.push({ key, baseline_href: bUrl.pathname + bUrl.search, current_href: cUrl.pathname + cUrl.search });
+            }
+          } catch {
+            if (baselineHref !== currentHref) {
+              hrefDifferences.push({ key, baseline_href: baselineHref, current_href: currentHref });
+            }
+          }
+        }
+      }
+
+      if (estimateDifferences.length > 0) {
+        estimateDiff = {
+          type: 'estimate_differences',
+          differences: estimateDifferences,
+          num_differences: estimateDifferences.length,
+          overlapping_count: overlappingKeys.length,
+        };
+        comparison.differences.push(estimateDiff);
+      }
+
+      if (hrefDifferences.length > 0) {
+        hrefDiff = {
+          type: 'href_differences',
+          differences: hrefDifferences,
+          num_differences: hrefDifferences.length,
+          overlapping_count: overlappingKeys.length,
+        };
+        comparison.differences.push(hrefDiff);
+      }
+    }
+
+    // Build functional columns for rendering
+    const hci = comparison.hal_link_count_info;
+    comparison.functional_columns = [
+      { key: "hal_link_count", label: "HAL Link Count",
+        status: hci.is_mismatch ? "mismatch" : "match",
+        matchValue: hci.baseline_count,
+        mismatchText: `${hci.baseline_count} \u2192 ${hci.current_count}` },
+      { key: "link_set", label: "Link Set",
+        status: linkSetDiff ? "mismatch" : "match",
+        mismatchText: linkSetDiff ? `Missing: ${linkSetDiff.missing_count}, Extra: ${linkSetDiff.extra_count}` : undefined },
+      { key: "estimates", label: "Estimates",
+        status: estimateDiff ? "mismatch" : "match",
+        mismatchText: estimateDiff ? `${estimateDiff.num_differences} of ${estimateDiff.overlapping_count} differ` : undefined },
+      { key: "hrefs", label: "HREFs",
+        status: hrefDiff ? "mismatch" : "match",
+        mismatchText: hrefDiff ? `${hrefDiff.num_differences} of ${hrefDiff.overlapping_count} differ` : undefined },
     ];
   }
 
