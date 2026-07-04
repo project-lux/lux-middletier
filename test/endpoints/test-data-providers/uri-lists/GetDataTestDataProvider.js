@@ -24,7 +24,7 @@ export class GetDataTestDataProvider extends TestDataProvider {
       filename = '2025-12-03-uris-with-profile.txt';
     } else if (this.isGetDataNoProfile(endpointKey)) {
       this.withProfiles = false;
-      filename = '2025-12-03-uris-plain.txt';
+      filename = '2026-06-13-uris-plain.txt';
     } else {
       return [];
     }
