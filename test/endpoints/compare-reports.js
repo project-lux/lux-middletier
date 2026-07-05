@@ -1278,6 +1278,7 @@ class ReportComparator {
 
     // Build functional columns for rendering
     const hci = comparison.hal_link_count_info;
+    comparison.show_criteria = false;
     comparison.functional_columns = [
       { key: "hal_link_count", label: "HAL Link Count",
         status: hci.is_mismatch ? "mismatch" : "match",
@@ -1285,11 +1286,14 @@ class ReportComparator {
         mismatchText: `${hci.baseline_count} \u2192 ${hci.current_count}` },
       { key: "link_set", label: "Link Set",
         status: linkSetDiff ? "mismatch" : "match",
-        mismatchText: linkSetDiff ? `Missing: ${linkSetDiff.missing_count}, Extra: ${linkSetDiff.extra_count}` : undefined },
-      { key: "estimates", label: "Estimates",
+        mismatchText: linkSetDiff ? [
+          linkSetDiff.missing_count > 0 ? `Missing: ${linkSetDiff.missing_in_current.join(', ')}` : null,
+          linkSetDiff.extra_count > 0 ? `Extra: ${linkSetDiff.extra_in_current.join(', ')}` : null,
+        ].filter(Boolean).join('; ') : undefined },
+      { key: "estimates", label: "Shared Key Estimates",
         status: estimateDiff ? "mismatch" : "match",
         mismatchText: estimateDiff ? `${estimateDiff.num_differences} of ${estimateDiff.overlapping_count} differ` : undefined },
-      { key: "hrefs", label: "HREFs",
+      { key: "hrefs", label: "Shared Key HREFs",
         status: hrefDiff ? "mismatch" : "match",
         mismatchText: hrefDiff ? `${hrefDiff.num_differences} of ${hrefDiff.overlapping_count} differ` : undefined },
     ];
@@ -2111,6 +2115,9 @@ class ReportComparator {
                 const columnDefs = comparison.functional_comparison.detailed_differences
                   .find((d) => d.functional_columns && d.functional_columns.length > 0)
                   ?.functional_columns || [];
+                const showCriteria = comparison.functional_comparison.detailed_differences
+                  .find((d) => d.show_criteria !== undefined)
+                  ?.show_criteria !== false;
                 return `
         <h3>Functional Differences</h3>
         <div class="table-container">
@@ -2120,7 +2127,7 @@ class ReportComparator {
                         <th>Test</th>
                         <th>Description</th>
                         ${columnDefs.map((col) => `<th>${col.label}</th>`).join("\n                        ")}
-                        <th>Criteria</th>
+                        ${showCriteria ? '<th>Criteria</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -2188,7 +2195,7 @@ class ReportComparator {
                         <td><code>${testName}</code></td>
                         <td>${description}</td>
                         ${columnCells.map((html) => `<td>${html}</td>`).join("\n                        ")}
-                        <td>${criteriaHtml}</td>
+                        ${showCriteria ? `<td>${criteriaHtml}</td>` : ''}
                     </tr>
                     `;
                       })
