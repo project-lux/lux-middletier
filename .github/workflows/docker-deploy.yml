@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Pack environment variables
         run: |
-          echo 'VERSION=${{ vars.TAG_TO_DEPLOY }}' > _env
+          echo 'TAG_TO_DEPLOY=${{ vars.TAG_TO_DEPLOY }}' > _env
           echo 'NUM_INSTANCES=${{ vars.NUM_INSTANCES }}' >> _env
           echo 'ML_HOST=${{ vars.ML_HOST }}' >> _env
           echo 'ML_PORT=${{ vars.ML_PORT }}' >> _env
