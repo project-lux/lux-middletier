@@ -4,10 +4,12 @@ FROM node:20.18.0-bookworm AS builder
 RUN mkdir /build
 ADD . /build
 
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends yarnpkg && \
-  cd /build/ && \
-  yarnpkg install --production
+RUN wget -qO- https://get.pnpm.io/install.sh | \
+    env PNPM_VERSION=11.13.0 ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - && \
+    . $HOME/.bashrc && \
+    cd /build/ && \
+    pnpm install --production && \
+    rm -rf $(pnpm store path)
 
 # Image that will actually be deployed
 # debian 11: bullseye

@@ -1,0 +1,9 @@
+allowBuilds:
+  '@google/genai': true
+  es5-ext: true
+  fsevents: true
+  kerberos: true
+  marklogic@file:marklogic-3.6.0-retry-1.0.1.tgz: true
+  protobufjs: true
+nodeVersion: "26.0.0"
+saveExact: true

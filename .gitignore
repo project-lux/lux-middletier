@@ -12,3 +12,5 @@ package-lock.json
 !.config.json.templates
 
 lux-gcp-key.json
+
+test/hal/hal-link-test*
