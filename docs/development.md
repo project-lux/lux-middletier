@@ -12,10 +12,10 @@ Running this middle tier assumes there is a MarkLogic database running somewhere
 
 ### 2. Install/Update NPM Modules
 
-This project uses [yarn](https://yarnpkg.com/) instead of [npm](https://www.npmjs.com/) for commands and dependency files -- e.g., keep yarn.lock instead of package-lock.json to lock the versions of the dependencies. First, install/update modules by running
+This project uses [pnpm](https://pnpm.io/) instead of [npm](https://www.npmjs.com/) for commands and dependency files -- e.g., keep pnpm-lock.yaml instead of package-lock.json to lock the versions of the dependencies. First, install/update modules by running
 
 ```bash
-yarn install
+pnpm install
 ```
 
 ### 3.. Set the required environment variables
