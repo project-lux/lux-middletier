@@ -29,26 +29,50 @@ function isScoringImportant(query) {
   return false;
 }
 
-// Normalize item IDs to path-only (strip domain) since baseline and current
-// may be served from different hosts (e.g., lux-data-dev vs lux-front-exp)
-// but use the same entity paths like /data/object/<uuid>.
-function normalizeDocId(id) {
-  if (!id) return id;
-  try {
-    return new URL(id).pathname;
-  } catch {
-    return id; // Not a URL, use as-is
+// While id properties may always be URLs, value properties may not be (e.g., date 
+// facet values are dates).  When a URL, return the path and query string only.
+function removeUrlOrigin(str) {
+  if (!str || typeof str !== "string") return str;
+
+  if (str.startsWith("https://") || str.startsWith("http://")) {
+    try {
+      const url = new URL(str);
+      return url.pathname + url.search;
+    } catch {
+      return str;
+    }
   }
+
+  return str;
 };
 
-function normalizeSearchEstimateId(id) {
-  if (!id) return id;
-  try {
-    const url = new URL(id);
-    return url.pathname + url.search;
-  } catch {
-    return id; // Not a URL, use as-is
+function summarizeFacetOrderedItems(items) {
+  const values = [];
+  const valueSet = new Set();
+  const positionByValue = new Map();
+  const itemByValue = new Map();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const value = removeUrlOrigin(item?.value);
+
+    values.push(value);
+    valueSet.add(value);
+
+    if (!positionByValue.has(value)) {
+      positionByValue.set(value, i);
+    }
+    if (!itemByValue.has(value)) {
+      itemByValue.set(value, item);
+    }
   }
+
+  return {
+    values,
+    valueSet,
+    positionByValue,
+    itemByValue,
+  };
 };
 
 class ReportComparator {
@@ -627,8 +651,8 @@ class ReportComparator {
       // Check if the same items are present (regardless of order)
 
 
-      const baselineNormIds = baselineItems.map((item) => normalizeDocId(item.id));
-      const currentNormIds = currentItems.map((item) => normalizeDocId(item.id));
+      const baselineNormIds = baselineItems.map((item) => removeUrlOrigin(item.id));
+      const currentNormIds = currentItems.map((item) => removeUrlOrigin(item.id));
       const baselineIdSet = new Set(baselineNormIds);
       const currentIdSet = new Set(currentNormIds);
 
@@ -899,19 +923,14 @@ class ReportComparator {
     }
 
     // Compare ordered items (result ordering)
-    const PAGE_SIZE = 20;
     const baselineItems = baselineData?.orderedItems || [];
     const currentItems = currentData?.orderedItems || [];
+    const baselineSummary = summarizeFacetOrderedItems(baselineItems);
+    const currentSummary = summarizeFacetOrderedItems(currentItems);
 
-    // Use orderedItems count when available, otherwise estimate from totalItems
-    const baselineResultCount =
-      baselineItems.length > 0
-        ? baselineItems.length
-        : Math.min(baselineTotalItems || 0, PAGE_SIZE);
-    const currentResultCount =
-      currentItems.length > 0
-        ? currentItems.length
-        : Math.min(currentTotalItems || 0, PAGE_SIZE);
+    // Compare orderedItems counts directly for facet responses.
+    const baselineResultCount = baselineItems.length;
+    const currentResultCount = currentItems.length;
 
     // Always store result count info for display purposes
     comparison.result_count_info = {
@@ -927,16 +946,16 @@ class ReportComparator {
     }
 
     // Check if the same items are present (regardless of order)
-    const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
-    const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
-    const baselineIdSet = new Set(baselineNormIds);
-    const currentIdSet = new Set(currentNormIds);
+    const baselineValues = baselineSummary.values;
+    const currentValues = currentSummary.values;
+    const baselineValueSet = baselineSummary.valueSet;
+    const currentValueSet = currentSummary.valueSet;
 
-    const missingInCurrent = [...baselineIdSet].filter(
-      (id) => !currentIdSet.has(id),
+    const missingInCurrent = [...baselineValueSet].filter(
+      (value) => !currentValueSet.has(value),
     );
-    const extraInCurrent = [...currentIdSet].filter(
-      (id) => !baselineIdSet.has(id),
+    const extraInCurrent = [...currentValueSet].filter(
+      (value) => !baselineValueSet.has(value),
     );
 
     let resultSetDiff = null;
@@ -952,66 +971,71 @@ class ReportComparator {
     }
 
     // Check ordering differences for overlapping items (regardless of missing/extra items)
-    const overlappingIds = [...baselineIdSet].filter((id) =>
-      currentIdSet.has(id),
+    const overlappingValues = baselineValues.filter((value) =>
+      currentValueSet.has(value),
     );
 
     let orderingDiff = null;
     let childTotalItemsDiff = null;
+    let idDiff = null;
 
-    if (overlappingIds.length > 0) {
-      const overlappingSet = new Set(overlappingIds);
-      const baselineOverlapOrder = baselineNormIds.filter((id) =>
-        overlappingSet.has(id),
-      );
-      const currentOverlapOrder = currentNormIds.filter((id) =>
-        overlappingSet.has(id),
-      );
-
+    if (overlappingValues.length > 0) {
       let itemsMoved = 0;
       let differentChildTotalItems = 0;
+      let differentIds = 0;
 
-      function getChildTotalItemsById(items, id) {
-        const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
-        return item ? item.totalItems || 0 : 0;
-      }
-
-      for (let i = 0; i < baselineOverlapOrder.length; i++) {
-        const itemId = baselineOverlapOrder[i];
-        const currentPosition = currentOverlapOrder.indexOf(itemId);
+      for (let i = 0; i < overlappingValues.length; i++) {
+        const value = overlappingValues[i];
+        const currentPosition = currentSummary.positionByValue.get(value);
 
         if (currentPosition !== i) {
           itemsMoved++;
         }
 
-        const baselineItemTotalItems = getChildTotalItemsById(baselineItems, itemId);
-        const currentItemTotalItems = getChildTotalItemsById(currentItems, itemId);
+        const baselineItem = baselineSummary.itemByValue.get(value);
+        const currentItem = currentSummary.itemByValue.get(value);
+        const baselineItemTotalItems = baselineItem?.totalItems || 0;
+        const currentItemTotalItems = currentItem?.totalItems || 0;
         if (baselineItemTotalItems !== currentItemTotalItems) {
           differentChildTotalItems++;
+        }
+
+        const baselineItemId = removeUrlOrigin(baselineItem?.id);
+        const currentItemId = removeUrlOrigin(currentItem?.id);
+        if (baselineItemId !== currentItemId) {
+          differentIds++;
         }
       }
 
       if (itemsMoved > 0) {
         orderingDiff = {
           type: "ordering_differences",
-          overlapping_items_count: overlappingIds.length,
+          overlapping_items_count: overlappingValues.length,
           total_items_baseline: baselineItems.length,
           total_items_current: currentItems.length,
           items_moved: itemsMoved,
-          baseline_order: baselineOverlapOrder.slice(0, 5),
-          current_order: currentOverlapOrder.slice(0, 5),
+          baseline_order: baselineValues.slice(0, 5),
+          current_order: currentValues.slice(0, 5),
         };
         comparison.differences.push(orderingDiff);
       }
       if (differentChildTotalItems > 0) {
         childTotalItemsDiff = {
           type: "child_total_items_differences",
-          overlapping_items_count: overlappingIds.length,
+          overlapping_items_count: overlappingValues.length,
           total_items_baseline: baselineItems.length,
           total_items_current: currentItems.length,
           items_with_different_child_total_items: differentChildTotalItems,
         };
         comparison.differences.push(childTotalItemsDiff);
+      }
+      if (differentIds > 0) {
+        idDiff = {
+          type: "facet_id_differences",
+          overlapping_items_count: overlappingValues.length,
+          items_with_different_ids: differentIds,
+        };
+        comparison.differences.push(idDiff);
       }
     }
 
@@ -1036,6 +1060,13 @@ class ReportComparator {
       { key: "child_total_items", label: "Child Total Items",
         status: childTotalItemsDiff ? "mismatch" : "match",
         mismatchText: childTotalItemsDiff ? `${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items` : undefined },
+      { key: "item_ids", label: "Estimate URLs",
+        status: idDiff ? "mismatch" : "match",
+        mismatchText: idDiff ? `${idDiff.items_with_different_ids} out of ${idDiff.overlapping_items_count} items have different ids` : undefined },
+      { key: "source_files", label: "Source Files",
+        status: "info",
+        baselineFile: comparison.baseline_file,
+        currentFile: comparison.current_file },
     ];
   }
 
@@ -1063,8 +1094,8 @@ class ReportComparator {
     }
 
     // Check if the same items are present (regardless of order)
-    const baselineNormIds = baselineItems.map((item) => normalizeSearchEstimateId(item.id));
-    const currentNormIds = currentItems.map((item) => normalizeSearchEstimateId(item.id));
+    const baselineNormIds = baselineItems.map((item) => removeUrlOrigin(item.id));
+    const currentNormIds = currentItems.map((item) => removeUrlOrigin(item.id));
     const baselineIdSet = new Set(baselineNormIds);
     const currentIdSet = new Set(currentNormIds);
 
@@ -1108,7 +1139,7 @@ class ReportComparator {
       let differentChildTotalItems = 0;
 
       function getChildTotalItemsById(items, id) {
-        const item = items.find((item) => normalizeSearchEstimateId(item.id) === id);
+        const item = items.find((item) => removeUrlOrigin(item.id) === id);
         return item ? item.totalItems || 0 : 0;
       }
 
@@ -2140,13 +2171,45 @@ class ReportComparator {
 
                         // Build column cells from functional_columns (or dashes for error entries)
                         const columns = diff.functional_columns || [];
-                        const colToHtml = (col) =>
-                          col.status === "mismatch"
-                            ? `<span class="negative">${col.mismatchText}</span>`
-                            : `<span class="positive">✓ Match${col.matchValue != null ? ": " + col.matchValue : ""}</span>`;
+                        const toFileHref = (rawPath) => {
+                          if (!rawPath || typeof rawPath !== "string") {
+                            return null;
+                          }
+
+                          const normalized = rawPath.replace(/\\/g, "/");
+                          const rootMarker = "/cts-v-optic/";
+                          const markerIndex = normalized.indexOf(rootMarker);
+                          const strippedPath = markerIndex >= 0
+                            ? normalized.substring(markerIndex)
+                            : normalized;
+
+                          return `${strippedPath.startsWith("/") ? "" : "/"}${strippedPath}`;
+                        };
+
+                        const colToHtml = (col, diffEntry) => {
+                          if (col.status === "mismatch") {
+                            return `<span class="negative">${col.mismatchText}</span>`;
+                          }
+                          if (col.status === "match") {
+                            return `<span class="positive">✓ Match${col.matchValue != null ? ": " + col.matchValue : ""}</span>`;
+                          }
+                          if (col.status === "info" && col.key === "source_files") {
+                            const baselineHref = toFileHref(col.baselineFile || diffEntry.baseline_file);
+                            const currentHref = toFileHref(col.currentFile || diffEntry.current_file);
+                            const baselineLink = baselineHref
+                              ? `<a href="${baselineHref}" target="_blank">Baseline</a>`
+                              : "Baseline";
+                            const currentLink = currentHref
+                              ? `<a href="${currentHref}" target="_blank">Current</a>`
+                              : "Current";
+                            return `<span class="neutral">${baselineLink} | ${currentLink}</span>`;
+                          }
+
+                          return `<span class="neutral">${col.text || "—"}</span>`;
+                        };
                         const columnCells = columnDefs.map((colDef) => {
                           const col = columns.find((c) => c.key === colDef.key);
-                          return col ? colToHtml(col) : '<span class="neutral">—</span>';
+                          return col ? colToHtml(col, diff) : '<span class="neutral">—</span>';
                         });
 
                         // Extract query criteria from URL
@@ -2177,7 +2240,7 @@ class ReportComparator {
                             const criteriaIndex = criteriaDataList.length;
                             const summaryItems = columns.map((col) => ({
                               label: col.label,
-                              html: colToHtml(col),
+                              html: colToHtml(col, diff),
                             }));
                             criteriaDataList.push({
                               encoded: encodedQParam ? encodedQParam : params ? encodeURIComponent(JSON.stringify(params)) : null,
