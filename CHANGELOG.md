@@ -17,6 +17,8 @@
 
 ## Unreleased
 
+- Migrated from yarn to pnpm [243](https://github.com/project-lux/lux-middletier/issues/243).
+
 ## v1.8.0
 - Added TAG_TO_DEPLOY env variable for displaying current version [238](https://github.com/project-lux/lux-middletier/issues/238).
 
