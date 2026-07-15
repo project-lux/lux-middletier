@@ -18,6 +18,8 @@
 ## Unreleased
 
 - Migrated from yarn to pnpm [243](https://github.com/project-lux/lux-middletier/issues/243).
+- Changed package.json to use exact versioning [242](https://github.com/project-lux/lux-middletier/issues/242).
+- Updated outdated packages [242](https://github.com/project-lux/lux-middletier/issues/242).
 
 ## v1.8.0
 - Added TAG_TO_DEPLOY env variable for displaying current version [238](https://github.com/project-lux/lux-middletier/issues/238).
