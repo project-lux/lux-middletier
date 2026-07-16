@@ -5,6 +5,13 @@
   "license": "UNLICENSED",
   "private": true,
   "type": "module",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.13.1",
+      "onFail": "error"
+    }
+  },
   "scripts": {
     "start": "node index.js",
     "buildProxy": "gulp proxygen",
@@ -33,6 +40,5 @@
     "gulp": "^4.0.2",
     "gulp-rename": "^2.0.0",
     "jest": "^27.3.1"
-  },
-  "packageManager": "pnpm@11.10.0"
+  }
 }

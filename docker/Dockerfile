@@ -5,7 +5,7 @@ RUN mkdir /build
 ADD . /build
 
 RUN wget -qO- https://get.pnpm.io/install.sh | \
-    env PNPM_VERSION=11.13.0 ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - && \
+    env PNPM_VERSION=11.13.1 ENV="$HOME/.bashrc" SHELL="$(which bash)" bash - && \
     . $HOME/.bashrc && \
     cd /build/ && \
     pnpm install --production && \
