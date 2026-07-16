@@ -1198,6 +1198,10 @@ class ReportComparator {
       { key: "child_total_items", label: "Child Total Items",
         status: childTotalItemsDiff ? "mismatch" : "match",
         mismatchText: childTotalItemsDiff ? `${childTotalItemsDiff.items_with_different_child_total_items} out of ${childTotalItemsDiff.overlapping_items_count} items have different child total items` : undefined },
+      { key: "source_files", label: "Source Files",
+        status: "info",
+        baselineFile: comparison.baseline_file,
+        currentFile: comparison.current_file },
     ];
   }
 
