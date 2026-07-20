@@ -8,8 +8,8 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.13.1",
-      "onFail": "error"
+      "version": "^11.0.0",
+      "onFail": "warn"
     }
   },
   "scripts": {
@@ -18,27 +18,27 @@
     "lint": "eslint . --ext .js"
   },
   "dependencies": {
-    "@aws-sdk/client-cognito-identity": "^3.810.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.810.0",
-    "@aws-sdk/client-cognito-sync": "^3.810.0",
-    "@google/genai": "^1.41.0",
-    "cors": "^2.8.5",
-    "express": "^4.20.0",
-    "jsonwebtoken": "^9.0.2",
-    "jwks-rsa": "^3.2.0",
+    "@aws-sdk/client-cognito-identity": "3.1087.0",
+    "@aws-sdk/client-cognito-identity-provider": "3.1087.0",
+    "@aws-sdk/client-cognito-sync": "3.1087.0",
+    "@google/genai": "2.10.0",
+    "cors": "2.8.6",
+    "express": "^4.22.1",
+    "jsonwebtoken": "9.0.3",
+    "jwks-rsa": "3.2.2",
     "marklogic": "file:./marklogic-3.6.0-retry-1.0.1.tgz",
-    "openid-client": "^6.5.0",
-    "winston": "^3.3.3"
+    "openid-client": "6.8.4",
+    "winston": "3.19.0"
   },
   "devDependencies": {
-    "ast-types": "^0.14.2",
-    "astring": "^1.8.1",
-    "eslint": "^9.28.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-plugin-import": "^2.31.0",
-    "gulp": "^4.0.2",
-    "gulp-rename": "^2.0.0",
-    "jest": "^27.3.1"
+    "ast-types": "0.14.2",
+    "astring": "1.9.0",
+    "eslint": "9.39.5",
+    "eslint-config-airbnb-base": "15.0.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-import": "2.32.0",
+    "gulp": "4.0.2",
+    "gulp-rename": "2.1.0",
+    "jest": "30.4.2"
   }
 }

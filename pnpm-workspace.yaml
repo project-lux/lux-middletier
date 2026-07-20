@@ -5,5 +5,6 @@ allowBuilds:
   kerberos: true
   marklogic@file:marklogic-3.6.0-retry-1.0.1.tgz: true
   protobufjs: true
+  unrs-resolver: true
 nodeVersion: "20.18.0"
 saveExact: true
