@@ -17,6 +17,7 @@
 ---
 ## v1.10.0
 - search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
+- Added Object Influenced, Works Influenced, and Works About HAL links for agents [248](https://github.com/project-lux/lux-middletier/issues/248).
 
 ## v1.9.0
 
