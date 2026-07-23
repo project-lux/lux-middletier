@@ -17,6 +17,10 @@
 
 ## Unreleased
 
+- Added Object Influenced, Works Influenced, and Works About HAL links for agents [248](https://github.com/project-lux/lux-middletier/issues/248).
+
+## v1.9.0
+
 - Migrated from yarn to pnpm [243](https://github.com/project-lux/lux-middletier/issues/243).
 - Changed package.json to use exact versioning [242](https://github.com/project-lux/lux-middletier/issues/242).
 - Updated outdated packages [242](https://github.com/project-lux/lux-middletier/issues/242).
