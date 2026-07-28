@@ -21,6 +21,10 @@
 
 ## v1.9.0
 
+- Added related events HAL link to agents config [11](https://github.com/project-lux/lux-middletier/issues/11).
+
+## v1.9.0
+
 - Migrated from yarn to pnpm [243](https://github.com/project-lux/lux-middletier/issues/243).
 - Changed package.json to use exact versioning [242](https://github.com/project-lux/lux-middletier/issues/242).
 - Updated outdated packages [242](https://github.com/project-lux/lux-middletier/issues/242).
