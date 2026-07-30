@@ -2,6 +2,7 @@
 
 ## MarkLogic Dependencies
 
+- With v1.10.0 MarkLogic client code was regenerated against ML v4.0.0 dated 07/30/26
 - With v1.5.0 MarkLogic client code was regenerated against ML v3.0.0 dated 03/16/26
 - With v1.3.3 MarkLogic client code was regenerated against ML v1.43.0 dated 07/14/25
 - With v1.3.2 MarkLogic client code was regenerated against ML v1.42.0 dated 06/30/25
@@ -14,8 +15,10 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+## v1.10.0
+- search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
 
-## Unreleased
+## v1.9.0
 
 - Migrated from yarn to pnpm [243](https://github.com/project-lux/lux-middletier/issues/243).
 - Changed package.json to use exact versioning [242](https://github.com/project-lux/lux-middletier/issues/242).

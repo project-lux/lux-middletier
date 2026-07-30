@@ -30,7 +30,7 @@ source env
 ### 4. Run
 
 ```bash
-yarn start
+pnpm start
 ```
 
 You can then access the application at http://localhost:{port}. For example, http://localhost:8080 if you set the environment variable APP_PORT to 8080.
@@ -46,7 +46,7 @@ Make sure the MarkLogic code (from https://github.com/project-lux/lux-marklogic)
 Make sure the lux-marklogic code is at the desired version, and run the following from the `lux-middletier/.` directory (where package.json and gulpfile.js are present).
 
 ```bash
-yarn buildProxy
+pnpm buildProxy
 ```
 
 Which will update the file  `./lib/ml-generated/lux.js`.
