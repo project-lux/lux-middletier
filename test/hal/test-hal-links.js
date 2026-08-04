@@ -42,6 +42,7 @@ if(options.ignore){
 
 const exampleDocs = {
   agent: [
+    'person/6b9ec4d8-2eb3-4c21-8230-ce774f21b4f2', // Edwin Austin Abbey - https://linked-art.library.yale.edu/node/f1a56803-eed3-4eed-a1de-d3cef6012f28
     'person/66049111-383e-4526-9632-2e9b6b6302dd', // Andy Warhol - http://vocab.getty.edu/ulan/500006031
     'group/6b1104a6-4957-4b77-8218-9c686febd8db', // Carnegie Institute of Technology - https://linked-art.library.yale.edu/node/85544189-d03e-4516-9be2-0b6b2e841f7b
     'person/5333319b-3917-470c-9764-873674778212', // Lawrence F. Gall - https://images.peabody.yale.edu/data/agent/6/f0/6f02b49f-07ef-49dd-bac9-3563f933affe.json
