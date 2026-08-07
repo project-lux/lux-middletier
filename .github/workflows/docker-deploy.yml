@@ -46,6 +46,7 @@ jobs:
           echo 'RESULT_URI_HOST=${{ vars.RESULT_URI_HOST }}' >> _env
           echo 'ALT_ROUTE_REQ_TYPES=${{ vars.ALT_ROUTE_REQ_TYPES }}' >> _env
           echo 'LOG_LEVEL=${{ vars.LOG_LEVEL }}' >> _env
+          echo 'UNIT_NAME=${{ vars.UNIT_NAME }}' >> _env
           echo 'GOOGLE_APPLICATION_CREDENTIALS=${{ vars.GOOGLE_APPLICATION_CREDENTIALS }}' >> _env
           echo 'GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}' >> _env
           set -x
