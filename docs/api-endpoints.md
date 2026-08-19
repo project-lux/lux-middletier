@@ -97,7 +97,7 @@ The primary means to search LUX's backend.
     - q - query in JSON search format defined by the backend
   - Optional: page, pageLength, pageWith, sort, filterResults
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search) for detailed descriptions of parameters and responses.
-- Example: https://lux.collections.yale.edu/api/search?q=%7B%22AND%22%3A%5B%7B%22text%22%3A%22any%22%2C%22_lang%22%3A%22en%22%7D%2C%7B%22text%22%3A%22warhol%22%2C%22_lang%22%3A%22en%22%7D%5D%7D&scope=item&page=1
+- Example: https://lux.collections.yale.edu/api/search/item?q=%7B%22AND%22%3A%5B%7B%22text%22%3A%22any%22%2C%22_lang%22%3A%22en%22%7D%2C%7B%22text%22%3A%22warhol%22%2C%22_lang%22%3A%22en%22%7D%5D%7D&page=1
 
 ## Search Estimate
 Returns estimated number of results for a search.
