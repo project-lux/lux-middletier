@@ -18,16 +18,10 @@
     "lint": "eslint . --ext .js"
   },
   "dependencies": {
-    "@aws-sdk/client-cognito-identity": "3.1087.0",
-    "@aws-sdk/client-cognito-identity-provider": "3.1087.0",
-    "@aws-sdk/client-cognito-sync": "3.1087.0",
     "@google/genai": "2.10.0",
     "cors": "2.8.6",
     "express": "^4.22.1",
-    "jsonwebtoken": "9.0.3",
-    "jwks-rsa": "3.2.2",
     "marklogic": "file:./marklogic-3.6.0-retry-1.0.1.tgz",
-    "openid-client": "6.8.4",
     "winston": "3.19.0"
   },
   "devDependencies": {

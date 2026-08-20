@@ -31,7 +31,6 @@ const env = {
   numInstances: getInt(process.env.NUM_INSTANCES) || -1,
   searchUriHost: process.env.SEARCH_URI_HOST || 'https://lux.collections.yale.edu',
   resultUriHost: process.env.RESULT_URI_HOST || null,
-  unitName: process.env.UNIT_NAME || null,
   mlSsl: process.env.ML_SSL === 'true',
   mlAuthType: process.env.ML_AUTH_TYPE,
 
@@ -46,13 +45,7 @@ const env = {
   aiEnabled: process.env.GCP_PROJECT_ID !== undefined && process.env.GCP_PROJECT_ID !== '' && process.env.GOOGLE_APPLICATION_CREDENTIALS !== undefined && process.env.GOOGLE_APPLICATION_CREDENTIALS !== '',
   gcpProjectId: process.env.GCP_PROJECT_ID,
 
-  cognitoJwksUri: process.env.COGNITO_JWKS_URI,
-  cognitoClientId: process.env.COGNITO_CLIENT_ID,
-  cognitoServiceUsername: process.env.COGNITO_SERVICE_USERNAME,
-  cognitoServicePassword: process.env.COGNITO_SERVICE_PASSWORD,
-
   logLevel: process.env.LOG_LEVEL || 'debug',
-  featureMyCollections: process.env.FEATURE_MY_COLLECTIONS === 'true',
 
   relayAndForgetTargets: getStringArray(process.env.RELAY_AND_FORGET_TARGETS),
 }

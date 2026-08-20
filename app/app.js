@@ -4,7 +4,6 @@ import express from 'express'
 
 import env from '../config/env.js'
 import HalLinksBuilder from '../lib/hal-links-builder.js'
-import { extractAccessToken, getServiceToken, verifyToken } from '../lib/auth/auth.js'
 import * as log from '../lib/log.js'
 import MLProxy from '../lib/ml-proxy.js'
 import { getNumArg, replaceStringsInObject } from '../lib/util.js'
@@ -53,7 +52,6 @@ const handleError = (err, defaultMessage, res) => {
 
 class App {
   constructor(config) {
-    this.useOAuth = config.useOAuth
     this.port = config.port // port on which the Express app listens
     this.mlProxy = config.mlProxy
     this.mlProxy2 = config.mlProxy2 || null
@@ -88,14 +86,10 @@ class App {
     exp.get('/api/search-info', this.handleSearchInfo.bind(this))
     exp.get('/api/search-will-match', this.handleSearchWillMatch.bind(this))
     exp.get('/api/stats', this.handleStats.bind(this))
-    exp.get('/api/tenant-status', this.handleTenantStatus.bind(this))
     exp.get('/api/translate/:scope', this.handleTranslate.bind(this))
     exp.get('/api/version-info', this.handleVersionInfo.bind(this))
 
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
-    exp.post('/data', this.handleCreateDocument.bind(this))
-    exp.put('/data/:type/:uuid', this.handleUpdateDocument.bind(this))
-    exp.delete('/data/:type/:uuid', this.handleDeleteDocument.bind(this))
 
     exp.get('/health', (req, res) => {
       res.json({
@@ -113,23 +107,7 @@ class App {
     return `${this.searchUriHost}/data/${type}/${uuid}`
   }
 
-  async getMLProxy(req) {
-    let username = ''
-
-    if (this.useOAuth) {
-      let accessToken = extractAccessToken(req)
-
-      if (accessToken) {
-        const decAccess = await verifyToken(accessToken)
-        username = decAccess.username
-      } else {
-        const tokenInfo = await getServiceToken()
-        accessToken = tokenInfo.accessToken
-        username = tokenInfo.username
-      }
-      this.mlProxy.initOAuth(accessToken, username)
-      return this.mlProxy
-    }
+  getMLProxy(req) {
     return belongsToAltRoute(req) ? this.mlProxy2 : this.mlProxy
   }
 
@@ -138,7 +116,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.advancedSearchConfig(env.unitName)
+    mlProxy.advancedSearchConfig()
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -202,7 +180,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.autoComplete(env.unitName,
+    mlProxy.autoComplete(
       text,
       context,
       fullyHonorContext,
@@ -230,7 +208,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.getDocument(env.unitName, uri, profile || null, lang || null)
+    mlProxy.getDocument(uri, profile || null, lang || null)
       .then(async doc => {
         if (doc == null) {
           res.status(404)
@@ -241,7 +219,7 @@ class App {
             //HAL links use search-will-match, use the mlProxy for that kind of request:
             const halProxy = await this.getMLProxy({url: '/api/search-will-match'})
             // Create HAL links only when no profile has been requested
-            const linksBuilder = new HalLinksBuilder(halProxy, env.unitName)
+            const linksBuilder = new HalLinksBuilder(halProxy)
             links = await linksBuilder.getLinks(doc)
           }
           const doc2 = transformEntityDoc(
@@ -261,75 +239,6 @@ class App {
       })
   }
 
-  async handleCreateDocument(req, res) {
-    const start = hrtime.bigint()
-    let errorCopy = {}
-    const mlProxy = await this.getMLProxy(req)
-
-    try {
-      const inDoc = replaceStringsInObject(
-        req.body,
-        this.resultUriHost,
-        this.searchUriHost,
-      )
-      const result = await mlProxy.createDocument(env.unitName, inDoc)
-      const outDoc = replaceStringsInObject(
-        result,
-        this.searchUriHost,
-        this.resultUriHost,
-      )
-      res.status(201).json(outDoc)
-    } catch (err) {
-      errorCopy = handleError(err, `failed to create data`, res)
-    } finally {
-      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-    }
-  }
-
-  async handleUpdateDocument(req, res) {
-    const start = hrtime.bigint()
-    const { type, uuid } = req.params
-    const uri = this.buildUri(type, uuid)
-    let errorCopy = {}
-    const mlProxy = await this.getMLProxy(req)
-
-    try {
-      const inDoc = replaceStringsInObject(
-        req.body,
-        this.resultUriHost,
-        this.searchUriHost,
-      )
-      const result = await mlProxy.updateDocument(env.unitName, uri, inDoc)
-      const outDoc = replaceStringsInObject(
-        result,
-        this.searchUriHost,
-        this.resultUriHost,
-      )
-      res.status(200).json(outDoc)
-    } catch (err) {
-      errorCopy = handleError(err, `failed to update data`, res)
-    } finally {
-      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-    }
-  }
-
-  async handleDeleteDocument(req, res) {
-    const start = hrtime.bigint()
-    const { type, uuid } = req.params
-    const uri = this.buildUri(type, uuid)
-    let errorCopy = {}
-    const mlProxy = await this.getMLProxy(req)
-
-    try {
-      await mlProxy.deleteDocument(uri)
-      res.status(200).end()
-    } catch (err) {
-      errorCopy = handleError(err, `failed to delete data`, res)
-    } finally {
-      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-    }
-  }
-
   async handleFacets(req, res) {
     const start = hrtime.bigint()
     const { scope } = req.params
@@ -344,7 +253,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.facets(env.unitName, name, qstr, scope, page, pageLength, sort)
+    mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -376,7 +285,6 @@ class App {
     let errorCopy = {}
 
     mlProxy.relatedList({
-      unitName: env.unitName,
       searchScopeName,
       relatedListName,
       uri,
@@ -421,7 +329,6 @@ class App {
       // first try just doing a search with identifier
       let searchCriteria = { identifier }
       mlProxy.search({
-        unitName: env.unitName,
         searchCriteria,
         searchScope,
         page: 1,
@@ -433,7 +340,6 @@ class App {
             // by including the unit in the query
             searchCriteria = getSecondaryResolveQuery(scope, unit, identifier)
             mlProxy.search({
-              unitName: env.unitName,
               searchCriteria,
               searchScope,
               page: 1,
@@ -511,7 +417,6 @@ class App {
     let errorCopy = {}
 
     mlProxy.search({
-      unitName: env.unitName,
       searchCriteria,
       searchScope,
       page,
@@ -542,7 +447,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.searchEstimate(env.unitName, qstr, scope)
+    mlProxy.searchEstimate(qstr, scope)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -563,7 +468,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.searchInfo(env.unitName)
+    mlProxy.searchInfo()
       .then(result => res.json(result))
       .catch(err => {
         errorCopy = handleError(err, 'failed to retrieve search info', res)
@@ -579,7 +484,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.searchWillMatch(env.unitName, qstr)
+    mlProxy.searchWillMatch(qstr)
       .then(result => {
         res.json(replaceStringsInObject(
           result,
@@ -600,7 +505,7 @@ class App {
     const mlProxy = await this.getMLProxy(req)
     let errorCopy = {}
 
-    mlProxy.stats(env.unitName)
+    mlProxy.stats()
       .then(result => {
         res.json(result)
       })
@@ -610,21 +515,6 @@ class App {
       .finally(() => {
         log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
       })
-  }
-
-  async handleTenantStatus(req, res) {
-    const start = hrtime.bigint()
-    const mlProxy = await this.getMLProxy(req)
-    let errorCopy = {}
-
-    try {
-      const result = await mlProxy.getTenantStatus()
-      res.json(result)
-    } catch (err) {
-      errorCopy = handleError(err, 'failed tenantStatus', res)
-    } finally {
-      log.logResult(req, mlProxy.username, hrtime.bigint() - start, errorCopy)
-    }
   }
 
   async handleTranslate(req, res) {
@@ -708,7 +598,6 @@ function newAppWithDigestAuth() {
   })
   const ai = env.aiEnabled ? new AiUtility() : null
   const app = new App({
-    useOAuth: false,
     port: env.appPort,
     mlProxy,
     mlProxy2,
@@ -717,22 +606,7 @@ function newAppWithDigestAuth() {
   return app
 }
 
-async function newAppWithOAuth() {
-  const mlProxy = new MLProxy()
-  const ai = env.aiEnabled ? new AiUtility() : null
-  const app = new App({
-    useOAuth: true,
-    port: env.appPort,
-    mlProxy,
-    ai,
-  })
-  return app
-}
-
 async function newApp() {
-  if (env.featureMyCollections) {
-    return await newAppWithOAuth()
-  }
   return newAppWithDigestAuth()
 }
 
