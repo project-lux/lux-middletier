@@ -6,9 +6,6 @@
 
 - [Document](#document)
   - [Retrieve](#retrieve)
-  - [Create](#create)
-  - [Update](#update)
-  - [Delete](#delete)
 
 ### Search and Helpers
 
@@ -27,14 +24,10 @@
   - [Search Info](#search-info)
   - [Search Will Match](#search-will-match)
   - [Stats](#stats)
-  - [Tenant Status](#tenant-status)
   - [Translate](#translate)
   - [\_info](#_info)
   - [Document](#document)
     - [Retrieve](#retrieve)
-    - [Create](#create)
-    - [Update](#update)
-    - [Delete](#delete)
   - [Health](#health)
 
 ### Configuration
@@ -44,7 +37,6 @@
 
 ### System
 
-- [Tenant Status](#tenant-status)
 - [Stats](#stats)
 - [Health](#health)
 - [_info](#_info)
@@ -134,15 +126,6 @@ Returns number of records per context, in the form of estimates.
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#stats) for details of responses.
 - Example: https://lux.collections.yale.edu/api/stats
 
-## Tenant Status
-Get the status of the tenant, including whether it is production (vs. non-production), in read-only mode, and version information.
-
-- URL: /api/tenant-status
-- Method: GET
-- Query parameters: None
-- See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#get) for details.
-- Example: https://lux.collections.yale.edu/api/tenant-status
-
 ## Translate
 Translates search string to LUX JSON search grammar.
 
@@ -181,38 +164,6 @@ the response includes [HAL links](./hal-links.md) based on the entity type.
 - See [backend documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#read-document) for detailed descriptions of parameters and responses.
 
 - Example: https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22
-
-### Create
-
-- URL: /data/ (the trailing slash is required)
-- Method: POST
-- Data (payload): Document data in JSON
-- Headers:
-  - Authorization: a base64 encoded JWT access token as a bearer token
-- Response: Created document in JSON with id and creator information
-
-### Update
-
-- URL: /data/{id}
-- Method: PUT
-- Path parameters:
-  - id: the part that forms the URI of the entity data, along with the scheme, host, and "/data/"
-    - Example: "object/fbe069b3-4d30-4406-a4a0-47303d4fae22" to form the URI "https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22"
-- Data (payload): Document data in JSON
-- Headers:
-  - Authorization: a base64 encoded JWT access token as a bearer token
-- Response: Updated document in JSON with revision information
-
-### Delete
-
-- URL: /data/{id}
-- Method: DELETE
-- Path parameters:
-  - id: the part that forms the URI of the entity data, along with the scheme, host, and "/data/"
-    - Example: "object/fbe069b3-4d30-4406-a4a0-47303d4fae22" to form the URI "https://lux.collections.yale.edu/data/object/fbe069b3-4d30-4406-a4a0-47303d4fae22"
-- Headers:
-  - Authorization: a base64 encoded JWT access token as a bearer token
-- Response: Empty response body
 
 ## Health
 Health check function that can be called, e.g., by the AWS load balancer.

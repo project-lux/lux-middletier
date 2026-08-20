@@ -1,7 +1,7 @@
 # Changelog
 
 ## MarkLogic Dependencies
-
+- With v1.11.0 MarkLogic client code was regenerated against ML v4.2.0 dated 08/20/26
 - With v1.10.0 MarkLogic client code was regenerated against ML v4.0.0 dated 07/30/26
 - With v1.5.0 MarkLogic client code was regenerated against ML v3.0.0 dated 03/16/26
 - With v1.3.3 MarkLogic client code was regenerated against ML v1.43.0 dated 07/14/25
@@ -15,6 +15,10 @@
 - With v0.5.0, MarkLogic client code was regenerated against ML v1.0.17 dated 5/30/23.
 
 ---
+
+## v1.11.0
+- Removed OAuth/Cognito authentication support and the `FEATURE_MY_COLLECTIONS` feature flag; the middle tier now always connects to MarkLogic using digest authentication. Also remove endpoints and paramaters to match MarkLogic, for example tenant-status, non-read document endpoints, and the `unitName` parameters.  [252](https://github.com/project-lux/lux-middletier/issues/248).
+
 ## v1.10.0
 - search endpoint - remove support for mayChangeScope, facetsSoon, synonymsEnabled parameters
 - Added Object Influenced, Works Influenced, and Works About HAL links for agents [248](https://github.com/project-lux/lux-middletier/issues/248).
