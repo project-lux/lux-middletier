@@ -44,8 +44,8 @@ export const FACETS_CONFIGS = {
     "itemProductionPlaceId",
     "itemRecordType",
     "itemTypeId",
-    "responsibleCollections", // semantic
-    "responsibleUnits", // semantic
+    "itemResponsibleCollections", // semantic
+    "itemResponsibleUnits", // semantic
   ],
   place: [
     "placePartOfId",
@@ -65,10 +65,11 @@ export const FACETS_CONFIGS = {
     "setCurationAgentId",
     "setHasDigitalImage",
     "setIsOnline",
-    "setPartOfId",
     "setPublicationAgentId",
     "setPublicationDate",
     "setPublicationPlaceId",
+    "setResponsibleCollections", // semantic
+    "setResponsibleUnits", // semantic
     "setTypeId",
   ],
   work: [
