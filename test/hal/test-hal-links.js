@@ -90,6 +90,7 @@ const exampleDocs = {
     'set/9b3042fc-dbcc-44ac-b0a9-88369803b0bb', // Entomology Collection
     'set/41f35f57-5490-46fe-9225-2ab7053fd053', // Leonard Crow Dog
     'set/5f1ff079-5f3a-4bd6-921a-5c6ae8f88262', // Ulrish Bonnell Phillips Papers
+    'set/d64f84de-f1e5-4d89-9f24-abd7b4dd3f1d', // Garvin City Planning Image Collection
   ],
 }
 // create a set of missing HAL links to track what isn't completed at the end of the script
