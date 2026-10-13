@@ -12,8 +12,8 @@ RUN wget -qO- https://get.pnpm.io/install.sh | \
     rm -rf $(pnpm store path)
 
 # Image that will actually be deployed
-# debian 11: bullseye
-FROM debian:11.7-slim
+# debian 12: bullseye
+FROM debian:12-slim
 
 COPY --from=builder /build /app
 
