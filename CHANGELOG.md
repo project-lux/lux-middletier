@@ -16,6 +16,9 @@
 
 ---
 
+## v1.12.0
+- Added updated AI prompt to include keyword searches
+
 ## v1.11.0
 - Removed OAuth/Cognito authentication support and the `FEATURE_MY_COLLECTIONS` feature flag; the middle tier now always connects to MarkLogic using basic/digest authentication. Also remove endpoints and paramaters to match MarkLogic, for example tenant-status, non-read document endpoints, and the `unitName` parameters.  [252](https://github.com/project-lux/lux-middletier/issues/248).
 
