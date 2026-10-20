@@ -12,6 +12,7 @@ on:
           - BLUE
           - GREEN
           - DEV
+          - DATA-DEV
           - AI-SEARCH
           - EXP
           - POLLUX-BLUE
