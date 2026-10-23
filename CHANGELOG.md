@@ -16,6 +16,9 @@
 
 ---
 
+## v1.12.3
+- Updated Node version to 24 in the Dockerfile curl command
+
 ## v1.12.2
 - Updated Node version to 24 in the Dockerfile
 
