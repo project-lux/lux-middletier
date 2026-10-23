@@ -16,7 +16,7 @@
 
 ---
 
-## v1.12.1
+## v1.12.2
 - Updated Node version to 24 in the Dockerfile
 
 ## v1.12.0
