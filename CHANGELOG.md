@@ -16,6 +16,9 @@
 
 ---
 
+## v1.12.1
+- Updated Node version to 24 in the Dockerfile
+
 ## v1.12.0
 - Added updated AI prompt to include keyword searches
 

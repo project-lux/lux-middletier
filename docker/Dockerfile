@@ -1,5 +1,5 @@
 # Image to be used as build space
-FROM node:20.18.0-bookworm AS builder
+FROM node:24-bookworm AS builder
 
 RUN mkdir /build
 ADD . /build
