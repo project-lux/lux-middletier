@@ -20,7 +20,7 @@
   "dependencies": {
     "@google/genai": "2.10.0",
     "cors": "2.8.6",
-    "express": "^4.22.1",
+    "express": "5.3.0",
     "marklogic": "file:./marklogic-3.6.0-retry-1.0.1.tgz",
     "winston": "3.19.0"
   },

@@ -16,6 +16,9 @@
 
 ---
 
+## v1.14.0
+- Update express to v5.3.0 [265](https://github.com/project-lux/lux-middletier/issues/265).
+
 ## v1.12.3
 - Updated Node version to 24 in the Dockerfile curl command
 

@@ -45,8 +45,7 @@ const handleError = (err, defaultMessage, res) => {
     errorMessage,
   }
 
-  res.status(statusCode)
-  res.json(result)
+  res.status(statusCode).json(result)
   return result
 }
 
@@ -68,7 +67,7 @@ class App {
     exp.use(express.static('public'))
     exp.use(relayAndForget)
 
-    exp.options('*', (req, res) => {
+    exp.options('/{*splat}', (req, res) => {
       res.header('Access-Control-Allow-Origin', '*')
       res.header('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS')
       res.sendStatus(200)
@@ -92,7 +91,7 @@ class App {
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
 
     exp.get('/health', (req, res) => {
-      res.json({
+      res.status(200).json({
         status: 'ok',
       })
     })
@@ -118,7 +117,7 @@ class App {
 
     mlProxy.advancedSearchConfig()
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -148,7 +147,7 @@ class App {
       let errorCopy = {}
       this.ai.aiTranslate(qstr, mlProxy, prevQuery)
         .then(result => {
-          res.json(replaceStringsInObject(
+          res.status(200).json(replaceStringsInObject(
             result,
             this.searchUriHost,
             this.resultUriHost,
@@ -191,7 +190,7 @@ class App {
       filterIndex,
       previouslyFiltered,
       timeoutInMilliseconds,
-    ).then(result => res.json(result)).catch(
+    ).then(result => res.status(200).json(result)).catch(
       (err) => {
         errorCopy = handleError(err, 'failed autocomplete', res)
       },
@@ -211,8 +210,7 @@ class App {
     mlProxy.getDocument(uri, profile || null, lang || null)
       .then(async doc => {
         if (doc == null) {
-          res.status(404)
-          res.json(null)
+          res.status(404).json(null)
         } else {
           let links = null
           if (!profile) {
@@ -228,7 +226,7 @@ class App {
             this.resultUriHost,
             links,
           )
-          res.json(doc2)
+          res.status(200).json(doc2)
         }
       })
       .catch(err => {
@@ -255,7 +253,7 @@ class App {
 
     mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -294,7 +292,7 @@ class App {
       relationshipsPerRelation,
     })
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -351,11 +349,9 @@ class App {
                   throw new ResolveError(`Identifier '${identifier}' and unit '${unit}' do not resolve to a unique record`, 400)
                 } else if (secondaryResult.orderedItems.length === 1) {
                 // we found a unique result, send a redirect to that record
-                  res.redirect(
-                    secondaryResult.orderedItems[0].id
+                  res.redirect(secondaryResult.orderedItems[0].id
                       .replace(this.searchUriHost, this.resultUriHost)
-                      .replace('data', 'view'),
-                  )
+                      .replace('data', 'view'))
                 } else {
                 // If the length of orderedItems is 0, there are no results
                   throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
@@ -375,11 +371,9 @@ class App {
             })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
-            res.redirect(
-              result.orderedItems[0].id
+            res.redirect(result.orderedItems[0].id
                 .replace(this.searchUriHost, this.resultUriHost)
-                .replace('data', 'view'),
-            )
+                .replace('data', 'view'))
           } else {
           // If the length of orderedItems is 0, there are no results
             throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
@@ -426,7 +420,7 @@ class App {
       filterResults,
     })
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -449,7 +443,7 @@ class App {
 
     mlProxy.searchEstimate(qstr, scope)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -469,7 +463,7 @@ class App {
     let errorCopy = {}
 
     mlProxy.searchInfo()
-      .then(result => res.json(result))
+      .then(result => res.status(200).json(result))
       .catch(err => {
         errorCopy = handleError(err, 'failed to retrieve search info', res)
       })
@@ -486,7 +480,7 @@ class App {
 
     mlProxy.searchWillMatch(qstr)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -507,7 +501,7 @@ class App {
 
     mlProxy.stats()
       .then(result => {
-        res.json(result)
+        res.status(200).json(result)
       })
       .catch(err => {
         errorCopy = handleError(err, 'failed stats', res)
@@ -528,7 +522,7 @@ class App {
       scope,
     )
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -549,7 +543,7 @@ class App {
 
     mlProxy.versionInfo()
       .then(result => {
-        res.json(result)
+        res.status(200).json(result)
       })
       .catch(err => {
         errorCopy = handleError(err, 'failed versionInfo', res)
@@ -561,7 +555,7 @@ class App {
 
   static _handleInfo = (req, res) => {
     const memUsage = process.memoryUsage()
-    res.json({
+    res.status(200).json({
       version: env.version,
       backend: `${env.mlHost}:${env.mlPort}`,
       backendAlt: `${env.mlHost}:${env.mlPort2}`,
