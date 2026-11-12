@@ -1,0 +1,666 @@
+openapi: 3.0.3
+info:
+  title: LUX Middle Tier API
+  version: 1.12.3
+  description: |
+    HTTP API exposed by the LUX middle tier (lux-middletier). The middle tier sits
+    between the LUX frontend and the MarkLogic backend: it relays requests to the
+    backend, rewrites entity URIs from the search host to the result host, and adds
+    HAL links to entity documents.
+
+    Most endpoints pass their parameters through to the backend. For full details
+    of backend parameters and response formats, see the
+    [backend API documentation](https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md).
+
+    All routes accept CORS preflight (`OPTIONS`) requests on any path, answered with
+    `200` and permissive `Access-Control-Allow-*` headers.
+  license:
+    name: UNLICENSED
+externalDocs:
+  description: LUX backend API usage
+  url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md
+servers:
+  - url: https://lux.collections.yale.edu
+    description: Production
+
+tags:
+  - name: Document
+    description: Retrieve single entity documents.
+  - name: Search
+    description: Search the LUX backend and related helpers.
+  - name: Configuration
+    description: Configuration used by the frontend to build search UIs.
+  - name: System
+    description: Health, status, and version information.
+
+paths:
+  /data/{type}/{uuid}:
+    get:
+      tags: [Document]
+      operationId: getDocument
+      summary: Retrieve an entity document
+      description: |
+        Returns the Linked Art JSON document for a single entity. The entity URI is
+        built as `https://lux.collections.yale.edu/data/{type}/{uuid}`. If no `profile`
+        is given, the response includes [HAL links](./hal-links.md) under `_links`
+        based on the entity type.
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#read-document
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: Entity type segment of the URI.
+          schema:
+            type: string
+          example: object
+        - name: uuid
+          in: path
+          required: true
+          description: Entity identifier segment of the URI.
+          schema:
+            type: string
+          example: fbe069b3-4d30-4406-a4a0-47303d4fae22
+        - name: profile
+          in: query
+          required: false
+          description: >-
+            Backend profile name. When specified, the response is a filtered (smaller)
+            document and HAL links are not added.
+          schema:
+            type: string
+        - name: lang
+          in: query
+          required: false
+          description: Language code.
+          schema:
+            type: string
+            default: en
+      responses:
+        '200':
+          description: Linked Art document, with `_links` when no profile is specified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkedArtDocument'
+        '404':
+          description: No document exists for the URI. The body is JSON `null`.
+          content:
+            application/json:
+              schema:
+                nullable: true
+                example: null
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/search/{scope}:
+    get:
+      tags: [Search]
+      operationId: search
+      summary: Search
+      description: The primary means to search the LUX backend.
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search
+      parameters:
+        - name: scope
+          in: path
+          required: true
+          description: Search scope. `multi` searches across scopes.
+          schema:
+            type: string
+            enum: [agent, concept, event, item, multi, place, set, work]
+        - $ref: '#/components/parameters/QueryRequired'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageLength
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+        - name: pageWith
+          in: query
+          required: false
+          description: URI of a record; returns the page of results that contains it.
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/FilterResults'
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/search-estimate/{scope}:
+    get:
+      tags: [Search]
+      operationId: searchEstimate
+      summary: Estimate the number of search results
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search-estimate
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - $ref: '#/components/parameters/QueryRequired'
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/search-will-match:
+    get:
+      tags: [Search]
+      operationId: searchWillMatch
+      summary: Check whether a search returns at least one result
+      description: More efficient than `search-estimate` for this purpose.
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search-will-match
+      parameters:
+        - $ref: '#/components/parameters/QueryRequired'
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/facets/{scope}:
+    get:
+      tags: [Search]
+      operationId: facets
+      summary: Get facet values for a search
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#facets
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - name: name
+          in: query
+          required: true
+          description: Facet name.
+          schema:
+            type: string
+          example: responsibleUnits
+        - $ref: '#/components/parameters/QueryRequired'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageLength
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/related-list/{scope}:
+    get:
+      tags: [Search]
+      operationId: relatedList
+      summary: List records related to an entity
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#related-list
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - name: name
+          in: query
+          required: true
+          description: Related list name.
+          schema:
+            type: string
+          example: relatedToAgent
+        - name: uri
+          in: query
+          required: true
+          description: URI of the entity to find related records for.
+          schema:
+            type: string
+            format: uri
+          example: https://lux.collections.yale.edu/data/person/783e7e6f-6863-4978-8aa3-9e6cd8cd8e83
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageLength
+          in: query
+          required: false
+          description: Uses the backend default when omitted.
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/FilterResults'
+        - name: relationshipsPerRelation
+          in: query
+          required: false
+          description: Uses the backend default when omitted.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/translate/{scope}:
+    get:
+      tags: [Search]
+      operationId: translate
+      summary: Translate a search string to LUX JSON search grammar
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#translate
+      parameters:
+        - $ref: '#/components/parameters/Scope'
+        - name: q
+          in: query
+          required: true
+          description: Plain-text search string.
+          schema:
+            type: string
+          example: andy warhol
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/ai-translate:
+    get:
+      tags: [Search]
+      operationId: aiTranslate
+      summary: Translate a natural-language query to LUX JSON search grammar using AI
+      description: |
+        Uses a generative AI model to translate a natural-language request into a LUX
+        JSON search query. Only available when the server is configured with Google
+        Cloud credentials (`GCP_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS`);
+        otherwise every request returns `404`.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Natural-language query.
+          schema:
+            type: string
+          example: paintings by andy warhol
+        - name: prevQuery
+          in: query
+          required: false
+          description: >-
+            A previous LUX JSON search query to refine, allowing follow-up requests
+            such as "only the ones from the 1960s".
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        '404':
+          description: AI translation is not enabled on this server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                statusCode: 404
+                errorMessage: AI translation is not enabled
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/auto-complete:
+    get:
+      tags: [Search]
+      operationId: autoComplete
+      summary: Auto-complete a search term
+      description: Experimental; not currently used by LUX in production.
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#auto-complete
+      parameters:
+        - name: text
+          in: query
+          required: true
+          description: Text to complete.
+          schema:
+            type: string
+          example: oil
+        - name: context
+          in: query
+          required: true
+          description: Search term context, in the form `scope.term`.
+          schema:
+            type: string
+          example: item.material
+        - name: fullyHonorContext
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: onlyMatchOnPrimaryNames
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: onlyReturnPrimaryNames
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageLength
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - name: filterIndex
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: previouslyFiltered
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 1
+        - name: timeoutInMilliseconds
+          in: query
+          required: false
+          description: 0 means use the backend default.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/resolve/{scope}/{unit}/{identifier}:
+    get:
+      tags: [Search]
+      operationId: resolve
+      summary: Redirect from a unit identifier to a LUX record
+      description: |
+        Finds the LUX record with the given identifier and redirects to its view page.
+        If the identifier alone matches more than one record, the search is narrowed to
+        records held by the given unit.
+      parameters:
+        - name: scope
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [objects, works]
+        - name: unit
+          in: path
+          required: true
+          description: Yale unit that holds the record.
+          schema:
+            type: string
+            enum: [lml, pmc, ycba, ypm, yuag, yul]
+        - name: identifier
+          in: path
+          required: true
+          description: Identifier assigned by the unit.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: A unique record was found. Redirects to its view page.
+          headers:
+            Location:
+              description: URL of the record's view page, e.g. `https://lux.collections.yale.edu/view/object/{uuid}`.
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid scope or unit, or the identifier and unit don't resolve to a unique record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No record matches the identifier and unit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/advanced-search-config:
+    get:
+      tags: [Configuration]
+      operationId: advancedSearchConfig
+      summary: Get the advanced search configuration
+      description: >-
+        Returns the configuration the frontend uses to build the advanced search UI,
+        such as search fields, labels, and help text.
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#advanced-search-configuration
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/search-info:
+    get:
+      tags: [Configuration]
+      operationId: searchInfo
+      summary: Get search scopes and terms
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#search-info
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/stats:
+    get:
+      tags: [System]
+      operationId: stats
+      summary: Get estimated record counts per scope
+      externalDocs:
+        url: https://github.com/project-lux/lux-marklogic/blob/main/docs/lux-backend-api-usage.md#stats
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/version-info:
+    get:
+      tags: [System]
+      operationId: versionInfo
+      summary: Get backend version information
+      description: Returns version information reported by the MarkLogic backend.
+      responses:
+        '200':
+          $ref: '#/components/responses/BackendJson'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/_info:
+    get:
+      tags: [System]
+      operationId: info
+      summary: Get middle tier configuration and resource status
+      responses:
+        '200':
+          description: Middle tier status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Info'
+
+  /health:
+    get:
+      tags: [System]
+      operationId: health
+      summary: Health check
+      description: Health check for load balancers. Doesn't contact the backend.
+      responses:
+        '200':
+          description: The server is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+components:
+  parameters:
+    Scope:
+      name: scope
+      in: path
+      required: true
+      description: Search scope.
+      schema:
+        type: string
+        enum: [agent, concept, event, item, place, set, work]
+    QueryRequired:
+      name: q
+      in: query
+      required: true
+      description: Search query in the LUX JSON search grammar, URL-encoded.
+      schema:
+        type: string
+      example: '{"_scope":"item","text":"warhol","_lang":"en"}'
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: Sort specification, passed through to the backend.
+      schema:
+        type: string
+    FilterResults:
+      name: filterResults
+      in: query
+      required: false
+      description: Any value other than `false` is treated as `true`.
+      schema:
+        type: boolean
+        default: true
+
+  responses:
+    BackendJson:
+      description: >-
+        Response from the backend, with entity URIs rewritten to the result host. See
+        the backend documentation for the format.
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+    Error:
+      description: Error from the middle tier or the backend.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [statusCode, errorMessage]
+      properties:
+        statusCode:
+          type: integer
+          example: 500
+        errorMessage:
+          type: string
+          example: failed search
+    LinkedArtDocument:
+      type: object
+      description: A Linked Art JSON-LD document.
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uri
+        type:
+          type: string
+        _links:
+          type: object
+          description: >-
+            HAL links, present only when no `profile` is specified. Contains `self`,
+            a `curies` array, and one entry per relation with `href` and `_estimate`.
+            See docs/hal-links.md.
+          additionalProperties: true
+    Info:
+      type: object
+      properties:
+        version:
+          type: string
+          description: Middle tier version.
+        backend:
+          type: string
+          description: Primary MarkLogic host and port.
+        backendAlt:
+          type: string
+          description: Alternate MarkLogic host and port.
+        altRouteTypes:
+          type: array
+          description: Request types routed to the alternate backend.
+          items:
+            type: string
+        numInstances:
+          type: integer
+        relayTargets:
+          type: array
+          description: Hosts that receive copies of incoming requests.
+          items:
+            type: string
+        mem:
+          type: object
+          description: Output of Node's `process.memoryUsage()`.
+          additionalProperties:
+            type: integer
+        rsrc:
+          type: object
+          description: Output of Node's `process.resourceUsage()`.
+          additionalProperties:
+            type: integer
+        node:
+          type: string
+        arch:
+          type: string
+        platform:
+          type: string
+        pid:
+          type: integer
