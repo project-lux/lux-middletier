@@ -21,6 +21,28 @@ import { belongsToAltRoute } from '../lib/util.js'
 import json from '../package.json' with {type: "json"}
 
 /**
+ * Coerce a status code from an error into one Express 5's res.status() will
+ * accept. Express 5 throws on anything that isn't an integer in 100-999
+ * (Express 4 only warned), and since handleError runs in un-awaited .catch()
+ * blocks, that throw would become an unhandled rejection and kill the process.
+ * Numeric strings such as "502" are converted, as Express 4 effectively did.
+ * Anything else, or a non-error code (outside 400-599), becomes 500.
+ *
+ * @param {*} statusCode - raw status code from the error
+ * @returns {number} a valid HTTP error status code
+ */
+const normalizeStatusCode = (statusCode) => {
+  const code = typeof statusCode === 'string' && /^\s*\d+\s*$/.test(statusCode)
+    ? Number(statusCode)
+    : statusCode
+  if (Number.isInteger(code) && code >= 400 && code <= 599) {
+    return code
+  }
+  log.error(`Invalid error status code ${JSON.stringify(statusCode)}; using 500`)
+  return 500
+}
+
+/**
  * Create error response based on the error object passed in and send it
  * to client.
  *
@@ -36,6 +58,8 @@ const handleError = (err, defaultMessage, res) => {
   if (statusCode === 0) {
     statusCode = 500
     errorMessage = defaultMessage
+  } else {
+    statusCode = normalizeStatusCode(statusCode)
   }
 
   log.error(`${defaultMessage} - ${errorMessage}`)
@@ -97,7 +121,33 @@ class App {
     })
     exp.get('/api/_info', App._handleInfo)
 
-    exp.listen(port, () => {
+    // Final error handler. Express 5 forwards errors thrown or rejected in
+    // async route handlers (e.g. URIError from decodeURIComponent on a
+    // malformed query string) to error middleware. Without this, Express's
+    // default handler responds with an HTML page that can include the stack
+    // trace. Must be registered after all routes and keep 4 parameters.
+    // eslint-disable-next-line no-unused-vars
+    exp.use((err, req, res, next) => {
+      if (res.headersSent) {
+        // Response already started; let Express close the connection.
+        return next(err)
+      }
+      if (err instanceof URIError && err.statusCode === undefined) {
+        // Malformed percent-encoding in the request is a client error.
+        err.statusCode = 400
+      }
+      const errorCopy = handleError(err, `unhandled error for ${req.method} ${req.url}`, res)
+      log.logResult(req, null, 0n, errorCopy)
+    })
+
+    exp.listen(port, (err) => {
+      // Express 5 passes server startup errors (e.g. EADDRINUSE) to this
+      // callback instead of letting them crash the process. Rethrow so the
+      // process exits and gets restarted, matching Express 4 behavior.
+      if (err) {
+        log.error(`Failed to listen on port ${port}: ${err.message}`)
+        throw err
+      }
       log.info(`Listening on port ${port}`)
     })
   }
