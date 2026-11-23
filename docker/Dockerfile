@@ -37,6 +37,9 @@ RUN apt-get update && \
 
 ADD docker/import-config-start.sh /app/
 
+# Keeps Express from including stack traces in its default error responses.
+ENV NODE_ENV=production
+
 WORKDIR /app
 
 RUN node --version

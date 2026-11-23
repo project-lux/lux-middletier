@@ -21,6 +21,28 @@ import { belongsToAltRoute } from '../lib/util.js'
 import json from '../package.json' with {type: "json"}
 
 /**
+ * Coerce a status code from an error into one Express 5's res.status() will
+ * accept. Express 5 throws on anything that isn't an integer in 100-999
+ * (Express 4 only warned), and since handleError runs in un-awaited .catch()
+ * blocks, that throw would become an unhandled rejection and kill the process.
+ * Numeric strings such as "502" are converted, as Express 4 effectively did.
+ * Anything else, or a non-error code (outside 400-599), becomes 500.
+ *
+ * @param {*} statusCode - raw status code from the error
+ * @returns {number} a valid HTTP error status code
+ */
+const normalizeStatusCode = (statusCode) => {
+  const code = typeof statusCode === 'string' && /^\s*\d+\s*$/.test(statusCode)
+    ? Number(statusCode)
+    : statusCode
+  if (Number.isInteger(code) && code >= 400 && code <= 599) {
+    return code
+  }
+  log.error(`Invalid error status code ${JSON.stringify(statusCode)}; using 500`)
+  return 500
+}
+
+/**
  * Create error response based on the error object passed in and send it
  * to client.
  *
@@ -36,6 +58,8 @@ const handleError = (err, defaultMessage, res) => {
   if (statusCode === 0) {
     statusCode = 500
     errorMessage = defaultMessage
+  } else {
+    statusCode = normalizeStatusCode(statusCode)
   }
 
   log.error(`${defaultMessage} - ${errorMessage}`)
@@ -45,8 +69,7 @@ const handleError = (err, defaultMessage, res) => {
     errorMessage,
   }
 
-  res.status(statusCode)
-  res.json(result)
+  res.status(statusCode).json(result)
   return result
 }
 
@@ -68,7 +91,7 @@ class App {
     exp.use(express.static('public'))
     exp.use(relayAndForget)
 
-    exp.options('*', (req, res) => {
+    exp.options('/{*splat}', (req, res) => {
       res.header('Access-Control-Allow-Origin', '*')
       res.header('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS')
       res.sendStatus(200)
@@ -92,13 +115,39 @@ class App {
     exp.get('/data/:type/:uuid', this.handleGetDocument.bind(this))
 
     exp.get('/health', (req, res) => {
-      res.json({
+      res.status(200).json({
         status: 'ok',
       })
     })
     exp.get('/api/_info', App._handleInfo)
 
-    exp.listen(port, () => {
+    // Final error handler. Express 5 forwards errors thrown or rejected in
+    // async route handlers (e.g. URIError from decodeURIComponent on a
+    // malformed query string) to error middleware. Without this, Express's
+    // default handler responds with an HTML page that can include the stack
+    // trace. Must be registered after all routes and keep 4 parameters.
+    // eslint-disable-next-line no-unused-vars
+    exp.use((err, req, res, next) => {
+      if (res.headersSent) {
+        // Response already started; let Express close the connection.
+        return next(err)
+      }
+      if (err instanceof URIError && err.statusCode === undefined) {
+        // Malformed percent-encoding in the request is a client error.
+        err.statusCode = 400
+      }
+      const errorCopy = handleError(err, `unhandled error for ${req.method} ${req.url}`, res)
+      log.logResult(req, null, 0n, errorCopy)
+    })
+
+    exp.listen(port, (err) => {
+      // Express 5 passes server startup errors (e.g. EADDRINUSE) to this
+      // callback instead of letting them crash the process. Rethrow so the
+      // process exits and gets restarted, matching Express 4 behavior.
+      if (err) {
+        log.error(`Failed to listen on port ${port}: ${err.message}`)
+        throw err
+      }
       log.info(`Listening on port ${port}`)
     })
   }
@@ -118,7 +167,7 @@ class App {
 
     mlProxy.advancedSearchConfig()
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -148,7 +197,7 @@ class App {
       let errorCopy = {}
       this.ai.aiTranslate(qstr, mlProxy, prevQuery)
         .then(result => {
-          res.json(replaceStringsInObject(
+          res.status(200).json(replaceStringsInObject(
             result,
             this.searchUriHost,
             this.resultUriHost,
@@ -191,7 +240,7 @@ class App {
       filterIndex,
       previouslyFiltered,
       timeoutInMilliseconds,
-    ).then(result => res.json(result)).catch(
+    ).then(result => res.status(200).json(result)).catch(
       (err) => {
         errorCopy = handleError(err, 'failed autocomplete', res)
       },
@@ -211,8 +260,7 @@ class App {
     mlProxy.getDocument(uri, profile || null, lang || null)
       .then(async doc => {
         if (doc == null) {
-          res.status(404)
-          res.json(null)
+          res.status(404).json(null)
         } else {
           let links = null
           if (!profile) {
@@ -228,7 +276,7 @@ class App {
             this.resultUriHost,
             links,
           )
-          res.json(doc2)
+          res.status(200).json(doc2)
         }
       })
       .catch(err => {
@@ -255,7 +303,7 @@ class App {
 
     mlProxy.facets(name, qstr, scope, page, pageLength, sort)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -294,7 +342,7 @@ class App {
       relationshipsPerRelation,
     })
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -351,11 +399,9 @@ class App {
                   throw new ResolveError(`Identifier '${identifier}' and unit '${unit}' do not resolve to a unique record`, 400)
                 } else if (secondaryResult.orderedItems.length === 1) {
                 // we found a unique result, send a redirect to that record
-                  res.redirect(
-                    secondaryResult.orderedItems[0].id
+                  res.redirect(secondaryResult.orderedItems[0].id
                       .replace(this.searchUriHost, this.resultUriHost)
-                      .replace('data', 'view'),
-                  )
+                      .replace('data', 'view'))
                 } else {
                 // If the length of orderedItems is 0, there are no results
                   throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
@@ -375,11 +421,9 @@ class App {
             })
           } else if (result.orderedItems.length === 1) {
           // we found a unique result, send a redirect to that record
-            res.redirect(
-              result.orderedItems[0].id
+            res.redirect(result.orderedItems[0].id
                 .replace(this.searchUriHost, this.resultUriHost)
-                .replace('data', 'view'),
-            )
+                .replace('data', 'view'))
           } else {
           // If the length of orderedItems is 0, there are no results
             throw new ResolveError(`No results for identifier '${identifier}' and unit '${unit}'`, 404)
@@ -426,7 +470,7 @@ class App {
       filterResults,
     })
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -449,7 +493,7 @@ class App {
 
     mlProxy.searchEstimate(qstr, scope)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -469,7 +513,7 @@ class App {
     let errorCopy = {}
 
     mlProxy.searchInfo()
-      .then(result => res.json(result))
+      .then(result => res.status(200).json(result))
       .catch(err => {
         errorCopy = handleError(err, 'failed to retrieve search info', res)
       })
@@ -486,7 +530,7 @@ class App {
 
     mlProxy.searchWillMatch(qstr)
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -507,7 +551,7 @@ class App {
 
     mlProxy.stats()
       .then(result => {
-        res.json(result)
+        res.status(200).json(result)
       })
       .catch(err => {
         errorCopy = handleError(err, 'failed stats', res)
@@ -528,7 +572,7 @@ class App {
       scope,
     )
       .then(result => {
-        res.json(replaceStringsInObject(
+        res.status(200).json(replaceStringsInObject(
           result,
           this.searchUriHost,
           this.resultUriHost,
@@ -549,7 +593,7 @@ class App {
 
     mlProxy.versionInfo()
       .then(result => {
-        res.json(result)
+        res.status(200).json(result)
       })
       .catch(err => {
         errorCopy = handleError(err, 'failed versionInfo', res)
@@ -561,7 +605,7 @@ class App {
 
   static _handleInfo = (req, res) => {
     const memUsage = process.memoryUsage()
-    res.json({
+    res.status(200).json({
       version: env.version,
       backend: `${env.mlHost}:${env.mlPort}`,
       backendAlt: `${env.mlHost}:${env.mlPort2}`,
