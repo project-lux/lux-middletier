@@ -18,6 +18,8 @@
 
 ## v1.14.0
 - Add compression to responses [277](https://github.com/project-lux/lux-middletier/issues/277).
+- Change Collections facets [255](https://github.com/project-lux/lux-middletier/issues/255).
+
 
 ## v1.13.0
 - Update system prompts [270](https://github.com/project-lux/lux-middletier/issues/270).
