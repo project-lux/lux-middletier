@@ -1,6 +1,7 @@
 import { hrtime } from 'node:process'
 import cors from 'cors'
 import express from 'express'
+import compression from 'compression'
 
 import env from '../config/env.js'
 import HalLinksBuilder from '../lib/hal-links-builder.js'
@@ -67,6 +68,7 @@ class App {
     exp.use(express.json({ limit: '2mb' }))
     exp.use(express.static('public'))
     exp.use(relayAndForget)
+    exp.use(compression())
 
     exp.options('*', (req, res) => {
       res.header('Access-Control-Allow-Origin', '*')
